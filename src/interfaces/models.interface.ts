@@ -1,61 +1,36 @@
-// Refleja las tablas de Supabase
-
 export interface Usuario {
   id: string;
   nombre: string;
-  email: string;
-  tipo: "cuidador" | "adulto_mayor";
-  telefono?: string;
+  apellido: string;
+  mail: string;
+  edad?: number;
   created_at: string;
 }
 
-export interface Medicamento {
+export interface Pastilla {
   id: string;
-  paciente_id: string;
+  usuario_id: string;
   nombre: string;
-  descripcion?: string;
+  tipo?: string;
+  caracteristicas?: string;
   created_at: string;
 }
 
-export interface HorarioMedicamento {
+export interface Horario {
   id: string;
-  medicamento_id: string;
-  hora: string;           // HH:MM
-  dias: string[];         // ['lunes', 'miercoles']
-  cantidad: number;
-  created_at: string;
-}
-
-export interface Actividad {
-  id: string;
-  paciente_id: string;
-  titulo: string;
-  descripcion?: string;
-  fecha_hora: string;
-  created_at: string;
-}
-
-export interface Alerta {
-  id: string;
-  paciente_id: string;
-  tipo: "medicamento" | "actividad" | "emergencia";
-  mensaje: string;
-  leida: boolean;
+  pastilla_id: string;
+  dia: string;
+  hora: number;
+  minuto: number;
   created_at: string;
 }
 
 export interface ContactoEmergencia {
   id: string;
-  paciente_id: string;
+  usuario_id: string;
   nombre: string;
-  telefono: string;
-  relacion?: string;
-  created_at: string;
-}
-
-export interface CuidadorPaciente {
-  id: string;
-  cuidador_id: string;
-  paciente_id: string;
+  apellido: string;
+  numero: string;
+  dni?: string;
   created_at: string;
 }
