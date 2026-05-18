@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { supabase } from "./config/supabase";
 
 dotenv.config();
 
@@ -13,6 +14,13 @@ app.use(express.json());
 // Health check
 app.get("/health", (_req, res) => {
   res.json({ success: true, message: "Voitos API funcionando" });
+});
+
+// Test de conexión a Supabase
+app.get("/test-db", async (_req, res) => {
+  const { data, error } = await supabase.from("usuarios").select("*");
+  if (error) return res.json({ success: false, error: error.message });
+  res.json({ success: true, data });
 });
 
 // Rutas (se irán agregando por sprint)

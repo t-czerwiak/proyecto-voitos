@@ -1,7 +1,40 @@
-node_modules
+# Dependencias
+node_modules/
+
+# Build
 dist/
+build/
+
+# Variables de entorno
 .env
+.env.local
+.env.*.local
+
+# TypeScript
 *.js.map
-# Added by code-review-graph
+*.d.ts.map
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Herramientas del proyecto
 .code-review-graph/
+.claude/
+
+# Claude Code
+CLAUDE.md
 claude.md
