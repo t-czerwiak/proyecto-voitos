@@ -1,11 +1,13 @@
-# Voitos - Backend
+# Voitos 
 
-Backend del proyecto Voitos, un pastillero inteligente para adultos mayores.
+Proyecto Voitos, un pastillero inteligente para adultos mayores y sus cuidadores
 
 ## Tecnologías
 - Node.js + TypeScript
 - Express
 - Supabase
+- React Native
+- Fusion
 
 ## Integrantes
 - Timoteo Czerwiak — Backend

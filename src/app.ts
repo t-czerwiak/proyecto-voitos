@@ -1,7 +1,12 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { supabase } from "./config/supabase";
+
+import usuariosRoutes from "./routes/usuarios.routes";
+import pastillasRoutes from "./routes/pastillas.routes";
+import horariosRoutes from "./routes/horarios.routes";
+import contactosRoutes from "./routes/contactos.routes";
+import sensorRoutes from "./routes/sensor.routes";
 
 dotenv.config();
 
@@ -11,22 +16,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health check
+// Health check (publico)
 app.get("/health", (_req, res) => {
   res.json({ success: true, message: "Voitos API funcionando" });
 });
 
-// Test de conexión a Supabase
-app.get("/test-db", async (_req, res) => {
-  const { data, error } = await supabase.from("usuarios").select("*");
-  if (error) return res.json({ success: false, error: error.message });
-  res.json({ success: true, data });
-});
+// Rutas protegidas
+app.use("/api/usuarios", usuariosRoutes);
+app.use("/api/pastillas", pastillasRoutes);
+app.use("/api/horarios", horariosRoutes);
+app.use("/api/contactos", contactosRoutes);
 
-// Rutas (se irán agregando por sprint)
-// app.use("/api/sensor", sensorRoutes);
-// app.use("/api/medicamentos", medicamentosRoutes);
-// app.use("/api/actividades", actividadesRoutes);
-// app.use("/api/alertas", alertasRoutes);
+// Rutas publicas
+app.use("/api/sensor", sensorRoutes);
 
 export default app;
