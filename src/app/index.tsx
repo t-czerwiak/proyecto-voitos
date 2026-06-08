@@ -1,26 +1,37 @@
-import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { View, Text, Pressable, StyleSheet, Image } from "react-native";
+import { useState } from "react";
 
-export default function LoginScreen() {
+  export default function LoginScreen() {
+    const [hover, setHover] = useState(false);
+  
   return (
     <View style={styles.container}>
       <Image
-        source={require("../../assets/logo.png")}
+        source={require("../../assets/images/logoClaro.png")}
         style={styles.logo}
         resizeMode="contain"
       />
 
       <View style={styles.bottomContainer}>
-        <TouchableOpacity style={styles.loginButton}>
-          <Text style={styles.loginButtonText}>
-            INICIO DE SESIÓN
-          </Text>
-        </TouchableOpacity>
+      <Pressable
+  style={[
+    styles.loginButton,
+    hover && styles.loginButtonHover,
+  ]}
+    onHoverIn={() => setHover(true)}
+    onHoverOut={() => setHover(false)}
+>
+  <Text style={styles.loginButtonText}>
+    INICIO DE SESIÓN
+  </Text>
+</Pressable>
+       
 
-        <TouchableOpacity>
+        <Pressable>
           <Text style={styles.createAccountText}>
             Crear cuenta
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
@@ -37,8 +48,8 @@ const styles = StyleSheet.create({
   },
 
   logo: {
-    width: 260,
-    height: 120,
+    width: 500,
+    height: 215,
   },
 
   bottomContainer: {
@@ -46,25 +57,17 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 
-  loginButton: {
-    backgroundColor: "#004E1E",
-    width: 280,
-    height: 60,
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
 
-    justifyContent: "center",
-    alignItems: "center",
-
-    shadowColor: "#098B03",
-    shadowOffset: {
-      width: 0,
-      height: 0,
+    loginButton: {
+      backgroundColor: "#004E1E",
+      paddingVertical: 15,
+      borderRadius: 12,
+      alignItems: "center",
     },
-    shadowOpacity: 1,
-    shadowRadius: 15,
-    elevation: 10,
+    
+
+   loginButtonHover: {
+    backgroundColor: "#F5D7B2",
   },
 
   loginButtonText: {
@@ -78,4 +81,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 25,
   },
+  
 });
