@@ -1,11 +1,9 @@
 import { z } from "zod";
 
-export const LecturaCreateSchema = z.object({
+export const ConfirmacionSchema = z.object({
   dispositivo_id: z.string().min(1, "dispositivo_id requerido"),
-  pastilla_id: z.string().uuid("pastilla_id debe ser UUID").nullable().optional(),
-  pastilla_dispensada: z.boolean(),
+  horario_id: z.string().uuid("horario_id debe ser UUID"),
   bateria: z.number().int().min(0).max(100, "bateria debe estar entre 0 y 100"),
-  timestamp: z.string().datetime().optional(),
 });
 
-export type LecturaCreate = z.infer<typeof LecturaCreateSchema>;
+export type Confirmacion = z.infer<typeof ConfirmacionSchema>;
