@@ -61,25 +61,34 @@ const styles = StyleSheet.create({
     loginButton: {
       backgroundColor: "#004E1E",
       paddingVertical: 15,
-      borderRadius: 12,
-      alignItems: "center",
+     width: 280,
+     height: 60,
+     borderRadius: 15,
+     borderWidth: 2,
+     borderColor: "#FFFFFF",
+     justifyContent: "center",
+    alignItems: "center",
     },
     
 
    loginButtonHover: {
-    backgroundColor: "#F5D7B2",
+    backgroundColor: "#098B03",
   },
 
   loginButtonText: {
+    fontFamily: "Nunito_900Bold",
     color: "#FFFFFF",
     fontSize: 20,
-    fontWeight: "900",
+    
+    
   },
 
   createAccountText: {
+    fontFamily: "Nunito_500Regular",
     color: "#FFFFFF",
     fontSize: 18,
     marginTop: 25,
+    
   },
   
 });
