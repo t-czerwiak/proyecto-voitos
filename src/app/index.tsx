@@ -53,21 +53,29 @@ const styles = StyleSheet.create({
   },
 
   bottomContainer: {
-    alignItems: "center",
-    width: "100%",
+    alignItems: 'center',
+    justifyContent: 'center'
   },
 
 
     loginButton: {
-      backgroundColor: "#004E1E",
-      paddingVertical: 15,
-     width: 280,
-     height: 60,
-     borderRadius: 15,
+      backgroundColor: '#004d1a', 
      borderWidth: 2,
-     borderColor: "#FFFFFF",
-     justifyContent: "center",
-    alignItems: "center",
+     borderColor: '#ffffff', 
+     paddingVertical: 16,
+     paddingHorizontal: 40,
+     borderRadius: 12,
+     alignItems: 'center',
+     justifyContent: 'center',
+     minWidth: 280,
+     
+     shadowColor: '#00FF66',
+     shadowOffset: { width: 0, height: 0 },
+     shadowOpacity: 0.8,
+     shadowRadius: 15,
+     elevation: 10,
+    
+     boxShadow: '0 0 20px #00FF66',
     },
     
 
@@ -76,7 +84,7 @@ const styles = StyleSheet.create({
   },
 
   loginButtonText: {
-    fontFamily: "Nunito_900Bold",
+    fontFamily: "Nunito_700Bold",
     color: "#FFFFFF",
     fontSize: 20,
     
@@ -84,11 +92,17 @@ const styles = StyleSheet.create({
   },
 
   createAccountText: {
-    fontFamily: "Nunito_500Regular",
+    fontFamily: "Nunito_400Regular",
     color: "#FFFFFF",
     fontSize: 18,
     marginTop: 25,
     
   },
+
+ 
+   
+        
+  
+  
   
 });
