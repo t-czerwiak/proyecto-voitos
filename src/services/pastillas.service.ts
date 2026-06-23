@@ -44,3 +44,15 @@ export const deletePastilla = async (id: string) => {
   const { error } = await supabase.from("pastillas").delete().eq("id", id);
   if (error) throw new Error(error.message);
 };
+
+export const getHorariosByPastilla = async (id: string) => {
+  const { data, error } = await supabase
+    .from("horarios")
+    .select("*")
+    .eq("pastilla_id", id)
+    .order("dia", { ascending: true })
+    .order("hora", { ascending: true })
+    .order("minuto", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
+};

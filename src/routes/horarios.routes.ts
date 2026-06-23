@@ -7,6 +7,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get("/", horariosController.getAll);
+router.get("/dia/:fecha", horariosController.getByDia);
 router.get("/:id", horariosController.getById);
 router.post("/", horariosController.create);
 router.put("/:id", horariosController.update);
