@@ -65,3 +65,12 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+export const getHorarios = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await pastillasService.getHorariosByPastilla(req.params.id);
+    res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

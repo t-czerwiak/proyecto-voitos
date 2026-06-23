@@ -44,3 +44,14 @@ export const deleteHorario = async (id: string) => {
   const { error } = await supabase.from("horarios").delete().eq("id", id);
   if (error) throw new Error(error.message);
 };
+
+export const getHorariosByDia = async (fecha: string) => {
+  const { data, error } = await supabase
+    .from("horarios")
+    .select("*, pastillas(id, nombre, tipo)")
+    .eq("dia", fecha)
+    .order("hora", { ascending: true })
+    .order("minuto", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
+};

@@ -8,6 +8,7 @@ router.use(authMiddleware);
 
 router.get("/", pastillasController.getAll);
 router.get("/:id", pastillasController.getById);
+router.get("/:id/horarios", pastillasController.getHorarios);
 router.post("/", pastillasController.create);
 router.put("/:id", pastillasController.update);
 router.delete("/:id", pastillasController.remove);

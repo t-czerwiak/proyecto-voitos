@@ -7,6 +7,7 @@ import pastillasRoutes from "./routes/pastillas.routes";
 import horariosRoutes from "./routes/horarios.routes";
 import contactosRoutes from "./routes/contactos.routes";
 import sensorRoutes from "./routes/sensor.routes";
+import dispensacionesRoutes from "./routes/dispensaciones.routes";
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/pastillas", pastillasRoutes);
 app.use("/api/horarios", horariosRoutes);
 app.use("/api/contactos", contactosRoutes);
+app.use("/api/dispensaciones", dispensacionesRoutes);
 
 // Rutas publicas
 app.use("/api/sensor", sensorRoutes);
