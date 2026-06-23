@@ -1,41 +1,39 @@
 import { supabase } from "../config/supabase";
 import { Confirmacion } from "../schemas/sensor.schema";
 
-export const getPendiente = async () => {
-  const ahora = new Date();
-  const hoy = ahora.toISOString().split("T")[0]; // "2026-06-08"
-  const horaActual = ahora.getUTCHours();
-  const minutoActual = ahora.getUTCMinutes();
+const TIMEZONE_OFFSET_HS = -3; // Argentina UTC-3
 
-  // Ventana de los ultimos 5 minutos
-  const minutoDesde = minutoActual - 5;
-  const horaDesde = minutoDesde < 0 ? horaActual - 1 : horaActual;
+const getHoraArgentina = () => {
+  const ahora = new Date();
+  ahora.setUTCHours(ahora.getUTCHours() + TIMEZONE_OFFSET_HS);
+  return {
+    hoy: ahora.toISOString().split("T")[0],
+    hora: ahora.getUTCHours(),
+    minuto: ahora.getUTCMinutes(),
+  };
+};
+
+export const getPendiente = async () => {
+  const { hoy, hora, minuto } = getHoraArgentina();
+
+  const minutoDesde = minuto - 5;
+  const horaDesde = hora - 1;
   const minutoDesdeReal = minutoDesde < 0 ? 60 + minutoDesde : minutoDesde;
 
-  let query;
+  const filtro =
+    minutoDesde < 0
+      ? `and(hora.eq.${hora},minuto.gte.0,minuto.lte.${minuto}),and(hora.eq.${horaDesde},minuto.gte.${minutoDesdeReal},minuto.lte.59)`
+      : `and(hora.eq.${hora},minuto.gte.${minutoDesdeReal},minuto.lte.${minuto})`;
 
-  // Si la ventana cruza el cambio de hora (ej: 10:02 buscando desde 09:57)
-  if (minutoDesde < 0) {
-    query = supabase
-      .from("horarios")
-      .select("id, pastilla_id, hora, minuto")
-      .eq("dia", hoy)
-      .eq("dispensado", false)
-      .or(
-        `and(hora.eq.${horaActual},minuto.gte.0,minuto.lte.${minutoActual}),and(hora.eq.${horaDesde},minuto.gte.${minutoDesdeReal},minuto.lte.59)`
-      );
-  } else {
-    query = supabase
-      .from("horarios")
-      .select("id, pastilla_id, hora, minuto")
-      .eq("dia", hoy)
-      .eq("dispensado", false)
-      .eq("hora", horaActual)
-      .gte("minuto", minutoDesdeReal)
-      .lte("minuto", minutoActual);
-  }
+  const { data, error } = await supabase
+    .from("horarios")
+    .select("id, pastilla_id, hora, minuto")
+    .eq("dia", hoy)
+    .eq("dispensado", false)
+    .or(filtro)
+    .limit(1)
+    .maybeSingle();
 
-  const { data, error } = await query.limit(1).maybeSingle();
   if (error) throw new Error(error.message);
 
   return data
