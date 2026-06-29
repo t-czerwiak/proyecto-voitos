@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { useState } from "react";
-
+import { router } from "expo-router";
   export default function LoginScreen() {
     const [hover, setHover] = useState(false);
   
@@ -27,11 +27,11 @@ import { useState } from "react";
 </Pressable>
        
 
-        <Pressable>
-          <Text style={styles.createAccountText}>
-            Crear cuenta
-          </Text>
-        </Pressable>
+   <Pressable onPress={() => router.push("/crear-cuenta")}>
+     <Text style={styles.createAccountText}>
+      Crear cuenta
+      </Text>
+    </Pressable>
       </View>
     </View>
   );
