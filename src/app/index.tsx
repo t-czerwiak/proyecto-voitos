@@ -20,6 +20,7 @@ import { router } from "expo-router";
   ]}
     onHoverIn={() => setHover(true)}
     onHoverOut={() => setHover(false)}
+    onPress={() => router.push("/Login")}
 >
   <Text style={styles.loginButtonText}>
     INICIO DE SESIÓN
@@ -51,7 +52,7 @@ const styles = StyleSheet.create({
     width: 500,
     height: 215,
   },
-
+   
   bottomContainer: {
     alignItems: 'center',
     justifyContent: 'center'

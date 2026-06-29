@@ -7,6 +7,7 @@ import {
   Text,
   Image,
   StyleSheet,
+  Pressable
 } from "react-native";
 
 export default function CrearCuenta() {
@@ -17,11 +18,13 @@ export default function CrearCuenta() {
 
   return (
     <View style={styles.container}>
-      <Image
-        source={require("../../../assets/images/logoClaro.png")}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      <Pressable onPress={() => router.push("/")}>
+           <Image
+             source={require("../../../assets/images/logoClaro.png")}
+             style={styles.logo}
+             resizeMode="contain"
+           />
+           </Pressable>
 
       <View style={styles.form}>
         <TextInput
@@ -88,14 +91,16 @@ const styles = StyleSheet.create({
     gap: 22,
   },
 
+  
   input: {
-    width: "92%",
-    height: 58,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 30,
-    paddingHorizontal: 18,
-    fontSize: 18,
-    color: "#000",
+      backgroundColor: '#fff',
+      width: '85%',         
+      maxWidth: 400,         
+      height: 50,           
+      borderRadius: 25,      
+      paddingHorizontal: 20, 
+      fontSize: 16,
+      marginVertical: 10,
 
     shadowColor: "#FFFFFF",
     shadowOffset: {
