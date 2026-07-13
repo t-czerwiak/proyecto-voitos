@@ -1,17 +1,6 @@
 import { supabase } from "../config/supabase";
 import { Confirmacion } from "../schemas/sensor.schema";
-
-const TIMEZONE_OFFSET_HS = -3; // Argentina UTC-3
-
-const getHoraArgentina = () => {
-  const ahora = new Date();
-  ahora.setUTCHours(ahora.getUTCHours() + TIMEZONE_OFFSET_HS);
-  return {
-    hoy: ahora.toISOString().split("T")[0],
-    hora: ahora.getUTCHours(),
-    minuto: ahora.getUTCMinutes(),
-  };
-};
+import { getHoraArgentina } from "../utils/tiempo";
 
 export const getPendiente = async () => {
   const { hoy, hora, minuto } = getHoraArgentina();
