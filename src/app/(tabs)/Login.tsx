@@ -139,8 +139,11 @@ export default function CrearCuenta() {
           />
         </View>
 
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>INICAR SESION</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push("/home")}
+          >
+         <Text style={styles.buttonText}>INICIAR SESIÓN</Text>
         </TouchableOpacity>
       </View>
     </LinearGradient>

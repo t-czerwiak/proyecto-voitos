@@ -1,26 +1,33 @@
 import { View, StyleSheet, Text } from "react-native";
 import { router } from "expo-router";
 import MenuCard from "../../components/MenuCard";
+import LavaBackground from "../../components/LavaBackground";
 
 export default function Menu() {
   return (
     <View style={styles.container}>
 
-      <Text style={styles.title}>
-        MENÚ
-      </Text>
+      {/* Fondo animado */}
+      <LavaBackground />
 
-      <MenuCard
-        title="CALENDARIO"
-        image={require("../../assets/images/calendario.png")}
-        onPress={() => router.push("/calendario")}
-      />
+      {/* Contenido */}
+      <View style={styles.content}>
+        <Text style={styles.title}>
+          MENÚ
+        </Text>
 
-      <MenuCard
-        title="PASTILLAS"
-        image={require("../../assets/images/pastillas.png")}
-        onPress={() => router.push("/medicacion")}
-      />
+        <MenuCard
+          title="CALENDARIO"
+          image={require("../../../assets/images/calendario.jpg")}
+          onPress={() => router.push("/calendario")}
+        />
+
+        <MenuCard
+          title="PASTILLAS"
+          image={require("../../../assets/images/pastillas.jpg")}
+          onPress={() => router.push("/medicacion")}
+        />
+      </View>
 
     </View>
   );
@@ -29,9 +36,14 @@ export default function Menu() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+  },
+
+  content: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 1, // Hace que el contenido quede por encima del fondo
+    
   },
 
   title: {
