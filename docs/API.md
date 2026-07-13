@@ -54,6 +54,21 @@ maneja tokens JWT.
 | GET | `/api/sensor/pendiente` | La ESP32 consulta cada 5 min si hay un horario para dispensar ahora |
 | POST | `/api/sensor/confirmacion` | La ESP32 confirma que dispensó tras apretar el botón físico |
 
+**Respuesta de `GET /api/sensor/pendiente`:**
+```json
+{
+  "success": true,
+  "data": {
+    "pendiente": true,
+    "horario": { "id": "uuid", "pastilla_id": "uuid", "hora": 15, "minuto": 31 },
+    "servo": 1
+  }
+}
+```
+`servo` es el número de servo que la ESP32 tiene que activar (el módulo que tiene
+esa pastilla cargada). Si no hay nada pendiente, `pendiente` es `false` y `servo`
+es `null`.
+
 **Body de `POST /api/sensor/confirmacion`:**
 ```json
 {
@@ -137,6 +152,7 @@ hoy, o es hoy pero la hora ya quedó atrás) y sigue con `dispensado = false`.
 | `horarios` | Cuándo tomar cada pastilla (`dispensado` marca si ya se cumplió) |
 | `contactos_emergencia` | A quién avisar por usuario |
 | `dispensaciones` | Registro de cada dispensación confirmada por la ESP32 |
+| `modulos` | Módulo físico (tolva + filtro + servo). `servo` identifica el motor; `pastilla_id` es la pastilla que tiene cargada |
 
 **RLS (Row Level Security):** activado en **todas** las tablas. El backend usa
 la service_role key, que saltea RLS por diseño (es la clave de servidor de

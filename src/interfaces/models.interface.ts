@@ -43,3 +43,11 @@ export interface Dispensacion {
   bateria: number;
   timestamp: string;
 }
+
+export interface Modulo {
+  id: string;
+  servo: number; // numero de servo que el Arduino identifica por pin
+  pastilla_id: string | null; // que pastilla tiene cargada (null si vacio)
+  dispositivo_id: string;
+  created_at: string;
+}
