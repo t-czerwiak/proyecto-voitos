@@ -9,7 +9,7 @@ export default function Medicacion() {
 
       <View style={styles.content}>
         <Text style={styles.title}>
-          PASTI<Text style={styles.i}>I</Text>LLAS
+          PAST<Text style={styles.i}>I</Text>LLAS
         </Text>
 
         <Pressable style={styles.button}>
