@@ -25,20 +25,20 @@ export const getPendiente = async () => {
 
   if (error) throw new Error(error.message);
 
-  if (!data) return { pendiente: false, horario: null, servo: null };
+  if (!data) return { pendiente: false, horario: null, modulo: null };
 
-  // Buscar que servo tiene cargada esa pastilla, que es el que la ESP32 tiene
-  // que activar. Si ninguna modulo la tiene cargada, servo queda null.
+  // Buscar que modulo tiene cargada esa pastilla, que es el que la ESP32 tiene
+  // que activar. Si ningun modulo la tiene cargada, modulo queda null.
   const { data: modulo, error: errorModulo } = await supabase
     .from("modulos")
-    .select("servo")
+    .select("numero")
     .eq("pastilla_id", data.pastilla_id)
     .limit(1)
     .maybeSingle();
 
   if (errorModulo) throw new Error(errorModulo.message);
 
-  return { pendiente: true, horario: data, servo: modulo?.servo ?? null };
+  return { pendiente: true, horario: data, modulo: modulo?.numero ?? null };
 };
 
 export const createConfirmacion = async (body: Confirmacion) => {

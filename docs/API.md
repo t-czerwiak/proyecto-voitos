@@ -61,13 +61,13 @@ maneja tokens JWT.
   "data": {
     "pendiente": true,
     "horario": { "id": "uuid", "pastilla_id": "uuid", "hora": 15, "minuto": 31 },
-    "servo": 1
+    "modulo": 1
   }
 }
 ```
-`servo` es el número de servo que la ESP32 tiene que activar (el módulo que tiene
-esa pastilla cargada). Si no hay nada pendiente, `pendiente` es `false` y `servo`
-es `null`.
+`modulo` es el número de módulo que la ESP32 tiene que activar (el que tiene esa
+pastilla cargada). El Arduino mapea el número de módulo a su servo. Si no hay
+nada pendiente, `pendiente` es `false` y `modulo` es `null`.
 
 **Body de `POST /api/sensor/confirmacion`:**
 ```json
@@ -152,7 +152,7 @@ hoy, o es hoy pero la hora ya quedó atrás) y sigue con `dispensado = false`.
 | `horarios` | Cuándo tomar cada pastilla (`dispensado` marca si ya se cumplió) |
 | `contactos_emergencia` | A quién avisar por usuario |
 | `dispensaciones` | Registro de cada dispensación confirmada por la ESP32 |
-| `modulos` | Módulo físico (tolva + filtro + servo). `servo` identifica el motor; `pastilla_id` es la pastilla que tiene cargada |
+| `modulos` | Módulo físico (tolva + filtro + servo). `numero` identifica el módulo; `pastilla_id` es la pastilla que tiene cargada |
 
 **RLS (Row Level Security):** activado en **todas** las tablas. El backend usa
 la service_role key, que saltea RLS por diseño (es la clave de servidor de
