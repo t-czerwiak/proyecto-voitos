@@ -1,11 +1,15 @@
 import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { useState } from "react";
 import { router } from "expo-router";
-  export default function LoginScreen() {
-    const [hover, setHover] = useState(false);
-  
+import LavaBackground from "../components/LavaBackground";
+
+export default function LoginScreen() {
+  const [hover, setHover] = useState(false);
+
   return (
     <View style={styles.container}>
+      <LavaBackground />
+
       <Image
         source={require("../../assets/images/logoClaro.png")}
         style={styles.logo}
@@ -13,26 +17,25 @@ import { router } from "expo-router";
       />
 
       <View style={styles.bottomContainer}>
-      <Pressable
-  style={[
-    styles.loginButton,
-    hover && styles.loginButtonHover,
-  ]}
-    onHoverIn={() => setHover(true)}
-    onHoverOut={() => setHover(false)}
-    onPress={() => router.push("/Login")}
->
-  <Text style={styles.loginButtonText}>
-    INICIO DE SESIÓN
-  </Text>
-</Pressable>
-       
+        <Pressable
+          style={[
+            styles.loginButton,
+            hover && styles.loginButtonHover,
+          ]}
+          onHoverIn={() => setHover(true)}
+          onHoverOut={() => setHover(false)}
+          onPress={() => router.push("/Login")}
+        >
+          <Text style={styles.loginButtonText}>
+            INICIO DE SESIÓN
+          </Text>
+        </Pressable>
 
-   <Pressable onPress={() => router.push("/crear-cuenta")}>
-     <Text style={styles.createAccountText}>
-      Crear cuenta
-      </Text>
-    </Pressable>
+        <Pressable onPress={() => router.push("/crear-cuenta")}>
+          <Text style={styles.createAccountText}>
+            Crear cuenta
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -51,36 +54,34 @@ const styles = StyleSheet.create({
   logo: {
     width: 500,
     height: 215,
+    zIndex: 1,
   },
-   
+
   bottomContainer: {
-    alignItems: 'center',
-    justifyContent: 'center'
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
   },
 
+  loginButton: {
+    backgroundColor: "#004d1a",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 280,
 
-    loginButton: {
-      backgroundColor: '#004d1a', 
-     borderWidth: 2,
-     borderColor: '#ffffff', 
-     paddingVertical: 16,
-     paddingHorizontal: 40,
-     borderRadius: 12,
-     alignItems: 'center',
-     justifyContent: 'center',
-     minWidth: 280,
-     
-     shadowColor: '#00FF66',
-     shadowOffset: { width: 0, height: 0 },
-     shadowOpacity: 0.8,
-     shadowRadius: 15,
-     elevation: 10,
-    
-     boxShadow: '0 0 20px #00FF66',
-    },
-    
+    shadowColor: "#00FF66",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 15,
+    elevation: 10,
+  },
 
-   loginButtonHover: {
+  loginButtonHover: {
     backgroundColor: "#098B03",
   },
 
@@ -88,8 +89,6 @@ const styles = StyleSheet.create({
     fontFamily: "Nunito_700Bold",
     color: "#FFFFFF",
     fontSize: 20,
-    
-    
   },
 
   createAccountText: {
@@ -97,13 +96,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 18,
     marginTop: 25,
-    
   },
-
- 
-   
-        
-  
-  
-  
 });

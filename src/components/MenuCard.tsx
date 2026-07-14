@@ -110,8 +110,8 @@ export default function MenuCard({
 
 const styles = StyleSheet.create({
   card: {
-    width: 300,
-    height: 182,
+    width: 350,
+    height: 220,
     borderRadius: 18,
     overflow: "hidden",
     backgroundColor: "#FFF",

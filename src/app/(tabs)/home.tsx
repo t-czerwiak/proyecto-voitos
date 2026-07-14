@@ -12,10 +12,10 @@ export default function Menu() {
 
       {/* Contenido */}
       <View style={styles.content}>
-        <Text style={styles.title}>
-          MENÚ
-        </Text>
-
+       <Text style={styles.title}>
+                 ME<Text style={styles.i}>N</Text>Ú
+               </Text>
+       
         <MenuCard
           title="CALENDARIO"
           image={require("../../../assets/images/calendario.jpg")}
@@ -45,6 +45,10 @@ const styles = StyleSheet.create({
     zIndex: 1, // Hace que el contenido quede por encima del fondo
     
   },
+  i: {
+    color: "#098B03",
+  },
+
 
   title: {
     color: "white",
