@@ -22,11 +22,6 @@ app.use(cors());
 app.use(express.json());
 app.use(logger);
 
-// Health check (publico)
-app.get("/health", (_req, res) => {
-  res.json({ success: true, message: "Voitos API funcionando" });
-});
-
 // Rutas protegidas (requieren JWT de Supabase)
 app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/pastillas", pastillasRoutes);

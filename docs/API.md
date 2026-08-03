@@ -57,12 +57,6 @@ maneja tokens JWT.
 
 ## Endpoints
 
-### Health (público)
-
-| Método | Ruta | Descripción |
-| ------ | ---- | ----------- |
-| GET | `/health` | Verifica que el servidor esté corriendo |
-
 ### Sensor / ESP32 (público)
 
 | Método | Ruta | Descripción |
