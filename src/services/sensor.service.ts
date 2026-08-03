@@ -1,23 +1,27 @@
 import { supabase } from "../config/supabase";
 import { Confirmacion } from "../schemas/sensor.schema";
-import { getHoraArgentina } from "../utils/tiempo";
+import { getHoraArgentina, getTramosVentana } from "../utils/tiempo";
+
+// Cada cuantos minutos consulta la ESP32. Define el tamano de la ventana de
+// busqueda: si buscaramos la hora exacta, una dosis se perderia para siempre
+// cuando cae entre dos consultas.
+const MINUTOS_VENTANA = 5;
 
 export const getPendiente = async () => {
   const { hoy, hora, minuto } = getHoraArgentina();
 
-  const minutoDesde = minuto - 5;
-  const horaDesde = hora - 1;
-  const minutoDesdeReal = minutoDesde < 0 ? 60 + minutoDesde : minutoDesde;
-
-  const filtro =
-    minutoDesde < 0
-      ? `and(hora.eq.${hora},minuto.gte.0,minuto.lte.${minuto}),and(hora.eq.${horaDesde},minuto.gte.${minutoDesdeReal},minuto.lte.59)`
-      : `and(hora.eq.${hora},minuto.gte.${minutoDesdeReal},minuto.lte.${minuto})`;
+  // La ventana puede cruzar el cambio de hora, y a las 00:0X hasta el cambio
+  // de dia, asi que el dia va dentro del filtro y no como un .eq() aparte.
+  const filtro = getTramosVentana(hoy, hora, minuto, MINUTOS_VENTANA)
+    .map(
+      (t) =>
+        `and(dia.eq.${t.dia},hora.eq.${t.hora},minuto.gte.${t.desde},minuto.lte.${t.hasta})`
+    )
+    .join(",");
 
   const { data, error } = await supabase
     .from("horarios")
     .select("id, pastilla_id, hora, minuto")
-    .eq("dia", hoy)
     .eq("dispensado", false)
     .or(filtro)
     .limit(1)
@@ -61,6 +65,18 @@ export const createConfirmacion = async (body: Confirmacion) => {
     .select()
     .single();
 
-  if (insertError) throw new Error(insertError.message);
+  // Las dos escrituras no son una transaccion (el cliente de Supabase no
+  // expone transacciones). Si falla la segunda, el horario quedaria marcado
+  // como dispensado pero sin registro en el historial, y esa dosis
+  // desapareceria de las alertas sin haberse tomado. Por eso se deshace el
+  // update a mano antes de propagar el error.
+  if (insertError) {
+    await supabase
+      .from("horarios")
+      .update({ dispensado: false })
+      .eq("id", body.horario_id);
+    throw new Error(insertError.message);
+  }
+
   return data;
 };
