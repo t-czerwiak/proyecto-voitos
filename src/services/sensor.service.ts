@@ -59,6 +59,10 @@ const TIMEOUT_DISPOSITIVO_MS = 6000;
 // el boton). Que la senal llegue NO significa que la pastilla se dispenso: eso
 // recien pasa cuando la persona aprieta el boton, y se registra por
 // POST /api/sensor/confirmacion.
+//
+// El horario_id viaja como query param porque el dispositivo lo necesita para
+// poder confirmar despues: confirmacion lo exige (es FK contra horarios) y en
+// este sentido el dispositivo no tiene forma de saber cual es.
 export const enviarSenalDispensar = async (body: Dispensar) => {
   const destino = body.destino ?? process.env.ESP32_URL;
 
@@ -69,12 +73,23 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
     );
   }
 
+  // Si no lo aclaran, se busca la dosis pendiente en este momento. Asi un push
+  // sin body igual queda registrado. Si no hay ninguna, la senal se manda lo
+  // mismo (sirve para probar el hardware) pero sin horario que confirmar.
+  let horario_id = body.horario_id ?? null;
+  if (!horario_id) {
+    const pendiente = await getPendiente();
+    horario_id = pendiente.horario?.id ?? null;
+  }
+
   // Se acepta tanto "192.168.1.50" como "http://192.168.1.50:80"
   const base = destino.startsWith("http://") || destino.startsWith("https://")
     ? destino
     : `http://${destino}`;
 
-  const url = `${base}/dispense`;
+  const url = horario_id
+    ? `${base}/dispense?horario_id=${encodeURIComponent(horario_id)}`
+    : `${base}/dispense`;
 
   // fetch no tiene timeout propio: sin esto, si el dispositivo esta apagado el
   // request queda colgado hasta que lo corta el sistema operativo.
@@ -103,7 +118,10 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
     enviado: true,
     destino: url,
     respuesta_dispositivo: texto,
-    horario_id: body.horario_id ?? null,
+    // El que se le mando al dispositivo, que es el que va a confirmar.
+    // null significa que no habia dosis pendiente: la senal sirvio para probar
+    // el hardware pero no se va a registrar nada.
+    horario_id,
   };
 };
 
