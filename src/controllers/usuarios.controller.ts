@@ -1,17 +1,17 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { UsuarioCreateSchema, UsuarioUpdateSchema } from "../schemas/usuarios.schema";
 import * as usuariosService from "../services/usuarios.service";
 
-export const getAll = async (_req: Request, res: Response): Promise<void> => {
+export const getAll = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await usuariosService.getAllUsuarios();
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const getById = async (req: Request, res: Response): Promise<void> => {
+export const getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await usuariosService.getUsuarioById(req.params.id);
     if (!data) {
@@ -19,12 +19,12 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const create = async (req: Request, res: Response): Promise<void> => {
+export const create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = UsuarioCreateSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ success: false, error: result.error.flatten() });
@@ -33,12 +33,12 @@ export const create = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await usuariosService.createUsuario(result.data);
     res.status(201).json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const update = async (req: Request, res: Response): Promise<void> => {
+export const update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = UsuarioUpdateSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ success: false, error: result.error.flatten() });
@@ -51,16 +51,16 @@ export const update = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const remove = async (req: Request, res: Response): Promise<void> => {
+export const remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     await usuariosService.deleteUsuario(req.params.id);
     res.json({ success: true, message: "Usuario eliminado" });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };

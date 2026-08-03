@@ -26,6 +26,22 @@ Todos los endpoints devuelven el mismo formato:
 { "success": false, "error": "mensaje" }
 ```
 
+### Códigos de error
+
+| Código | Cuándo | Campo `error` |
+| ------ | ------ | ------------- |
+| 400 | El body no pasa la validación de Zod | Detalle por campo (`fieldErrors`) |
+| 400 | El body trae JSON mal formado | `"JSON invalido en el body"` |
+| 401 | Falta el JWT o es inválido en una ruta protegida | `"Token requerido"` |
+| 404 | El recurso pedido no existe | `"<Recurso> no encontrado"` |
+| 404 | La ruta no existe | `"Ruta no encontrada: GET /api/loquesea"` |
+| 500 | Cualquier fallo inesperado (ej: la base caída) | `"Error interno del servidor"` |
+
+Los errores 500 nunca exponen el detalle interno al cliente: el mensaje real
+queda en el log del servidor (`Error no manejado: ...`) y el cliente siempre
+recibe el mismo texto genérico. Los controllers no arman la respuesta de error,
+la delegan al middleware central con `next(error)`.
+
 ## Autenticación
 
 Las rutas protegidas requieren el JWT de Supabase en el header:

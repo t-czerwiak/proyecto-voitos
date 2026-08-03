@@ -1,18 +1,18 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { PastillaCreateSchema, PastillaUpdateSchema } from "../schemas/pastillas.schema";
 import * as pastillasService from "../services/pastillas.service";
 
-export const getAll = async (req: Request, res: Response): Promise<void> => {
+export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const usuario_id = req.query.usuario_id as string | undefined;
     const data = await pastillasService.getAllPastillas(usuario_id);
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const getById = async (req: Request, res: Response): Promise<void> => {
+export const getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await pastillasService.getPastillaById(req.params.id);
     if (!data) {
@@ -20,12 +20,12 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const create = async (req: Request, res: Response): Promise<void> => {
+export const create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = PastillaCreateSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ success: false, error: result.error.flatten() });
@@ -34,12 +34,12 @@ export const create = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await pastillasService.createPastilla(result.data);
     res.status(201).json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const update = async (req: Request, res: Response): Promise<void> => {
+export const update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = PastillaUpdateSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ success: false, error: result.error.flatten() });
@@ -52,25 +52,25 @@ export const update = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const remove = async (req: Request, res: Response): Promise<void> => {
+export const remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     await pastillasService.deletePastilla(req.params.id);
     res.json({ success: true, message: "Pastilla eliminada" });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const getHorarios = async (req: Request, res: Response): Promise<void> => {
+export const getHorarios = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await pastillasService.getHorariosByPastilla(req.params.id);
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
