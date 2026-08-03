@@ -1,18 +1,18 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { HorarioCreateSchema, HorarioUpdateSchema } from "../schemas/horarios.schema";
 import * as horariosService from "../services/horarios.service";
 
-export const getAll = async (req: Request, res: Response): Promise<void> => {
+export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const pastilla_id = req.query.pastilla_id as string | undefined;
     const data = await horariosService.getAllHorarios(pastilla_id);
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const getById = async (req: Request, res: Response): Promise<void> => {
+export const getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await horariosService.getHorarioById(req.params.id);
     if (!data) {
@@ -20,12 +20,12 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const create = async (req: Request, res: Response): Promise<void> => {
+export const create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = HorarioCreateSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ success: false, error: result.error.flatten() });
@@ -34,12 +34,12 @@ export const create = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await horariosService.createHorario(result.data);
     res.status(201).json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const update = async (req: Request, res: Response): Promise<void> => {
+export const update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = HorarioUpdateSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ success: false, error: result.error.flatten() });
@@ -52,25 +52,25 @@ export const update = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const remove = async (req: Request, res: Response): Promise<void> => {
+export const remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     await horariosService.deleteHorario(req.params.id);
     res.json({ success: true, message: "Horario eliminado" });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const getByDia = async (req: Request, res: Response): Promise<void> => {
+export const getByDia = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await horariosService.getHorariosByDia(req.params.fecha);
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };

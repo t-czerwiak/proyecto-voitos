@@ -26,6 +26,22 @@ Todos los endpoints devuelven el mismo formato:
 { "success": false, "error": "mensaje" }
 ```
 
+### Códigos de error
+
+| Código | Cuándo | Campo `error` |
+| ------ | ------ | ------------- |
+| 400 | El body no pasa la validación de Zod | Detalle por campo (`fieldErrors`) |
+| 400 | El body trae JSON mal formado | `"JSON invalido en el body"` |
+| 401 | Falta el JWT o es inválido en una ruta protegida | `"Token requerido"` |
+| 404 | El recurso pedido no existe | `"<Recurso> no encontrado"` |
+| 404 | La ruta no existe | `"Ruta no encontrada: GET /api/loquesea"` |
+| 500 | Cualquier fallo inesperado (ej: la base caída) | `"Error interno del servidor"` |
+
+Los errores 500 nunca exponen el detalle interno al cliente: el mensaje real
+queda en el log del servidor (`Error no manejado: ...`) y el cliente siempre
+recibe el mismo texto genérico. Los controllers no arman la respuesta de error,
+la delegan al middleware central con `next(error)`.
+
 ## Autenticación
 
 Las rutas protegidas requieren el JWT de Supabase en el header:
@@ -53,6 +69,21 @@ maneja tokens JWT.
 | ------ | ---- | ----------- |
 | GET | `/api/sensor/pendiente` | La ESP32 consulta cada 5 min si hay un horario para dispensar ahora |
 | POST | `/api/sensor/confirmacion` | La ESP32 confirma que dispensó tras apretar el botón físico |
+
+**Respuesta de `GET /api/sensor/pendiente`:**
+```json
+{
+  "success": true,
+  "data": {
+    "pendiente": true,
+    "horario": { "id": "uuid", "pastilla_id": "uuid", "hora": 15, "minuto": 31 },
+    "modulo": 1
+  }
+}
+```
+`modulo` es el número de módulo que la ESP32 tiene que activar (el que tiene esa
+pastilla cargada). El Arduino mapea el número de módulo a su servo. Si no hay
+nada pendiente, `pendiente` es `false` y `modulo` es `null`.
 
 **Body de `POST /api/sensor/confirmacion`:**
 ```json
@@ -137,6 +168,7 @@ hoy, o es hoy pero la hora ya quedó atrás) y sigue con `dispensado = false`.
 | `horarios` | Cuándo tomar cada pastilla (`dispensado` marca si ya se cumplió) |
 | `contactos_emergencia` | A quién avisar por usuario |
 | `dispensaciones` | Registro de cada dispensación confirmada por la ESP32 |
+| `modulos` | Módulo físico (tolva + filtro + servo). `numero` identifica el módulo; `pastilla_id` es la pastilla que tiene cargada |
 
 **RLS (Row Level Security):** activado en **todas** las tablas. El backend usa
 la service_role key, que saltea RLS por diseño (es la clave de servidor de
