@@ -50,12 +50,67 @@ Las rutas protegidas requieren el JWT de Supabase en el header:
 Authorization: Bearer <token>
 ```
 
+El token se consigue con `POST /api/auth/registro` o `POST /api/auth/login`.
+**La app no habla con Supabase Auth directo**: no necesita ninguna key de
+Supabase, solo la URL del backend.
+
 Las rutas del sensor (`/api/sensor/*`) son **públicas**, porque la ESP32 no
 maneja tokens JWT.
 
 ---
 
 ## Endpoints
+
+### Auth
+
+| Método | Ruta | Auth | Descripción |
+| ------ | ---- | ---- | ----------- |
+| POST | `/api/auth/registro` | No | Crea la cuenta y devuelve el token ya iniciado |
+| POST | `/api/auth/login` | No | Devuelve el token |
+| GET | `/api/auth/yo` | Sí | Perfil del dueño del token |
+
+**Body de `POST /api/auth/registro`:**
+```json
+{
+  "nombre": "Ana",
+  "apellido": "Gomez",
+  "mail": "ana@ejemplo.com",
+  "edad": 72,
+  "password": "minimo6"
+}
+```
+
+**Body de `POST /api/auth/login`:**
+```json
+{ "mail": "ana@ejemplo.com", "password": "minimo6" }
+```
+
+**Respuesta de ambos** (registro devuelve 201, login 200):
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOi...",
+    "expira_en": 1785780441,
+    "usuario": { "id": "uuid", "nombre": "Ana", "apellido": "Gomez", "mail": "ana@ejemplo.com", "edad": 72 }
+  }
+}
+```
+
+El registro crea la cuenta en Supabase Auth y la fila en `usuarios` **con el
+mismo id**. Eso es lo que hace que `auth.uid()` coincida con `usuarios.id`, que
+es la condición que usan las policies de RLS. Si falla la creación del perfil se
+borra la cuenta de Auth, para no dejar cuentas huérfanas.
+
+Errores propios de estos endpoints:
+
+| Código | Cuándo |
+| ------ | ------ |
+| 409 | El mail ya tiene una cuenta |
+| 401 | Mail o password incorrectos |
+
+Todavía **no hay verificación por mail**: las cuentas se crean confirmadas
+(`email_confirm: true`).
 
 ### Sensor / ESP32 (público)
 
