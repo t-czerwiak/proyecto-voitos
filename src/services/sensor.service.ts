@@ -22,7 +22,7 @@ export const getPendiente = async () => {
 
   const { data, error } = await supabase
     .from("horarios")
-    .select("id, pastilla_id, hora, minuto")
+    .select("id, pastilla_id, hora, minuto, cantidad")
     .eq("dispensado", false)
     .or(filtro)
     .limit(1)
@@ -77,19 +77,33 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
   // sin body igual queda registrado. Si no hay ninguna, la senal se manda lo
   // mismo (sirve para probar el hardware) pero sin horario que confirmar.
   let horario_id = body.horario_id ?? null;
-  if (!horario_id) {
+  let cantidadDelHorario: number | null = null;
+
+  if (horario_id) {
+    const { data } = await supabase
+      .from("horarios")
+      .select("cantidad")
+      .eq("id", horario_id)
+      .maybeSingle();
+    cantidadDelHorario = data?.cantidad ?? null;
+  } else {
     const pendiente = await getPendiente();
     horario_id = pendiente.horario?.id ?? null;
+    cantidadDelHorario = pendiente.horario?.cantidad ?? null;
   }
+
+  // Prioridad: lo que pidieron en el body, si no lo del horario, si no 1.
+  const cantidad = body.cantidad ?? cantidadDelHorario ?? 1;
 
   // Se acepta tanto "192.168.1.50" como "http://192.168.1.50:80"
   const base = destino.startsWith("http://") || destino.startsWith("https://")
     ? destino
     : `http://${destino}`;
 
-  const url = horario_id
-    ? `${base}/dispense?horario_id=${encodeURIComponent(horario_id)}`
-    : `${base}/dispense`;
+  const params = new URLSearchParams({ cantidad: String(cantidad) });
+  if (horario_id) params.set("horario_id", horario_id);
+
+  const url = `${base}/dispense?${params.toString()}`;
 
   // fetch no tiene timeout propio: sin esto, si el dispositivo esta apagado el
   // request queda colgado hasta que lo corta el sistema operativo.
@@ -122,6 +136,7 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
     // null significa que no habia dosis pendiente: la senal sirvio para probar
     // el hardware pero no se va a registrar nada.
     horario_id,
+    cantidad,
   };
 };
 

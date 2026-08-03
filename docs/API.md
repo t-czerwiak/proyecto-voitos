@@ -151,16 +151,24 @@ nada pendiente, `pendiente` es `false` y `modulo` es `null`.
 ```json
 {
   "destino": "192.168.1.50",
-  "horario_id": "uuid-del-horario"
+  "horario_id": "uuid-del-horario",
+  "cantidad": 5
 }
 ```
 
 `destino` es la IP o `host:puerto` del dispositivo. Si no viene, se usa
-`ESP32_URL` del `.env`. Se acepta con o sin `http://`. El backend le pega a
-`GET {destino}/dispense`.
+`ESP32_URL` del `.env`. Se acepta con o sin `http://`.
 
-`horario_id` es solo informativo, se devuelve tal cual en la respuesta. **No
-marca nada como dispensado.**
+`horario_id`: si no viene, el backend busca la dosis pendiente en ese momento.
+Se le manda al dispositivo para que pueda confirmarla después. Si no hay
+ninguna pendiente, la señal se manda igual pero no se va a registrar nada.
+
+`cantidad`: cuántas pastillas dispensar de una. Si no viene se usa la del
+horario, y si tampoco hay, 1. Sirve para probar el hardware sin depender de que
+haya una dosis cargada.
+
+El backend termina llamando a
+`GET {destino}/dispense?cantidad=N&horario_id=<uuid>`.
 
 **Respuesta:**
 ```json
@@ -170,7 +178,8 @@ marca nada como dispensado.**
     "enviado": true,
     "destino": "http://192.168.1.50/dispense",
     "respuesta_dispositivo": "Alerta activada. Presione el boton para dispensar.",
-    "horario_id": null
+    "horario_id": "uuid-o-null",
+    "cantidad": 5
   }
 }
 ```
@@ -230,6 +239,10 @@ registro en `dispensaciones`.
 
 El campo `dia` es una fecha específica (`YYYY-MM-DD`). `hora` (0-23) y `minuto`
 (0-59) se guardan en hora local de Argentina.
+
+`cantidad` (1 a 20) es cuántas pastillas dispensar en esa dosis. Es opcional al
+crear: si no se manda, la base pone 1. El dispositivo las dispensa todas con una
+sola apretada del botón.
 
 ### Contactos de emergencia (protegido)
 

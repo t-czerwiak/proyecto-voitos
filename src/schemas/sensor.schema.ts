@@ -16,6 +16,14 @@ export type Confirmacion = z.infer<typeof ConfirmacionSchema>;
 export const DispensarSchema = z.object({
   destino: z.string().min(1, "destino no puede estar vacio").optional(),
   horario_id: z.string().uuid("horario_id debe ser UUID").optional(),
+  // Pisa la cantidad del horario. Sirve para probar el hardware sin depender
+  // de que haya una dosis cargada en la base.
+  cantidad: z
+    .number()
+    .int()
+    .min(1, "cantidad debe ser al menos 1")
+    .max(20, "cantidad no puede ser mayor a 20")
+    .optional(),
 });
 
 export type Dispensar = z.infer<typeof DispensarSchema>;
