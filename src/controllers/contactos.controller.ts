@@ -1,18 +1,18 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { ContactoCreateSchema, ContactoUpdateSchema } from "../schemas/contactos.schema";
 import * as contactosService from "../services/contactos.service";
 
-export const getAll = async (req: Request, res: Response): Promise<void> => {
+export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const usuario_id = req.query.usuario_id as string | undefined;
     const data = await contactosService.getAllContactos(usuario_id);
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const getById = async (req: Request, res: Response): Promise<void> => {
+export const getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await contactosService.getContactoById(req.params.id);
     if (!data) {
@@ -20,12 +20,12 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const create = async (req: Request, res: Response): Promise<void> => {
+export const create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = ContactoCreateSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ success: false, error: result.error.flatten() });
@@ -34,12 +34,12 @@ export const create = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await contactosService.createContacto(result.data);
     res.status(201).json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const update = async (req: Request, res: Response): Promise<void> => {
+export const update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = ContactoUpdateSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ success: false, error: result.error.flatten() });
@@ -52,16 +52,16 @@ export const update = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.json({ success: true, data });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const remove = async (req: Request, res: Response): Promise<void> => {
+export const remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     await contactosService.deleteContacto(req.params.id);
     res.json({ success: true, message: "Contacto eliminado" });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    next(error);
   }
 };
