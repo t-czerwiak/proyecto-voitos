@@ -1,6 +1,7 @@
 import { supabase } from "../config/supabase";
-import { Confirmacion } from "../schemas/sensor.schema";
+import { Confirmacion, Dispensar } from "../schemas/sensor.schema";
 import { getHoraArgentina, getTramosVentana } from "../utils/tiempo";
+import { ErrorHttp } from "../utils/errores";
 
 // Cada cuantos minutos consulta la ESP32. Define el tamano de la ventana de
 // busqueda: si buscaramos la hora exacta, una dosis se perderia para siempre
@@ -43,6 +44,67 @@ export const getPendiente = async () => {
   if (errorModulo) throw new Error(errorModulo.message);
 
   return { pendiente: true, horario: data, modulo: modulo?.numero ?? null };
+};
+
+// Cuanto espera la respuesta del dispositivo antes de darlo por inalcanzable.
+const TIMEOUT_DISPOSITIVO_MS = 6000;
+
+// Le manda la orden de dispensar al dispositivo por WiFi.
+//
+// Esto es el sentido inverso al de getPendiente: aca el backend es el que
+// inicia la conexion. Funciona porque el backend y el dispositivo estan en la
+// misma red local, asi que se alcanzan por IP privada.
+//
+// El dispositivo expone GET /dispense (hace sonar el buzzer y queda esperando
+// el boton). Que la senal llegue NO significa que la pastilla se dispenso: eso
+// recien pasa cuando la persona aprieta el boton, y se registra por
+// POST /api/sensor/confirmacion.
+export const enviarSenalDispensar = async (body: Dispensar) => {
+  const destino = body.destino ?? process.env.ESP32_URL;
+
+  if (!destino) {
+    throw new ErrorHttp(
+      400,
+      "No hay a donde mandar la senal: pasa 'destino' en el body o configura ESP32_URL en el .env"
+    );
+  }
+
+  // Se acepta tanto "192.168.1.50" como "http://192.168.1.50:80"
+  const base = destino.startsWith("http://") || destino.startsWith("https://")
+    ? destino
+    : `http://${destino}`;
+
+  const url = `${base}/dispense`;
+
+  // fetch no tiene timeout propio: sin esto, si el dispositivo esta apagado el
+  // request queda colgado hasta que lo corta el sistema operativo.
+  const cancelar = AbortSignal.timeout(TIMEOUT_DISPOSITIVO_MS);
+
+  let respuesta: Response;
+  try {
+    respuesta = await fetch(url, { method: "GET", signal: cancelar });
+  } catch {
+    throw new ErrorHttp(
+      502,
+      `No se pudo contactar al dispositivo en ${base}. Verifica que este encendido y en la misma red WiFi.`
+    );
+  }
+
+  const texto = await respuesta.text();
+
+  if (!respuesta.ok) {
+    throw new ErrorHttp(
+      502,
+      `El dispositivo respondio ${respuesta.status}: ${texto}`
+    );
+  }
+
+  return {
+    enviado: true,
+    destino: url,
+    respuesta_dispositivo: texto,
+    horario_id: body.horario_id ?? null,
+  };
 };
 
 export const createConfirmacion = async (body: Confirmacion) => {

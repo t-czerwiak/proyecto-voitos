@@ -117,7 +117,20 @@ Todavía **no hay verificación por mail**: las cuentas se crean confirmadas
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
 | GET | `/api/sensor/pendiente` | La ESP32 consulta cada 5 min si hay un horario para dispensar ahora |
+| POST | `/api/sensor/dispensar` | El backend le manda la orden al dispositivo por WiFi |
 | POST | `/api/sensor/confirmacion` | La ESP32 confirma que dispensó tras apretar el botón físico |
+
+Hay **dos formas** de que el dispositivo se entere de que tiene que dispensar,
+según cómo esté hecho el firmware:
+
+- **Pull:** el dispositivo pregunta con `GET /api/sensor/pendiente`. El backend
+  no necesita saber su IP.
+- **Push:** el backend le manda la orden con `POST /api/sensor/dispensar`. Para
+  esto el dispositivo tiene que exponer `GET /dispense` y el backend tiene que
+  conocer su IP en la red local.
+
+En los dos casos la dispensación se registra igual: por
+`POST /api/sensor/confirmacion`, que manda el dispositivo después del botón.
 
 **Respuesta de `GET /api/sensor/pendiente`:**
 ```json
@@ -133,6 +146,43 @@ Todavía **no hay verificación por mail**: las cuentas se crean confirmadas
 `modulo` es el número de módulo que la ESP32 tiene que activar (el que tiene esa
 pastilla cargada). El Arduino mapea el número de módulo a su servo. Si no hay
 nada pendiente, `pendiente` es `false` y `modulo` es `null`.
+
+**Body de `POST /api/sensor/dispensar`** (todo opcional):
+```json
+{
+  "destino": "192.168.1.50",
+  "horario_id": "uuid-del-horario"
+}
+```
+
+`destino` es la IP o `host:puerto` del dispositivo. Si no viene, se usa
+`ESP32_URL` del `.env`. Se acepta con o sin `http://`. El backend le pega a
+`GET {destino}/dispense`.
+
+`horario_id` es solo informativo, se devuelve tal cual en la respuesta. **No
+marca nada como dispensado.**
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "data": {
+    "enviado": true,
+    "destino": "http://192.168.1.50/dispense",
+    "respuesta_dispositivo": "Alerta activada. Presione el boton para dispensar.",
+    "horario_id": null
+  }
+}
+```
+
+Que la señal llegue **no** significa que la pastilla se dispensó: el dispositivo
+solo hace sonar el buzzer y queda esperando el botón. La dispensación real se
+registra cuando llega `POST /api/sensor/confirmacion`.
+
+| Código | Cuándo |
+| ------ | ------ |
+| 400 | No hay `destino` ni `ESP32_URL` configurado |
+| 502 | El dispositivo no responde (apagado, otra red, IP incorrecta) o devolvió error |
 
 **Body de `POST /api/sensor/confirmacion`:**
 ```json
