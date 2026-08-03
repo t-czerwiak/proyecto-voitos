@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { ErrorHttp } from "../utils/errores";
 
 // Se ejecuta cuando ninguna ruta coincide con la URL pedida.
 export const notFound = (req: Request, res: Response): void => {
@@ -23,6 +24,13 @@ export const errorHandler = (
   // Body con JSON invalido
   if (err.type === "entity.parse.failed") {
     res.status(400).json({ success: false, error: "JSON invalido en el body" });
+    return;
+  }
+
+  // Error que el codigo marco explicitamente como seguro de mostrar
+  // (ej: "el mail ya esta registrado"). Ver src/utils/errores.ts.
+  if (err instanceof ErrorHttp) {
+    res.status(err.status).json({ success: false, error: err.message });
     return;
   }
 

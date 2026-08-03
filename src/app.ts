@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { logger } from "./middlewares/logger.middleware";
 import { notFound, errorHandler } from "./middlewares/error.middleware";
 
+import authRoutes from "./routes/auth.routes";
 import usuariosRoutes from "./routes/usuarios.routes";
 import pastillasRoutes from "./routes/pastillas.routes";
 import horariosRoutes from "./routes/horarios.routes";
@@ -22,10 +23,9 @@ app.use(cors());
 app.use(express.json());
 app.use(logger);
 
-// Health check (publico)
-app.get("/health", (_req, res) => {
-  res.json({ success: true, message: "Voitos API funcionando" });
-});
+// Auth: /registro y /login son publicas (son las que emiten el token),
+// /yo esta protegida. Ver src/routes/auth.routes.ts.
+app.use("/api/auth", authRoutes);
 
 // Rutas protegidas (requieren JWT de Supabase)
 app.use("/api/usuarios", usuariosRoutes);
