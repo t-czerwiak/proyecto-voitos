@@ -86,31 +86,35 @@ const LavaBlob = ({ size, color, duration, initialX, initialY }) => {
 
 export default function CrearCuenta() {
   const [nombre, setNombre] = useState("");
-  const [tipo, setTipo] = useState("chico"); // ← Se agregó el estado 'tipo'
-  const [password, setPassword] = useState("");
+  const [tipo, setTipo] = useState("chico");
+  const [cantidad, setCantidad] = useState("");
+
+  const handleAgregar = () => {
+    // Lógica para agregar la pastilla
+    console.log({ nombre, tipo, cantidad });
+  };
 
   return (
     <LinearGradient
       colors={["#002b11", "#021108", "#000000"]}
       style={styles.container}
     >
-      {/* --- CAPA DE MANCHAS FLUIDAS --- */}
+      {/* Background Blobs */}
       <View style={StyleSheet.absoluteFill}>
         <LavaBlob size={320} color="#00FF7F" duration={12000} initialX={width * 0.2} initialY={height * 0.1} />
         <LavaBlob size={260} color="#90EE90" duration={15000} initialX={width * 0.7} initialY={height * 0.4} />
         <LavaBlob size={350} color="#32CD32" duration={18000} initialX={width * 0.4} initialY={height * 0.8} />
       </View>
 
-      {/* --- CAPA DEL CONTENIDO --- */}
+      {/* Content Container */}
       <View style={styles.contentLayer}>
         <Pressable onPress={() => router.push("/")}>
-          <Image
-            source={require("../../../assets/images/logoClaro.png")} 
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </Pressable>
-
+  <Image
+    source={require("../../assets/images/logoClaro.png")}
+    style={styles.logo}
+    resizeMode="contain"
+  />
+</Pressable>
         <View style={styles.form}>
           <TextInput
             style={styles.input}
@@ -120,12 +124,11 @@ export default function CrearCuenta() {
             onChangeText={setNombre}
           />
 
-          {/* Envoltorio del Picker */}
           <View style={styles.pickerContainer}>
             <Picker
               selectedValue={tipo}
               onValueChange={(itemValue) => setTipo(itemValue)}
-              dropdownIconColor="#00FF7F" // Icono con color neón
+              dropdownIconColor="#00FF7F"
               style={styles.picker}
             >
               <Picker.Item label="Chico" value="chico" />
@@ -139,16 +142,13 @@ export default function CrearCuenta() {
             style={styles.input}
             placeholder="CANTIDAD...."
             placeholderTextColor="#B3B3B3"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
+            keyboardType="numeric"
+            value={cantidad}
+            onChangeText={setCantidad}
           />
         </View>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.push("/medicacion")}
-        >
+        <TouchableOpacity style={styles.button} onPress={handleAgregar}>
           <Text style={styles.buttonText}>AGREGAR</Text>
         </TouchableOpacity>
       </View>
@@ -197,7 +197,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
 
-  // Estilo ajustado para el Picker contenedor
   pickerContainer: {
     backgroundColor: "#fff",
     width: "85%",

@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router"; // 👈 Added missing import
 import LavaBackground from "../../components/LavaBackground";
 
 export default function Medicacion() {
@@ -12,7 +13,11 @@ export default function Medicacion() {
           PAST<Text style={styles.i}>I</Text>LLAS
         </Text>
 
-        <Pressable style={styles.button}>
+        {/* 👈 Fixed onPress placement inside the opening tag */}
+        <Pressable 
+          style={styles.button} 
+          onPress={() => router.push("/agregar-medicacion")}
+        >
           <Text style={styles.buttonText}>AGREGAR</Text>
           <Ionicons name="add" size={38} color="white" />
         </Pressable>
@@ -25,7 +30,6 @@ export default function Medicacion() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
