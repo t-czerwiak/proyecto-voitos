@@ -42,6 +42,7 @@ export interface Dispensacion {
   horario_id: string;
   dispositivo_id: string;
   bateria: number;
+  cantidad: number; // cuantas pastillas se dispensaron realmente (1 a 20)
   timestamp: string;
 }
 

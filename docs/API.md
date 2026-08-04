@@ -198,12 +198,22 @@ registra cuando llega `POST /api/sensor/confirmacion`.
 {
   "dispositivo_id": "ESP32-001",
   "horario_id": "uuid-del-horario",
-  "bateria": 85
+  "bateria": 85,
+  "cantidad": 8
 }
 ```
 
 Al confirmar, el backend marca el horario como `dispensado = true` y guarda un
 registro en `dispensaciones`.
+
+`cantidad` es cuántas pastillas liberó realmente el dispositivo, y es lo que
+queda guardado en `dispensaciones.cantidad`. Es **opcional**: si no viene, se
+usa la `cantidad` del horario.
+
+Se guarda aparte de `horarios.cantidad` a propósito, porque son cosas
+distintas: una es lo que se **pidió** y la otra lo que **pasó**. Si el
+dispositivo llegara a liberar menos de las pedidas, el historial refleja la
+realidad.
 
 ### Usuarios (protegido)
 
@@ -277,9 +287,9 @@ hoy, o es hoy pero la hora ya quedó atrás) y sigue con `dispensado = false`.
 | ----- | ----------- |
 | `usuarios` | Adultos mayores que usan el pastillero |
 | `pastillas` | Medicamentos de cada usuario |
-| `horarios` | Cuándo tomar cada pastilla (`dispensado` marca si ya se cumplió) |
+| `horarios` | Cuándo tomar cada pastilla y cuántas (`cantidad`). `dispensado` marca si ya se cumplió |
 | `contactos_emergencia` | A quién avisar por usuario |
-| `dispensaciones` | Registro de cada dispensación confirmada por la ESP32 |
+| `dispensaciones` | Registro de cada dispensación confirmada por la ESP32, con la `cantidad` que salió realmente |
 | `modulos` | Módulo físico (tolva + filtro + servo). `numero` identifica el módulo; `pastilla_id` es la pastilla que tiene cargada |
 
 **RLS (Row Level Security):** activado en **todas** las tablas. El backend usa

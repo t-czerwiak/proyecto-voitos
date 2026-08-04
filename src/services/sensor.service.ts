@@ -141,6 +141,20 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
 };
 
 export const createConfirmacion = async (body: Confirmacion) => {
+  // Cuantas pastillas se dispensaron. Manda lo que reporta el dispositivo,
+  // que es lo que realmente paso. Si no lo reporta (firmware viejo), se asume
+  // que dispenso las que pedia el horario.
+  let cantidad = body.cantidad ?? null;
+
+  if (cantidad === null) {
+    const { data: horario } = await supabase
+      .from("horarios")
+      .select("cantidad")
+      .eq("id", body.horario_id)
+      .maybeSingle();
+    cantidad = horario?.cantidad ?? 1;
+  }
+
   // Marcar horario como dispensado
   const { error: updateError } = await supabase
     .from("horarios")
@@ -156,6 +170,7 @@ export const createConfirmacion = async (body: Confirmacion) => {
       horario_id: body.horario_id,
       dispositivo_id: body.dispositivo_id,
       bateria: body.bateria,
+      cantidad,
     })
     .select()
     .single();
