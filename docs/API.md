@@ -117,7 +117,20 @@ Todavía **no hay verificación por mail**: las cuentas se crean confirmadas
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
 | GET | `/api/sensor/pendiente` | La ESP32 consulta cada 5 min si hay un horario para dispensar ahora |
+| POST | `/api/sensor/dispensar` | El backend le manda la orden al dispositivo por WiFi |
 | POST | `/api/sensor/confirmacion` | La ESP32 confirma que dispensó tras apretar el botón físico |
+
+Hay **dos formas** de que el dispositivo se entere de que tiene que dispensar,
+según cómo esté hecho el firmware:
+
+- **Pull:** el dispositivo pregunta con `GET /api/sensor/pendiente`. El backend
+  no necesita saber su IP.
+- **Push:** el backend le manda la orden con `POST /api/sensor/dispensar`. Para
+  esto el dispositivo tiene que exponer `GET /dispense` y el backend tiene que
+  conocer su IP en la red local.
+
+En los dos casos la dispensación se registra igual: por
+`POST /api/sensor/confirmacion`, que manda el dispositivo después del botón.
 
 **Respuesta de `GET /api/sensor/pendiente`:**
 ```json
@@ -134,17 +147,73 @@ Todavía **no hay verificación por mail**: las cuentas se crean confirmadas
 pastilla cargada). El Arduino mapea el número de módulo a su servo. Si no hay
 nada pendiente, `pendiente` es `false` y `modulo` es `null`.
 
+**Body de `POST /api/sensor/dispensar`** (todo opcional):
+```json
+{
+  "destino": "192.168.1.50",
+  "horario_id": "uuid-del-horario",
+  "cantidad": 5
+}
+```
+
+`destino` es la IP o `host:puerto` del dispositivo. Si no viene, se usa
+`ESP32_URL` del `.env`. Se acepta con o sin `http://`.
+
+`horario_id`: si no viene, el backend busca la dosis pendiente en ese momento.
+Se le manda al dispositivo para que pueda confirmarla después. Si no hay
+ninguna pendiente, la señal se manda igual pero no se va a registrar nada.
+
+`cantidad`: cuántas pastillas dispensar de una. Si no viene se usa la del
+horario, y si tampoco hay, 1. Sirve para probar el hardware sin depender de que
+haya una dosis cargada.
+
+El backend termina llamando a
+`GET {destino}/dispense?cantidad=N&horario_id=<uuid>`.
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "data": {
+    "enviado": true,
+    "destino": "http://192.168.1.50/dispense",
+    "respuesta_dispositivo": "Alerta activada. Presione el boton para dispensar.",
+    "horario_id": "uuid-o-null",
+    "cantidad": 5
+  }
+}
+```
+
+Que la señal llegue **no** significa que la pastilla se dispensó: el dispositivo
+solo hace sonar el buzzer y queda esperando el botón. La dispensación real se
+registra cuando llega `POST /api/sensor/confirmacion`.
+
+| Código | Cuándo |
+| ------ | ------ |
+| 400 | No hay `destino` ni `ESP32_URL` configurado |
+| 502 | El dispositivo no responde (apagado, otra red, IP incorrecta) o devolvió error |
+
 **Body de `POST /api/sensor/confirmacion`:**
 ```json
 {
   "dispositivo_id": "ESP32-001",
   "horario_id": "uuid-del-horario",
-  "bateria": 85
+  "bateria": 85,
+  "cantidad": 8
 }
 ```
 
 Al confirmar, el backend marca el horario como `dispensado = true` y guarda un
 registro en `dispensaciones`.
+
+`cantidad` es cuántas pastillas liberó realmente el dispositivo, y es lo que
+queda guardado en `dispensaciones.cantidad`. Es **opcional**: si no viene, se
+usa la `cantidad` del horario.
+
+Se guarda aparte de `horarios.cantidad` a propósito, porque son cosas
+distintas: una es lo que se **pidió** y la otra lo que **pasó**. Si el
+dispositivo llegara a liberar menos de las pedidas, el historial refleja la
+realidad.
 
 ### Usuarios (protegido)
 
@@ -181,6 +250,10 @@ registro en `dispensaciones`.
 El campo `dia` es una fecha específica (`YYYY-MM-DD`). `hora` (0-23) y `minuto`
 (0-59) se guardan en hora local de Argentina.
 
+`cantidad` (1 a 20) es cuántas pastillas dispensar en esa dosis. Es opcional al
+crear: si no se manda, la base pone 1. El dispositivo las dispensa todas con una
+sola apretada del botón.
+
 ### Contactos de emergencia (protegido)
 
 | Método | Ruta | Descripción |
@@ -214,9 +287,9 @@ hoy, o es hoy pero la hora ya quedó atrás) y sigue con `dispensado = false`.
 | ----- | ----------- |
 | `usuarios` | Adultos mayores que usan el pastillero |
 | `pastillas` | Medicamentos de cada usuario |
-| `horarios` | Cuándo tomar cada pastilla (`dispensado` marca si ya se cumplió) |
+| `horarios` | Cuándo tomar cada pastilla y cuántas (`cantidad`). `dispensado` marca si ya se cumplió |
 | `contactos_emergencia` | A quién avisar por usuario |
-| `dispensaciones` | Registro de cada dispensación confirmada por la ESP32 |
+| `dispensaciones` | Registro de cada dispensación confirmada por la ESP32, con la `cantidad` que salió realmente |
 | `modulos` | Módulo físico (tolva + filtro + servo). `numero` identifica el módulo; `pastilla_id` es la pastilla que tiene cargada |
 
 **RLS (Row Level Security):** activado en **todas** las tablas. El backend usa

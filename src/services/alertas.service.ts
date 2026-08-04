@@ -12,7 +12,7 @@ export const getDosisNoTomadas = async (usuario_id?: string) => {
   let query = supabase
     .from("horarios")
     .select(
-      `id, dia, hora, minuto, dispensado,
+      `id, dia, hora, minuto, cantidad, dispensado,
        pastillas!inner (
          id, nombre, tipo,
          usuarios!inner (
