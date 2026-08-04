@@ -72,9 +72,10 @@ void moverServo() {
 // Dispensa varias pastillas de una, repitiendo el ciclo del servo
 //
 // Con una sola apretada del boton salen todas las de la dosis.
+// Devuelve cuantas dispenso, que es lo que se le reporta al backend.
 //-----------------------------
 
-void dispensar(int cantidad) {
+int dispensar(int cantidad) {
 
   // Por las dudas: nunca menos de 1 ni mas del tope
   if (cantidad < 1) cantidad = 1;
@@ -100,6 +101,8 @@ void dispensar(int cantidad) {
   }
 
   Serial.println("Listo.");
+
+  return cantidad;
 }
 
 
@@ -110,7 +113,7 @@ void dispensar(int cantidad) {
 // como dispensado y no entra ninguna fila en la tabla dispensaciones.
 //-----------------------------
 
-bool confirmarDispensacion() {
+bool confirmarDispensacion(int cantidadDispensada) {
 
   if (horarioPendiente == "") {
     Serial.println("Sin horario_id: fue una senal de prueba, no se registra.");
@@ -125,11 +128,16 @@ bool confirmarDispensacion() {
   String url = "http://" + String(BACKEND_IP) + ":" + String(BACKEND_PORT)
              + "/api/sensor/confirmacion";
 
-  // El backend valida: dispositivo_id no vacio, horario_id UUID valido y
-  // bateria entero de 0 a 100. Si algo no cumple responde 400.
+  // El backend valida: dispositivo_id no vacio, horario_id UUID valido,
+  // bateria entero de 0 a 100 y cantidad de 1 a 20. Si algo no cumple
+  // responde 400.
+  //
+  // cantidad es lo que REALMENTE se dispenso, que es lo que queda guardado en
+  // la tabla dispensaciones.
   String cuerpo = String("{\"dispositivo_id\":\"") + DISPOSITIVO_ID
                 + "\",\"horario_id\":\"" + horarioPendiente
-                + "\",\"bateria\":100}";
+                + "\",\"bateria\":100"
+                + ",\"cantidad\":" + String(cantidadDispensada) + "}";
 
   HTTPClient http;
   http.begin(url);
@@ -278,10 +286,10 @@ void loop() {
       if (digitalRead(BUTTON_PIN) == LOW) {
 
         // Una sola apretada dispensa toda la dosis
-        dispensar(cantidadPendiente);
+        int dispensadas = dispensar(cantidadPendiente);
 
-        // Avisarle al backend para que quede registrado
-        confirmarDispensacion();
+        // Avisarle al backend para que quede registrado, con cuantas salieron
+        confirmarDispensacion(dispensadas);
 
         // Ya terminó la dispensación
         esperandoBoton = false;
