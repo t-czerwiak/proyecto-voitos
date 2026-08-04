@@ -1,4 +1,10 @@
 import nodemailer, { Transporter } from "nodemailer";
+import dotenv from "dotenv";
+
+// Este modulo lee las variables al cargarse, y los imports se ejecutan antes
+// que el dotenv.config() de index.ts. Sin esta linea funcionaria solo por
+// casualidad, porque config/supabase.ts se carga antes y ya lo llamo.
+dotenv.config();
 
 // Servicio de mails al cuidador.
 //
