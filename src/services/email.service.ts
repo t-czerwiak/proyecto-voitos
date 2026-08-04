@@ -9,8 +9,12 @@ import nodemailer, { Transporter } from "nodemailer";
 
 const MAIL_HOST = process.env.MAIL_HOST ?? "smtp.gmail.com";
 const MAIL_PORT = Number(process.env.MAIL_PORT ?? 587);
-const MAIL_USER = process.env.MAIL_USER;
-const MAIL_PASS = process.env.MAIL_PASS;
+const MAIL_USER = process.env.MAIL_USER?.trim();
+
+// Google muestra la contrasena de aplicacion como "abcd efgh ijkl mnop", pero
+// los espacios son solo para que se lea: la clave son 16 caracteres seguidos.
+// Se limpian aca para que no importe como se haya pegado en el .env.
+const MAIL_PASS = process.env.MAIL_PASS?.replace(/\s/g, "");
 const MAIL_FROM = process.env.MAIL_FROM ?? `Voitos <${MAIL_USER ?? "sin-configurar"}>`;
 
 const configurado = Boolean(MAIL_USER && MAIL_PASS);
