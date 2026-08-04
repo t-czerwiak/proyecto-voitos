@@ -2,6 +2,8 @@ import { supabase } from "../config/supabase";
 import { Confirmacion, Dispensar } from "../schemas/sensor.schema";
 import { getHoraArgentina, getTramosVentana } from "../utils/tiempo";
 import { ErrorHttp } from "../utils/errores";
+import { getModuloDePastilla, descontarDelModulo } from "./modulos.service";
+import { avisarDispensacionOk } from "./email.service";
 
 // Cada cuantos minutos consulta la ESP32. Define el tamano de la ventana de
 // busqueda: si buscaramos la hora exacta, una dosis se perderia para siempre
@@ -30,20 +32,20 @@ export const getPendiente = async () => {
 
   if (error) throw new Error(error.message);
 
-  if (!data) return { pendiente: false, horario: null, modulo: null };
+  if (!data) {
+    return { pendiente: false, horario: null, modulo: null, disponibles: null };
+  }
 
   // Buscar que modulo tiene cargada esa pastilla, que es el que la ESP32 tiene
   // que activar. Si ningun modulo la tiene cargada, modulo queda null.
-  const { data: modulo, error: errorModulo } = await supabase
-    .from("modulos")
-    .select("numero")
-    .eq("pastilla_id", data.pastilla_id)
-    .limit(1)
-    .maybeSingle();
+  const modulo = await getModuloDePastilla(data.pastilla_id);
 
-  if (errorModulo) throw new Error(errorModulo.message);
-
-  return { pendiente: true, horario: data, modulo: modulo?.numero ?? null };
+  return {
+    pendiente: true,
+    horario: data,
+    modulo: modulo?.numero ?? null,
+    disponibles: modulo?.cantidad_actual ?? null,
+  };
 };
 
 // Cuanto espera la respuesta del dispositivo antes de darlo por inalcanzable.
@@ -78,22 +80,39 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
   // mismo (sirve para probar el hardware) pero sin horario que confirmar.
   let horario_id = body.horario_id ?? null;
   let cantidadDelHorario: number | null = null;
+  let pastillaId: string | null = null;
 
   if (horario_id) {
     const { data } = await supabase
       .from("horarios")
-      .select("cantidad")
+      .select("cantidad, pastilla_id")
       .eq("id", horario_id)
       .maybeSingle();
     cantidadDelHorario = data?.cantidad ?? null;
+    pastillaId = data?.pastilla_id ?? null;
   } else {
     const pendiente = await getPendiente();
     horario_id = pendiente.horario?.id ?? null;
     cantidadDelHorario = pendiente.horario?.cantidad ?? null;
+    pastillaId = pendiente.horario?.pastilla_id ?? null;
   }
 
   // Prioridad: lo que pidieron en el body, si no lo del horario, si no 1.
   const cantidad = body.cantidad ?? cantidadDelHorario ?? 1;
+
+  // No tiene sentido hacer sonar la alarma si el modulo no tiene con que
+  // cumplir la dosis: la persona iria hasta el pastillero al pedo.
+  if (pastillaId) {
+    const modulo = await getModuloDePastilla(pastillaId);
+
+    if (modulo && modulo.cantidad_actual < cantidad) {
+      throw new ErrorHttp(
+        409,
+        `Cantidad insuficiente: el modulo ${modulo.numero} tiene ${modulo.cantidad_actual} ` +
+          `pastilla(s) y la dosis necesita ${cantidad}. Hay que recargarlo.`
+      );
+    }
+  }
 
   // Se acepta tanto "192.168.1.50" como "http://192.168.1.50:80"
   const base = destino.startsWith("http://") || destino.startsWith("https://")
@@ -141,19 +160,21 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
 };
 
 export const createConfirmacion = async (body: Confirmacion) => {
+  // Se trae de una sola consulta todo lo que hace falta despues: la cantidad
+  // pedida, la pastilla y el cuidador a quien avisarle.
+  const { data: horario } = await supabase
+    .from("horarios")
+    .select(
+      `cantidad, dia, hora, minuto, pastilla_id,
+       pastillas ( id, nombre, usuarios ( nombre, apellido, mail ) )`
+    )
+    .eq("id", body.horario_id)
+    .maybeSingle();
+
   // Cuantas pastillas se dispensaron. Manda lo que reporta el dispositivo,
   // que es lo que realmente paso. Si no lo reporta (firmware viejo), se asume
   // que dispenso las que pedia el horario.
-  let cantidad = body.cantidad ?? null;
-
-  if (cantidad === null) {
-    const { data: horario } = await supabase
-      .from("horarios")
-      .select("cantidad")
-      .eq("id", body.horario_id)
-      .maybeSingle();
-    cantidad = horario?.cantidad ?? 1;
-  }
+  const cantidad = body.cantidad ?? horario?.cantidad ?? 1;
 
   // Marcar horario como dispensado
   const { error: updateError } = await supabase
@@ -188,5 +209,33 @@ export const createConfirmacion = async (body: Confirmacion) => {
     throw new Error(insertError.message);
   }
 
-  return data;
+  // Descontar del stock del modulo lo que salio
+  let quedanEnModulo: number | null = null;
+  if (horario?.pastilla_id) {
+    const modulo = await getModuloDePastilla(horario.pastilla_id);
+    if (modulo) {
+      quedanEnModulo = await descontarDelModulo(modulo.id, cantidad);
+    }
+  }
+
+  // Avisarle al cuidador. El mail no puede tumbar la dispensacion, que ya
+  // quedo registrada: si falla, email.service lo loguea y sigue.
+  const pastilla = (horario as any)?.pastillas;
+  const cuidador = pastilla?.usuarios;
+
+  if (cuidador?.mail) {
+    await avisarDispensacionOk({
+      cuidadorMail: cuidador.mail,
+      cuidadorNombre: cuidador.nombre,
+      pastilla: pastilla.nombre,
+      cantidad,
+      hora: horario!.hora,
+      minuto: horario!.minuto,
+      dia: horario!.dia,
+      dispositivo: body.dispositivo_id,
+      quedanEnModulo,
+    });
+  }
+
+  return { ...data, quedan_en_modulo: quedanEnModulo };
 };

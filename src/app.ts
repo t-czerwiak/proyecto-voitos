@@ -11,6 +11,7 @@ import pastillasRoutes from "./routes/pastillas.routes";
 import horariosRoutes from "./routes/horarios.routes";
 import contactosRoutes from "./routes/contactos.routes";
 import dispensacionesRoutes from "./routes/dispensaciones.routes";
+import modulosRoutes from "./routes/modulos.routes";
 import alertasRoutes from "./routes/alertas.routes";
 import sensorRoutes from "./routes/sensor.routes";
 
@@ -33,6 +34,7 @@ app.use("/api/pastillas", pastillasRoutes);
 app.use("/api/horarios", horariosRoutes);
 app.use("/api/contactos", contactosRoutes);
 app.use("/api/dispensaciones", dispensacionesRoutes);
+app.use("/api/modulos", modulosRoutes);
 app.use("/api/alertas", alertasRoutes);
 
 // Rutas publicas (la ESP32 no maneja JWT)

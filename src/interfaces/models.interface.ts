@@ -24,6 +24,7 @@ export interface Horario {
   minuto: number;
   cantidad: number; // cuantas pastillas dispensar en esta dosis (1 a 20)
   dispensado: boolean;
+  notificado: boolean; // si ya se le aviso al cuidador que no se tomo
   created_at: string;
 }
 
@@ -50,6 +51,7 @@ export interface Modulo {
   id: string;
   numero: number; // identificador del modulo (uno por servo, el Arduino lo mapea a su pin)
   pastilla_id: string | null; // que pastilla tiene cargada (null si vacio)
+  cantidad_actual: number; // cuantas pastillas quedan cargadas
   dispositivo_id: string;
   created_at: string;
 }
