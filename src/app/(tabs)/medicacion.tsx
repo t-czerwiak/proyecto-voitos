@@ -7,13 +7,14 @@ export default function Medicacion() {
   return (
     <View style={styles.container}>
       <LavaBackground />
-
-      <View style={styles.content}>
-        <Text style={styles.title}>
+      
+      <View style={styles.content} >
+        <Pressable onPress={() => router.push("/home")} >
+        <Text style={styles.title} >
           PAST<Text style={styles.i}>I</Text>LLAS
         </Text>
-
-        {/* 👈 Fixed onPress placement inside the opening tag */}
+        </Pressable>
+        
         <Pressable 
           style={styles.button} 
           onPress={() => router.push("/agregar-medicacion")}
@@ -22,7 +23,8 @@ export default function Medicacion() {
           <Ionicons name="add" size={38} color="white" />
         </Pressable>
 
-        <Pressable style={styles.button}>
+        <Pressable style={styles.button}
+        onPress={() => router.push("/agendar-medicacion")}>
           <Text style={styles.buttonText}>AGENDAR</Text>
           <Ionicons name="calendar-outline" size={34} color="white" />
         </Pressable>

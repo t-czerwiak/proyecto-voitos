@@ -108,7 +108,7 @@ export default function CrearCuenta() {
 
       {/* Content Container */}
       <View style={styles.contentLayer}>
-        <Pressable onPress={() => router.push("/")}>
+        <Pressable onPress={() => router.push("/medicacion")}>
   <Image
     source={require("../../assets/images/logoClaro.png")}
     style={styles.logo}
