@@ -80,7 +80,7 @@ export default function Calendario() {
     }
 
     return dias;
-  }, [mes, anio]);
+  }, [mes, anio, primerDiaAjustado, cantidadDias]);
 
   function obtenerFecha(dia: number) {
     const mesTexto = String(mes + 1).padStart(2, "0");
@@ -141,6 +141,15 @@ export default function Calendario() {
     setAnio(nuevoAnio);
   }
 
+  function agregarActividad() {
+    router.push({
+      pathname: "/agregar-actividad",
+      params: {
+        fecha: fechaSeleccionada,
+      },
+    });
+  }
+
   return (
     <View style={styles.container}>
       <LavaBackground />
@@ -151,7 +160,7 @@ export default function Calendario() {
       >
         <Text style={styles.title}>CALENDARIO</Text>
 
-        {/* CAMBIO DE AÑO */}
+        {/* AÑO */}
 
         <View style={styles.yearContainer}>
           <TouchableOpacity
@@ -181,9 +190,7 @@ export default function Calendario() {
             <Text style={styles.monthArrowText}>‹</Text>
           </TouchableOpacity>
 
-          <Text style={styles.month}>
-            {meses[mes]}
-          </Text>
+          <Text style={styles.month}>{meses[mes]}</Text>
 
           <TouchableOpacity
             style={styles.monthArrow}
@@ -197,10 +204,7 @@ export default function Calendario() {
 
         <View style={styles.weekHeader}>
           {diasSemana.map((dia) => (
-            <Text
-              key={dia}
-              style={styles.weekText}
-            >
+            <Text key={dia} style={styles.weekText}>
               {dia}
             </Text>
           ))}
@@ -233,15 +237,14 @@ export default function Calendario() {
                   styles.day,
                   seleccionado && styles.selectedDay,
                 ]}
-                onPress={() =>
-                  setFechaSeleccionada(fecha)
-                }
+                onPress={() => {
+                  setFechaSeleccionada(fecha);
+                }}
               >
                 <Text
                   style={[
                     styles.dayText,
-                    seleccionado &&
-                      styles.selectedDayText,
+                    seleccionado && styles.selectedDayText,
                   ]}
                 >
                   {dia}
@@ -255,10 +258,22 @@ export default function Calendario() {
           })}
         </View>
 
+        {/* FECHA SELECCIONADA */}
+
+        <View style={styles.selectedDateContainer}>
+          <Text style={styles.selectedDateTitle}>
+            FECHA SELECCIONADA
+          </Text>
+
+          <Text style={styles.selectedDate}>
+            {fechaSeleccionada.split("-").reverse().join("/")}
+          </Text>
+        </View>
+
         {/* ACTIVIDADES DEL DÍA */}
 
         <View style={styles.activitiesContainer}>
-          <Text style={styles.selectedDate}>
+          <Text style={styles.activitiesTitle}>
             ACTIVIDADES
           </Text>
 
@@ -296,13 +311,11 @@ export default function Calendario() {
           )}
         </View>
 
-        {/* AGREGAR */}
+        {/* AGREGAR ACTIVIDAD */}
 
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() =>
-            router.push("/agregar-actividad")
-          }
+          onPress={agregarActividad}
         >
           <Text style={styles.addButtonText}>
             + AGREGAR ACTIVIDAD
@@ -312,6 +325,7 @@ export default function Calendario() {
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -334,9 +348,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  // -------------------------
   // AÑO
-  // -------------------------
 
   yearContainer: {
     width: "90%",
@@ -369,9 +381,7 @@ const styles = StyleSheet.create({
     lineHeight: 34,
   },
 
-  // -------------------------
   // MES
-  // -------------------------
 
   monthContainer: {
     width: "90%",
@@ -405,9 +415,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
 
-  // -------------------------
-  // DÍAS DE LA SEMANA
-  // -------------------------
+  // DÍAS
 
   weekHeader: {
     width: "95%",
@@ -424,34 +432,31 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
-  // -------------------------
   // CALENDARIO
-  // -------------------------
 
   calendar: {
-    width: "95%",
+    width: "90%",
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "flex-start",
-    backgroundColor: "rgba(0, 27, 12, 0.75)",
+    backgroundColor: "rgba(0, 27, 12, 0.8)",
     borderWidth: 1,
     borderColor: "#105A2C",
-    borderRadius: 18,
-    paddingVertical: 10,
-    paddingHorizontal: 5,
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 3,
   },
 
   day: {
     width: "14.285%",
     aspectRatio: 1,
-    alignItems: "center",
     justifyContent: "center",
-    borderRadius: 25,
+    alignItems: "center",
+    borderRadius: 20,
   },
 
   dayText: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
   },
 
@@ -466,23 +471,43 @@ const styles = StyleSheet.create({
 
   activityDot: {
     position: "absolute",
-    bottom: 7,
-    width: 5,
-    height: 5,
-    borderRadius: 3,
+    bottom: 4,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: "#00FF7F",
   },
 
-  // -------------------------
-  // ACTIVIDADES
-  // -------------------------
+  // FECHA
 
-  activitiesContainer: {
+  selectedDateContainer: {
     width: "75%",
-    marginTop: 25,
+    alignItems: "center",
+    marginTop: 20,
+  },
+
+  selectedDateTitle: {
+    color: "#90EE90",
+    fontSize: 13,
+    fontWeight: "bold",
+    letterSpacing: 1,
   },
 
   selectedDate: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "bold",
+    marginTop: 4,
+  },
+
+  // ACTIVIDADES
+
+  activitiesContainer: {
+    width: "75%",
+    marginTop: 20,
+  },
+
+  activitiesTitle: {
     color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "bold",
@@ -533,9 +558,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // -------------------------
-  // BOTÓN AGREGAR
-  // -------------------------
+  // BOTÓN
 
   addButton: {
     width: 280,
@@ -564,46 +587,5 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     letterSpacing: 1,
   },
-calendar: {
-  width: "90%",
-  flexDirection: "row",
-  flexWrap: "wrap",
-  backgroundColor: "rgba(0, 27, 12, 0.8)",
-  borderWidth: 1,
-  borderColor: "#105A2C",
-  borderRadius: 14,
-  paddingVertical: 6,
-  paddingHorizontal: 3,
-},
+});
 
-day: {
-  width: "14.285%",
-  aspectRatio: 1,
-  justifyContent: "center",
-  alignItems: "center",
-  borderRadius: 20,
-},
-
-dayText: {
-  color: "#FFFFFF",
-  fontSize: 14,
-  fontWeight: "600",
-},
-
-selectedDay: {
-  backgroundColor: "#00FF7F",
-},
-
-selectedDayText: {
-  color: "#000000",
-  fontWeight: "bold",
-},
-
-activityDot: {
-  position: "absolute",
-  bottom: 4,
-  width: 4,
-  height: 4,
-  borderRadius: 2,
-  backgroundColor: "#00FF7F",
-}),

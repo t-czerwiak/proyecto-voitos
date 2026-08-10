@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
 
 
   addButton: {
-  width: "90%",
+  width: 280,
   height: 58,
 
   backgroundColor: "#00FF7F",
@@ -407,9 +407,9 @@ const styles = StyleSheet.create({
 },
 
   addButtonText:{
-  width: "70%",
   color:"#001A0A",
-  height: 52,
+  justifyContent: "center",
+  alignItems: "center",
   fontSize:19,
   fontWeight:"900",
   letterSpacing:2,

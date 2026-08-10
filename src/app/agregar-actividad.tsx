@@ -7,15 +7,20 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import LavaBackground from "../components/LavaBackground";
 
 export default function AgregarActividad() {
+  const { fecha: fechaParametro } = useLocalSearchParams<{
+    fecha?: string;
+  }>();
+
   const [nombre, setNombre] = useState("");
   const [hora, setHora] = useState("");
   const [tipo, setTipo] = useState<"rutina" | "una-vez">("una-vez");
 
-  const [fecha, setFecha] = useState("");
+  // La fecha viene automáticamente desde el calendario
+  const [fecha] = useState(fechaParametro || "");
 
   const diasSemana = ["L", "M", "X", "J", "V", "S", "D"];
 
@@ -32,6 +37,18 @@ export default function AgregarActividad() {
         dia,
       ]);
     }
+  }
+
+  function formatearFecha(fecha: string) {
+    if (!fecha) return "Sin fecha";
+
+    const partes = fecha.split("-");
+
+    if (partes.length !== 3) {
+      return fecha;
+    }
+
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
   }
 
   function guardarActividad() {
@@ -62,7 +79,10 @@ export default function AgregarActividad() {
           : [],
     };
 
-    console.log("ACTIVIDAD GUARDADA:", actividad);
+    console.log(
+      "ACTIVIDAD GUARDADA:",
+      actividad
+    );
 
     router.back();
   }
@@ -121,7 +141,9 @@ export default function AgregarActividad() {
               tipo === "una-vez" &&
                 styles.typeButtonSelected,
             ]}
-            onPress={() => setTipo("una-vez")}
+            onPress={() =>
+              setTipo("una-vez")
+            }
           >
             <Text
               style={[
@@ -140,7 +162,9 @@ export default function AgregarActividad() {
               tipo === "rutina" &&
                 styles.typeButtonSelected,
             ]}
-            onPress={() => setTipo("rutina")}
+            onPress={() =>
+              setTipo("rutina")
+            }
           >
             <Text
               style={[
@@ -159,17 +183,14 @@ export default function AgregarActividad() {
         {tipo === "una-vez" && (
           <>
             <Text style={styles.label}>
-              Fecha
+              Fecha seleccionada
             </Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="DD/MM/AAAA"
-              placeholderTextColor="#999"
-              value={fecha}
-              onChangeText={setFecha}
-              keyboardType="numbers-and-punctuation"
-            />
+            <View style={styles.dateBox}>
+              <Text style={styles.dateText}>
+                {formatearFecha(fecha)}
+              </Text>
+            </View>
           </>
         )}
 
@@ -224,6 +245,8 @@ export default function AgregarActividad() {
             AGREGAR ACTIVIDAD
           </Text>
         </TouchableOpacity>
+
+        {/* CANCELAR */}
 
         <TouchableOpacity
           style={styles.cancelButton}
@@ -281,9 +304,27 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
 
-  // -------------------------
+  // FECHA
+
+  dateBox: {
+    width: "90%",
+    maxWidth: 420,
+    height: 55,
+    backgroundColor: "#01250E",
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#00FF7F",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+  },
+
+  dateText: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "bold",
+  },
+
   // TIPO
-  // -------------------------
 
   typeContainer: {
     width: "90%",
@@ -318,9 +359,7 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
 
-  // -------------------------
   // DÍAS
-  // -------------------------
 
   daysContainer: {
     width: "90%",
@@ -354,9 +393,7 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
 
-  // -------------------------
-  // BOTONES
-  // -------------------------
+  // BOTÓN GUARDAR
 
   saveButton: {
     width: 280,
@@ -386,8 +423,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
+  // CANCELAR
+
   cancelButton: {
-    marginTop: 15,
+   marginTop: 15,
     paddingVertical: 10,
   },
 
@@ -396,3 +435,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
