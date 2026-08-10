@@ -1,0 +1,34 @@
+# Despliegue del backend en Render.
+#
+# Se eligio Render y no Vercel porque el backend necesita un proceso que quede
+# corriendo: el scheduler de dosis no tomadas usa setInterval y en serverless
+# no sobrevive entre requests.
+#
+# Las variables marcadas sync: false NO van en este archivo: se cargan a mano
+# en el panel de Render, porque son secretos.
+
+services:
+  - type: web
+    name: voitos-backend
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/sensor/pendiente
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: SUPABASE_URL
+        value: https://pshejdspqqhuhyjbzslx.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
