@@ -1,4 +1,20 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(npm run lint)",
+      "Bash(npm run dev)",
+      "Bash(npm install *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "mcp__code-review-graph__query_graph_tool",
+      "mcp__code-review-graph__get_architecture_overview_tool",
+      "mcp__code-review-graph__list_graph_stats_tool",
+      "mcp__code-review-graph__list_communities_tool",
+      "mcp__code-review-graph__list_flows_tool",
+      "mcp__code-review-graph__build_or_update_graph_tool"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
