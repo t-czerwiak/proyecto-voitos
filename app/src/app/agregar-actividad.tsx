@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  Alert,
   View,
   Text,
   TextInput,
@@ -9,6 +10,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import LavaBackground from "../components/LavaBackground";
+import { crearActividad } from "../lib/voitos";
 
 export default function AgregarActividad() {
   const { fecha: fechaParametro } = useLocalSearchParams<{
@@ -51,7 +53,7 @@ export default function AgregarActividad() {
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   }
 
-  function guardarActividad() {
+  async function guardarActividad() {
     if (!nombre || !hora) {
       return;
     }
@@ -67,24 +69,21 @@ export default function AgregarActividad() {
       return;
     }
 
-    const actividad = {
-      id: Date.now().toString(),
-      nombre,
-      hora,
-      tipo,
-      fecha: tipo === "una-vez" ? fecha : "",
-      dias:
-        tipo === "rutina"
-          ? diasSeleccionados
-          : [],
-    };
+    try {
+      await crearActividad({
+        nombre,
+        hora,
+        tipo,
+        // Una actividad de rutina se repite por dia de semana, asi que no
+        // tiene una fecha puntual. La base igual pide el campo.
+        fecha: tipo === "una-vez" ? fecha : "",
+        dias: tipo === "rutina" ? diasSeleccionados : [],
+      });
 
-    console.log(
-      "ACTIVIDAD GUARDADA:",
-      actividad
-    );
-
-    router.back();
+      router.back();
+    } catch (e: any) {
+      Alert.alert("No se pudo guardar la actividad", e.message);
+    }
   }
 
   return (

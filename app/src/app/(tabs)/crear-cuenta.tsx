@@ -10,8 +10,10 @@ import {
   StyleSheet,
   Pressable,
   Dimensions,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { registrarse } from "../../lib/voitos";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -22,8 +24,16 @@ import Animated, {
 
 const { width, height } = Dimensions.get("window");
 
+type LavaBlobProps = {
+  size: number;
+  color: string;
+  duration: number;
+  initialX: number;
+  initialY: number;
+};
+
 // --- COMPONENTE DE LAS MANCHAS DE LAVA ---
-const LavaBlob = ({ size, color, duration, initialX, initialY }) => {
+const LavaBlob = ({ size, color, duration, initialX, initialY }: LavaBlobProps) => {
   const posX = useSharedValue(initialX);
   const posY = useSharedValue(initialY);
   const rotation = useSharedValue(0);
@@ -90,6 +100,24 @@ export default function CrearCuenta() {
   const [apellido, setApellido] = useState("");
   const [mail, setMail] = useState("");
   const [password, setPassword] = useState("");
+  const [cargando, setCargando] = useState(false);
+
+  const handleCrearCuenta = async () => {
+    if (!nombre || !apellido || !mail || !password) {
+      Alert.alert("Faltan datos", "Completa todos los campos");
+      return;
+    }
+
+    setCargando(true);
+    try {
+      await registrarse({ nombre, apellido, mail, password });
+      router.push("/home");
+    } catch (e: any) {
+      Alert.alert("No se pudo crear la cuenta", e.message);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   return (
     // Reemplazamos la View base por el Degradado de fondo (Verde oscuro a Negro)
@@ -149,8 +177,14 @@ export default function CrearCuenta() {
           />
         </View>
 
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>CREAR CUENTA</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleCrearCuenta}
+          disabled={cargando}
+        >
+          <Text style={styles.buttonText}>
+            {cargando ? "CREANDO..." : "CREAR CUENTA"}
+          </Text>
         </TouchableOpacity>
       </View>
     </LinearGradient>

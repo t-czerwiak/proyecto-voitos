@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -6,8 +6,9 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import LavaBackground from "../../components/LavaBackground";
+import { getActividades } from "../../lib/voitos";
 
 type Actividad = {
   id: string;
@@ -43,23 +44,28 @@ export default function Calendario() {
     new Date().toISOString().split("T")[0]
   );
 
-  const [actividades] = useState<Actividad[]>([
-    {
-      id: "1",
-      nombre: "Gimnasia",
-      fecha: "2026-08-10",
-      hora: "08:00",
-      tipo: "rutina",
-      dias: ["L", "X", "V"],
-    },
-    {
-      id: "2",
-      nombre: "Turno médico",
-      fecha: "2026-08-15",
-      hora: "14:30",
-      tipo: "una-vez",
-    },
-  ]);
+  const [actividades, setActividades] = useState<Actividad[]>([]);
+
+  // Se recargan cada vez que la pantalla vuelve a estar en foco, asi al volver
+  // de "agregar actividad" ya aparece la nueva.
+  useFocusEffect(
+    useCallback(() => {
+      let vigente = true;
+
+      getActividades()
+        .then((datos) => {
+          if (vigente) setActividades(datos as Actividad[]);
+        })
+        .catch(() => {
+          // Sin sesion o sin backend: el calendario se muestra vacio
+          if (vigente) setActividades([]);
+        });
+
+      return () => {
+        vigente = false;
+      };
+    }, [])
+  );
 
   const cantidadDias = new Date(anio, mes + 1, 0).getDate();
 

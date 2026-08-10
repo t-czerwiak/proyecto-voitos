@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { router } from "expo-router";
 import {
+  Alert,
   View,
   Text,
   TextInput,
@@ -13,6 +14,7 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import LavaBackground from "../components/LavaBackground";
+import { agendarPastilla } from "../lib/voitos";
 
 export default function AgregarMedicacion() {
   const [nombre, setNombre] = useState("");
@@ -206,16 +208,32 @@ export default function AgregarMedicacion() {
 
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => {
+          onPress={async () => {
 
-            console.log({
-              nombre,
-              cantidad,
-              hora,
-              diasSeleccionados,
-            });
+            if (!nombre || !hora) {
+              Alert.alert("Faltan datos", "Poner el nombre de la pastilla y la hora");
+              return;
+            }
 
-            router.back();
+            try {
+              const cuantas = await agendarPastilla({
+                nombrePastilla: nombre,
+                hora,
+                cantidad,
+                dias: diasSeleccionados,
+              });
+
+              Alert.alert(
+                "Listo",
+                cuantas === 1
+                  ? "Se agendo la dosis"
+                  : `Se agendaron ${cuantas} dosis para las proximas 4 semanas`
+              );
+
+              router.back();
+            } catch (e: any) {
+              Alert.alert("No se pudo agendar", e.message);
+            }
 
           }}
         >

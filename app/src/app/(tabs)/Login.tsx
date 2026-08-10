@@ -9,8 +9,10 @@ import {
   StyleSheet,
   Pressable,
   Dimensions,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { iniciarSesion } from "../../lib/voitos";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -21,8 +23,16 @@ import Animated, {
 
 const { width, height } = Dimensions.get("window");
 
+type LavaBlobProps = {
+  size: number;
+  color: string;
+  duration: number;
+  initialX: number;
+  initialY: number;
+};
+
 // --- COMPONENTE DE LAS MANCHAS DE LAVA ---
-const LavaBlob = ({ size, color, duration, initialX, initialY }) => {
+const LavaBlob = ({ size, color, duration, initialX, initialY }: LavaBlobProps) => {
   const posX = useSharedValue(initialX);
   const posY = useSharedValue(initialY);
   const rotation = useSharedValue(0);
@@ -89,6 +99,24 @@ export default function CrearCuenta() {
   const [apellido, setApellido] = useState("");
   const [mail, setMail] = useState("");
   const [password, setPassword] = useState("");
+  const [cargando, setCargando] = useState(false);
+
+  const handleIniciarSesion = async () => {
+    if (!mail || !password) {
+      Alert.alert("Faltan datos", "Completa el mail y la contrasena");
+      return;
+    }
+
+    setCargando(true);
+    try {
+      await iniciarSesion(mail, password);
+      router.push("/home");
+    } catch (e: any) {
+      Alert.alert("No se pudo iniciar sesion", e.message);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   return (
     // Reemplazamos la View base por el Degradado de fondo (Verde oscuro a Negro)
@@ -131,6 +159,15 @@ export default function CrearCuenta() {
           />
           <TextInput
             style={styles.input}
+            placeholder="MAIL....."
+            placeholderTextColor="#B3B3B3"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={mail}
+            onChangeText={setMail}
+          />
+          <TextInput
+            style={styles.input}
             placeholder="CONTRASEÑA...."
             placeholderTextColor="#B3B3B3"
             secureTextEntry
@@ -141,9 +178,12 @@ export default function CrearCuenta() {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={() => router.push("/home")}
+          onPress={handleIniciarSesion}
+          disabled={cargando}
           >
-         <Text style={styles.buttonText}>INICIAR SESIÓN</Text>
+         <Text style={styles.buttonText}>
+           {cargando ? "INGRESANDO..." : "INICIAR SESIÓN"}
+         </Text>
         </TouchableOpacity>
       </View>
     </LinearGradient>

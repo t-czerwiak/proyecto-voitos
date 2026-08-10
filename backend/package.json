@@ -9,7 +9,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "tsc --noEmit",
-    "dosis": "ts-node src/scripts/dosis-ahora.ts"
+    "dosis": "ts-node src/scripts/dosis-ahora.ts",
+    "test": "node tests/integracion.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",

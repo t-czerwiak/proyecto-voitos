@@ -124,7 +124,13 @@ const styles = StyleSheet.create({
   },
 
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    // Equivalente exacto a StyleSheet.absoluteFillObject, que no existe en los
+    // tipos de esta version de React Native. Mismo resultado visual.
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "rgba(80,80,80,0.55)",
   },
 

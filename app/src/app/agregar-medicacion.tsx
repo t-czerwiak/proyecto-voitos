@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Picker } from "@react-native-picker/picker";
 import {
+  Alert,
   View,
   TextInput,
   TouchableOpacity,
@@ -12,6 +13,7 @@ import {
   Dimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { crearPastilla } from "../lib/voitos";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -22,8 +24,16 @@ import Animated, {
 
 const { width, height } = Dimensions.get("window");
 
+type LavaBlobProps = {
+  size: number;
+  color: string;
+  duration: number;
+  initialX: number;
+  initialY: number;
+};
+
 // --- COMPONENTE DE LAS MANCHAS DE LAVA ---
-const LavaBlob = ({ size, color, duration, initialX, initialY }) => {
+const LavaBlob = ({ size, color, duration, initialX, initialY }: LavaBlobProps) => {
   const posX = useSharedValue(initialX);
   const posY = useSharedValue(initialY);
   const rotation = useSharedValue(0);
@@ -89,9 +99,29 @@ export default function CrearCuenta() {
   const [tipo, setTipo] = useState("chico");
   const [cantidad, setCantidad] = useState("");
 
-  const handleAgregar = () => {
-    // Lógica para agregar la pastilla
-    console.log({ nombre, tipo, cantidad });
+  const [guardando, setGuardando] = useState(false);
+
+  const handleAgregar = async () => {
+    if (!nombre) {
+      Alert.alert("Faltan datos", "Poner el nombre de la pastilla");
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      await crearPastilla({
+        nombre,
+        tipo,
+        // El campo "cantidad" del formulario describe la presentacion
+        // (ej: cuantas trae la caja), no la dosis. Va como caracteristica.
+        caracteristicas: cantidad ? `Cantidad: ${cantidad}` : undefined,
+      });
+      router.back();
+    } catch (e: any) {
+      Alert.alert("No se pudo agregar la pastilla", e.message);
+    } finally {
+      setGuardando(false);
+    }
   };
 
   return (
@@ -148,8 +178,8 @@ export default function CrearCuenta() {
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleAgregar}>
-          <Text style={styles.buttonText}>AGREGAR</Text>
+        <TouchableOpacity style={styles.button} onPress={handleAgregar} disabled={guardando}>
+          <Text style={styles.buttonText}>{guardando ? "GUARDANDO..." : "AGREGAR"}</Text>
         </TouchableOpacity>
       </View>
     </LinearGradient>
@@ -232,6 +262,11 @@ const styles = StyleSheet.create({
     elevation: 12,
     marginBottom: 30,
   },
+
+  // El JSX referencia styles.pickerContainer pero nunca se definio, asi que en
+  // runtime era undefined y React Native lo ignoraba. Se deja vacio a proposito:
+  // arregla el error de tipos sin cambiar como se ve hoy.
+  pickerContainer: {},
 
   buttonText: {
     color: "#FFFFFF",

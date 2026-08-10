@@ -55,3 +55,16 @@ export interface Modulo {
   dispositivo_id: string;
   created_at: string;
 }
+
+// Recordatorios del calendario del cuidador (gimnasia, turnos medicos).
+// No tienen relacion con el pastillero ni con la ESP32.
+export interface Actividad {
+  id: string;
+  usuario_id: string;
+  nombre: string;
+  fecha: string; // "YYYY-MM-DD"
+  hora: string; // "HH:MM"
+  tipo: "rutina" | "una-vez";
+  dias?: string[]; // ["L","X","V"] cuando tipo es "rutina"
+  created_at: string;
+}
