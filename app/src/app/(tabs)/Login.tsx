@@ -9,10 +9,10 @@ import {
   StyleSheet,
   Pressable,
   Dimensions,
-  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { iniciarSesion } from "../../lib/voitos";
+import { avisar } from "../../lib/avisar";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -103,7 +103,7 @@ export default function CrearCuenta() {
 
   const handleIniciarSesion = async () => {
     if (!mail || !password) {
-      Alert.alert("Faltan datos", "Completa el mail y la contrasena");
+      avisar("Faltan datos", "Completa el mail y la contrasena");
       return;
     }
 
@@ -112,7 +112,7 @@ export default function CrearCuenta() {
       await iniciarSesion(mail, password);
       router.push("/home");
     } catch (e: any) {
-      Alert.alert("No se pudo iniciar sesion", e.message);
+      avisar("No se pudo iniciar sesion", e.message);
     } finally {
       setCargando(false);
     }

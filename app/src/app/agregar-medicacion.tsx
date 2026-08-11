@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Picker } from "@react-native-picker/picker";
 import {
-  Alert,
   View,
   TextInput,
   TouchableOpacity,
@@ -14,6 +13,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { crearPastilla } from "../lib/voitos";
+import { avisar } from "../lib/avisar";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -103,7 +103,7 @@ export default function CrearCuenta() {
 
   const handleAgregar = async () => {
     if (!nombre) {
-      Alert.alert("Faltan datos", "Poner el nombre de la pastilla");
+      avisar("Faltan datos", "Poner el nombre de la pastilla");
       return;
     }
 
@@ -118,7 +118,7 @@ export default function CrearCuenta() {
       });
       router.back();
     } catch (e: any) {
-      Alert.alert("No se pudo agregar la pastilla", e.message);
+      avisar("No se pudo agregar la pastilla", e.message);
     } finally {
       setGuardando(false);
     }

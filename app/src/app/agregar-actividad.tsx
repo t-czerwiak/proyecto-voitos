@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Alert,
   View,
   Text,
   TextInput,
@@ -11,6 +10,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import LavaBackground from "../components/LavaBackground";
 import { crearActividad } from "../lib/voitos";
+import { avisar } from "../lib/avisar";
 
 export default function AgregarActividad() {
   const { fecha: fechaParametro } = useLocalSearchParams<{
@@ -82,7 +82,7 @@ export default function AgregarActividad() {
 
       router.back();
     } catch (e: any) {
-      Alert.alert("No se pudo guardar la actividad", e.message);
+      avisar("No se pudo guardar la actividad", e.message);
     }
   }
 

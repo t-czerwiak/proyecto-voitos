@@ -10,10 +10,10 @@ import {
   StyleSheet,
   Pressable,
   Dimensions,
-  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { registrarse } from "../../lib/voitos";
+import { avisar } from "../../lib/avisar";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -104,7 +104,7 @@ export default function CrearCuenta() {
 
   const handleCrearCuenta = async () => {
     if (!nombre || !apellido || !mail || !password) {
-      Alert.alert("Faltan datos", "Completa todos los campos");
+      avisar("Faltan datos", "Completa todos los campos");
       return;
     }
 
@@ -113,7 +113,7 @@ export default function CrearCuenta() {
       await registrarse({ nombre, apellido, mail, password });
       router.push("/home");
     } catch (e: any) {
-      Alert.alert("No se pudo crear la cuenta", e.message);
+      avisar("No se pudo crear la cuenta", e.message);
     } finally {
       setCargando(false);
     }
