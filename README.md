@@ -2,9 +2,7 @@
 
 # 💊 Voitos
 
-### El pastillero que avisa cuando la pastilla no se tomó
-
-Un dispensador inteligente para adultos mayores, y una app para quien los cuida.
+### Un dispensador inteligente para adultos mayores, y una app para quien los cuida
 
 `Node.js` · `TypeScript` · `Express` · `Supabase` · `React Native` · `Expo` · `ESP32`
 
@@ -15,9 +13,14 @@ Un dispensador inteligente para adultos mayores, y una app para quien los cuida.
 ## El problema
 
 Un adulto mayor con tratamiento crónico toma varias pastillas por día, a horarios
-distintos. Se saltea una y nadie se entera hasta la próxima visita.
+distintos, y en cantidades distintas. Sostener eso todos los días es difícil: hay
+que acordarse del horario, saber cuántas van, y no repetir una dosis ya tomada.
 
-El problema no es el olvido: es que **nadie más se entera del olvido**.
+Del otro lado está quien lo cuida, que muchas veces no vive en la misma casa y no
+tiene forma de saber cómo viene el tratamiento.
+
+Voitos se ocupa de las dos puntas: **automatiza la entrega de la medicación** y le
+**da visibilidad al cuidador** sobre lo que pasa.
 
 ## Qué hace Voitos
 
@@ -41,8 +44,14 @@ El problema no es el olvido: es que **nadie más se entera del olvido**.
   Queda registrado   Queda registrado como no tomada
 ```
 
-Nada de esto depende de que el adulto mayor tenga un celular, ni de que sepa
-usar una app. Solo tiene que apretar un botón.
+El cuidador carga los medicamentos, los horarios y cuántas pastillas van en cada
+dosis desde la app. El pastillero se encarga del resto.
+
+Nada de esto depende de que el adulto mayor tenga un celular, ni de que sepa usar
+una app. Solo tiene que apretar un botón.
+
+Los avisos por mail son una consecuencia del diseño, no el objetivo: como todo
+queda registrado, el cuidador se entera tanto de lo que se tomó como de lo que no.
 
 ---
 

@@ -100,14 +100,25 @@ export default function CrearCuenta() {
   const [apellido, setApellido] = useState("");
   const [mail, setMail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmacion, setConfirmacion] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
   const handleCrearCuenta = async () => {
     setError("");
 
-    if (!nombre || !apellido || !mail || !password) {
+    if (!nombre || !apellido || !mail || !password || !confirmacion) {
       setError("Completá todos los campos");
+      return;
+    }
+
+    if (password !== confirmacion) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("La contraseña tiene que tener al menos 6 caracteres");
       return;
     }
 
@@ -177,6 +188,14 @@ export default function CrearCuenta() {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="CONFIRMAR CONTRASEÑA...."
+            placeholderTextColor="#B3B3B3"
+            secureTextEntry
+            value={confirmacion}
+            onChangeText={setConfirmacion}
           />
         </View>
 

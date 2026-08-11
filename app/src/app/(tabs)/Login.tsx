@@ -94,9 +94,7 @@ const LavaBlob = ({ size, color, duration, initialX, initialY }: LavaBlobProps) 
   );
 };
 
-export default function CrearCuenta() {
-  const [nombre, setNombre] = useState("");
-  const [apellido, setApellido] = useState("");
+export default function Login() {
   const [mail, setMail] = useState("");
   const [password, setPassword] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -146,20 +144,6 @@ export default function CrearCuenta() {
         </Pressable>
 
         <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="NOMBRE...."
-            placeholderTextColor="#B3B3B3"
-            value={nombre}
-            onChangeText={setNombre}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="APELLIDO...."
-            placeholderTextColor="#B3B3B3"
-            value={apellido}
-            onChangeText={setApellido}
-          />
           <TextInput
             style={styles.input}
             placeholder="MAIL....."
