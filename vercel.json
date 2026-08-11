@@ -1,0 +1,18 @@
+{
+  "services": {
+    "voitos-backend": {
+      "root": "backend",
+      "entrypoint": "src/app.ts",
+      "buildCommand": "npm install && npm run build"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "voitos-backend"
+      }
+    }
+  ]
+}
