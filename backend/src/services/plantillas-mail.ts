@@ -9,14 +9,12 @@
 // lectura de escritorio sin cortarse y se ve bien en celular.
 
 const VERDE_OSCURO = "#02200F";
-const VERDE_BORDE = "#12592C";
-const VERDE_CLARO = "#E8F3EC";
-const VERDE_TEXTO = "#0B7A38";
-const AMBAR_FONDO = "#FFF4E5";
-const AMBAR_BORDE = "#E0A24A";
-const AMBAR_TEXTO = "#8A5200";
+const VERDE_ACENTO = "#0B7A38";
+const AMBAR_ACENTO = "#B26A00";
+const TITULO = "#16221C";   // casi negro: maximo contraste sobre blanco
 const GRIS_TEXTO = "#3C4A42";
 const GRIS_SUAVE = "#78877E";
+const LINEA = "#E4EAE6";
 
 // Identificador del logo adjunto. email.service lo adjunta con este mismo cid.
 export const LOGO_CID = "voitos-logo";
@@ -57,11 +55,50 @@ export const formatearFecha = (fecha: string): string => {
   return `${nombreDia} ${Number(partes[2])} de ${nombreMes}`;
 };
 
+// Encabezado de estado.
+//
+// Antes esto era una caja con el fondo tintado y el texto del mismo tono, que
+// ademas de leerse peor es el recurso mas trillado de las plantillas
+// automaticas. Ahora el color aparece solo en una etiqueta chica y en una
+// linea fina, y el titular va en negro sobre blanco, que es donde mejor se lee.
+const encabezadoEstado = (etiqueta: string, color: string, titular: string, detalle?: string) => `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:26px;">
+    <tr>
+      <td style="border-left:3px solid ${color};padding:2px 0 2px 16px;">
+        <p style="margin:0 0 7px;color:${color};font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;">${etiqueta}</p>
+        <p style="margin:0;color:${TITULO};font-size:22px;line-height:29px;font-weight:700;">${titular}</p>
+        ${detalle ? `<p style="margin:8px 0 0;color:${GRIS_SUAVE};font-size:15px;line-height:21px;">${detalle}</p>` : ""}
+      </td>
+    </tr>
+  </table>`;
+
+// Boton de accion. En mail se hace con una tabla y padding, no con un <a>
+// estilado, porque Outlook ignora el padding de los enlaces.
+const boton = (texto: string, url: string, color = VERDE_ACENTO) => `
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 4px;">
+    <tr>
+      <td style="background-color:${color};border-radius:8px;">
+        <a href="${url}" style="display:inline-block;padding:14px 30px;color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;">${texto}</a>
+      </td>
+    </tr>
+  </table>`;
+
+// Aviso secundario: linea fina de color y texto oscuro, sin fondo tintado
+const aviso = (titulo: string, detalle: string, color: string) => `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+    <tr>
+      <td style="border:1px solid ${LINEA};border-left:3px solid ${color};border-radius:6px;padding:14px 18px;">
+        <p style="margin:0;color:${TITULO};font-size:14px;font-weight:600;">${titulo}</p>
+        <p style="margin:5px 0 0;color:${GRIS_TEXTO};font-size:14px;line-height:20px;">${detalle}</p>
+      </td>
+    </tr>
+  </table>`;
+
 // Una fila de dato: etiqueta a la izquierda, valor a la derecha
 const fila = (etiqueta: string, valor: string) => `
   <tr>
-    <td style="padding:10px 0;border-bottom:1px solid #E4EAE6;color:${GRIS_SUAVE};font-size:14px;">${etiqueta}</td>
-    <td style="padding:10px 0;border-bottom:1px solid #E4EAE6;color:${GRIS_TEXTO};font-size:15px;font-weight:600;text-align:right;">${valor}</td>
+    <td style="padding:10px 0;border-bottom:1px solid ${LINEA};color:${GRIS_SUAVE};font-size:14px;">${etiqueta}</td>
+    <td style="padding:10px 0;border-bottom:1px solid ${LINEA};color:${GRIS_TEXTO};font-size:15px;font-weight:600;text-align:right;">${valor}</td>
   </tr>`;
 
 interface Layout {
@@ -141,29 +178,17 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
 
   let stock = "";
   if (d.quedanEnModulo === 0) {
-    stock = `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px;">
-        <tr>
-          <td style="background-color:${AMBAR_FONDO};border-left:4px solid ${AMBAR_BORDE};border-radius:6px;padding:14px 16px;">
-            <p style="margin:0;color:${AMBAR_TEXTO};font-size:14px;line-height:20px;">
-              <strong>El pastillero quedó vacío.</strong><br>
-              Conviene recargarlo antes de la próxima dosis.
-            </p>
-          </td>
-        </tr>
-      </table>`;
+    stock = aviso(
+      "El pastillero quedó vacío",
+      "Conviene recargarlo antes de la próxima dosis.",
+      AMBAR_ACENTO
+    );
   } else if (d.quedanEnModulo !== null && d.quedanEnModulo <= 3) {
-    stock = `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px;">
-        <tr>
-          <td style="background-color:${AMBAR_FONDO};border-left:4px solid ${AMBAR_BORDE};border-radius:6px;padding:14px 16px;">
-            <p style="margin:0;color:${AMBAR_TEXTO};font-size:14px;line-height:20px;">
-              <strong>Quedan pocas pastillas:</strong> ${d.quedanEnModulo} en el pastillero.<br>
-              Es buen momento para recargarlo.
-            </p>
-          </td>
-        </tr>
-      </table>`;
+    stock = aviso(
+      `Quedan ${d.quedanEnModulo} pastillas`,
+      "Es buen momento para recargar el pastillero.",
+      AMBAR_ACENTO
+    );
   } else if (d.quedanEnModulo !== null) {
     stock = `<p style="margin:22px 0 0;color:${GRIS_SUAVE};font-size:14px;">
       Quedan ${d.quedanEnModulo} pastillas cargadas en el pastillero.
@@ -171,15 +196,11 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
   }
 
   const cuerpo = `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-      <tr>
-        <td style="background-color:${VERDE_CLARO};border-radius:10px;padding:18px 20px;">
-          <p style="margin:0;color:${VERDE_TEXTO};font-size:17px;font-weight:600;">
-            Se retiró la ${d.pastilla} de las ${hhmm}
-          </p>
-        </td>
-      </tr>
-    </table>
+    ${encabezadoEstado(
+      "Dosis retirada",
+      VERDE_ACENTO,
+      `Se retiró la ${d.pastilla} de las ${hhmm}`
+    )}
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       ${fila("Medicamento", d.pastilla)}
@@ -252,24 +273,18 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
       </p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         ${d.contactos
-          .map((c) => fila(`${c.nombre} ${c.apellido}`, `<a href="tel:${c.numero}" style="color:${VERDE_TEXTO};text-decoration:none;">${c.numero}</a>`))
+          .map((c) => fila(`${c.nombre} ${c.apellido}`, `<a href="tel:${c.numero}" style="color:${VERDE_ACENTO};text-decoration:none;">${c.numero}</a>`))
           .join("")}
       </table>`
     : "";
 
   const cuerpo = `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-      <tr>
-        <td style="background-color:${AMBAR_FONDO};border-radius:10px;padding:18px 20px;">
-          <p style="margin:0;color:${AMBAR_TEXTO};font-size:17px;font-weight:600;">
-            No se retiró la ${d.pastilla} de las ${hhmm}
-          </p>
-          <p style="margin:6px 0 0;color:${AMBAR_TEXTO};font-size:14px;">
-            Hace ${d.minutosDeRetraso} minutos que la dosis espera en el pastillero.
-          </p>
-        </td>
-      </tr>
-    </table>
+    ${encabezadoEstado(
+      "Sin retirar",
+      AMBAR_ACENTO,
+      `No se retiró la ${d.pastilla} de las ${hhmm}`,
+      `Hace ${d.minutosDeRetraso} minutos que la dosis espera en el pastillero.`
+    )}
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       ${fila("Medicamento", d.pastilla)}
@@ -313,6 +328,196 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
     html: envolver({
       preheader: `Pasaron ${d.minutosDeRetraso} minutos y la dosis sigue sin retirarse.`,
       titulo: "Dosis sin retirar",
+      saludo: `Hola ${d.cuidadorNombre},`,
+      cuerpo,
+    }),
+    texto,
+  };
+};
+
+
+// ---------------------------------------------------------------------------
+// Verificacion de la casilla
+// ---------------------------------------------------------------------------
+
+export interface DatosVerificacion {
+  cuidadorNombre: string;
+  enlace: string;
+  horasParaVencer: number;
+}
+
+export const plantillaVerificacion = (d: DatosVerificacion) => {
+  const cuerpo = `
+    ${encabezadoEstado(
+      "Falta un paso",
+      VERDE_ACENTO,
+      "Confirmá tu correo para activar los avisos"
+    )}
+
+    <p style="margin:0;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
+      Voitos te va a escribir a esta casilla cada vez que se retire una dosis, y
+      sobre todo cuando <strong>no</strong> se retire. Confirmala para asegurarnos
+      de que esos avisos te lleguen.
+    </p>
+
+    ${boton("Confirmar mi correo", d.enlace)}
+
+    <p style="margin:18px 0 0;color:${GRIS_SUAVE};font-size:13px;line-height:19px;">
+      El enlace vence en ${d.horasParaVencer} horas. Si el botón no funciona, copiá
+      y pegá esta dirección en el navegador:<br>
+      <span style="color:${GRIS_TEXTO};word-break:break-all;">${d.enlace}</span>
+    </p>
+
+    <p style="margin:18px 0 0;color:${GRIS_SUAVE};font-size:13px;line-height:19px;">
+      Si no creaste ninguna cuenta en Voitos, ignorá este mensaje.
+    </p>`;
+
+  const texto = [
+    `Hola ${d.cuidadorNombre},`,
+    ``,
+    `Confirmá tu correo para activar los avisos de Voitos.`,
+    ``,
+    `Voitos te va a escribir a esta casilla cada vez que se retire una dosis, y`,
+    `sobre todo cuando NO se retire.`,
+    ``,
+    `Abrí este enlace para confirmarla (vence en ${d.horasParaVencer} horas):`,
+    d.enlace,
+    ``,
+    `Si no creaste ninguna cuenta en Voitos, ignorá este mensaje.`,
+    ``,
+    `Voitos · aviso automático del pastillero`,
+  ].join("\n");
+
+  return {
+    asunto: "Confirmá tu correo para activar los avisos",
+    html: envolver({
+      preheader: "Un paso más y los avisos del pastillero quedan activos.",
+      titulo: "Confirmá tu correo",
+      saludo: `Hola ${d.cuidadorNombre},`,
+      cuerpo,
+    }),
+    texto,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Bienvenida, despues de verificar
+// ---------------------------------------------------------------------------
+
+export interface DatosBienvenida {
+  cuidadorNombre: string;
+  enlaceApp: string;
+}
+
+export const plantillaBienvenida = (d: DatosBienvenida) => {
+  const paso = (numero: number, titulo: string, detalle: string) => `
+    <tr>
+      <td width="34" valign="top" style="padding:0 0 18px;">
+        <span style="display:inline-block;width:24px;height:24px;background-color:${VERDE_ACENTO};border-radius:12px;color:#FFFFFF;font-size:13px;font-weight:700;text-align:center;line-height:24px;">${numero}</span>
+      </td>
+      <td valign="top" style="padding:0 0 18px;">
+        <p style="margin:0;color:${TITULO};font-size:15px;font-weight:600;">${titulo}</p>
+        <p style="margin:3px 0 0;color:${GRIS_TEXTO};font-size:14px;line-height:20px;">${detalle}</p>
+      </td>
+    </tr>`;
+
+  const cuerpo = `
+    ${encabezadoEstado("Cuenta activa", VERDE_ACENTO, "Tu correo quedó confirmado")}
+
+    <p style="margin:0 0 22px;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
+      Ya vas a recibir los avisos del pastillero. Para empezar a usarlo:
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${paso(1, "Cargá los medicamentos", "Desde Pastillas, agregá cada uno con su nombre.")}
+      ${paso(2, "Agendá los horarios", "Elegí a qué hora, qué días y cuántas pastillas por dosis.")}
+      ${paso(3, "Cargá el pastillero", "Poné las pastillas en el módulo y anotá cuántas cargaste.")}
+    </table>
+
+    ${boton("Abrir Voitos", d.enlaceApp)}`;
+
+  const texto = [
+    `Hola ${d.cuidadorNombre},`,
+    ``,
+    `Tu correo quedó confirmado y ya vas a recibir los avisos del pastillero.`,
+    ``,
+    `Para empezar:`,
+    `  1. Cargá los medicamentos desde Pastillas.`,
+    `  2. Agendá los horarios: hora, días y cuántas pastillas por dosis.`,
+    `  3. Cargá el pastillero y anotá cuántas pastillas pusiste.`,
+    ``,
+    d.enlaceApp,
+    ``,
+    `Voitos · aviso automático del pastillero`,
+  ].join("\n");
+
+  return {
+    asunto: "Tu cuenta de Voitos ya está activa",
+    html: envolver({
+      preheader: "Tres pasos para dejar el pastillero funcionando.",
+      titulo: "Cuenta activa",
+      saludo: `Hola ${d.cuidadorNombre},`,
+      cuerpo,
+    }),
+    texto,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Pastillero vacio
+// ---------------------------------------------------------------------------
+
+export interface DatosVacio {
+  cuidadorNombre: string;
+  pastilla: string;
+  modulo: number;
+  proximaDosis: string | null;
+  enlaceApp: string;
+}
+
+export const plantillaPastilleroVacio = (d: DatosVacio) => {
+  const cuerpo = `
+    ${encabezadoEstado(
+      "Sin stock",
+      AMBAR_ACENTO,
+      `El módulo ${d.modulo} se quedó sin ${d.pastilla}`,
+      d.proximaDosis
+        ? `La próxima dosis está agendada para ${d.proximaDosis}.`
+        : undefined
+    )}
+
+    <p style="margin:0;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
+      Si el módulo sigue vacío cuando llegue el horario, el pastillero no va a poder
+      entregar la medicación.
+    </p>
+
+    ${aviso(
+      "Qué hacer",
+      "Cargá las pastillas en el módulo y actualizá la cantidad desde la app, así el conteo queda al día.",
+      AMBAR_ACENTO
+    )}
+
+    ${boton("Actualizar el pastillero", d.enlaceApp, AMBAR_ACENTO)}`;
+
+  const texto = [
+    `Hola ${d.cuidadorNombre},`,
+    ``,
+    `El módulo ${d.modulo} se quedó sin ${d.pastilla}.`,
+    d.proximaDosis ? `La próxima dosis está agendada para ${d.proximaDosis}.` : "",
+    ``,
+    `Si sigue vacío cuando llegue el horario, el pastillero no va a poder entregar`,
+    `la medicación. Cargá las pastillas y actualizá la cantidad desde la app.`,
+    ``,
+    d.enlaceApp,
+    ``,
+    `Voitos · aviso automático del pastillero`,
+  ].join("\n");
+
+  return {
+    asunto: `El pastillero se quedó sin ${d.pastilla}`,
+    html: envolver({
+      preheader: `Módulo ${d.modulo} vacío. Hay que recargarlo.`,
+      titulo: "Pastillero vacío",
       saludo: `Hola ${d.cuidadorNombre},`,
       cuerpo,
     }),

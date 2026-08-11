@@ -5,9 +5,15 @@ import fs from "fs";
 import {
   plantillaDispensacionOk,
   plantillaDosisNoTomada,
+  plantillaVerificacion,
+  plantillaBienvenida,
+  plantillaPastilleroVacio,
   LOGO_CID,
   DatosOk,
   DatosNoTomada,
+  DatosVerificacion,
+  DatosBienvenida,
+  DatosVacio,
 } from "./plantillas-mail";
 
 // Este modulo lee las variables al cargarse, y los imports se ejecutan antes
@@ -120,6 +126,33 @@ export interface DatosDosisNoTomada extends DatosNoTomada {
 
 export const avisarDosisNoTomada = async (d: DatosDosisNoTomada) => {
   const { asunto, html, texto } = plantillaDosisNoTomada(d);
+  return enviar({ para: d.cuidadorMail, asunto, html, texto });
+};
+
+export interface DatosVerificacionMail extends DatosVerificacion {
+  cuidadorMail: string;
+}
+
+export const avisarVerificacion = async (d: DatosVerificacionMail) => {
+  const { asunto, html, texto } = plantillaVerificacion(d);
+  return enviar({ para: d.cuidadorMail, asunto, html, texto });
+};
+
+export interface DatosBienvenidaMail extends DatosBienvenida {
+  cuidadorMail: string;
+}
+
+export const avisarBienvenida = async (d: DatosBienvenidaMail) => {
+  const { asunto, html, texto } = plantillaBienvenida(d);
+  return enviar({ para: d.cuidadorMail, asunto, html, texto });
+};
+
+export interface DatosVacioMail extends DatosVacio {
+  cuidadorMail: string;
+}
+
+export const avisarPastilleroVacio = async (d: DatosVacioMail) => {
+  const { asunto, html, texto } = plantillaPastilleroVacio(d);
   return enviar({ para: d.cuidadorMail, asunto, html, texto });
 };
 
