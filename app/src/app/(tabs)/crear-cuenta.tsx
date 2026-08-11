@@ -161,21 +161,21 @@ export default function CrearCuenta() {
           <TextInput
             style={styles.input}
             placeholder="NOMBRE...."
-            placeholderTextColor="#B3B3B3"
+            placeholderTextColor="#6E9C7E"
             value={nombre}
             onChangeText={setNombre}
           />
           <TextInput
             style={styles.input}
             placeholder="APELLIDO...."
-            placeholderTextColor="#B3B3B3"
+            placeholderTextColor="#6E9C7E"
             value={apellido}
             onChangeText={setApellido}
           />
           <TextInput
             style={styles.input}
             placeholder="MAIL....."
-            placeholderTextColor="#B3B3B3"
+            placeholderTextColor="#6E9C7E"
             keyboardType="email-address"
             autoCapitalize="none"
             value={mail}
@@ -184,7 +184,7 @@ export default function CrearCuenta() {
           <TextInput
             style={styles.input}
             placeholder="CONTRASEÑA...."
-            placeholderTextColor="#B3B3B3"
+            placeholderTextColor="#6E9C7E"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -192,7 +192,7 @@ export default function CrearCuenta() {
           <TextInput
             style={styles.input}
             placeholder="CONFIRMAR CONTRASEÑA...."
-            placeholderTextColor="#B3B3B3"
+            placeholderTextColor="#6E9C7E"
             secureTextEntry
             value={confirmacion}
             onChangeText={setConfirmacion}
@@ -241,7 +241,10 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(2, 32, 15, 0.92)",
+    borderWidth: 1.5,
+    borderColor: "#105a2c",
+    color: "#FFFFFF",
     width: "85%",
     maxWidth: 400,
     height: 50,
@@ -249,7 +252,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     fontSize: 16,
     marginVertical: 10,
-    shadowColor: "#FFFFFF",
+    shadowColor: "#00FF7F",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4, // Bajado un poco el brillo blanco para que acople mejor al nuevo diseño oscuro
     shadowRadius: 6,
