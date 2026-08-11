@@ -29,6 +29,12 @@ export default function AgregarActividad() {
   const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([]);
   const [error, setError] = useState("");
 
+  const todosSeleccionados = diasSeleccionados.length === diasSemana.length;
+
+  function alternarTodaLaSemana() {
+    setDiasSeleccionados(todosSeleccionados ? [] : [...diasSemana]);
+  }
+
   function seleccionarDia(dia: string) {
     if (diasSeleccionados.includes(dia)) {
       setDiasSeleccionados(
@@ -113,7 +119,7 @@ export default function AgregarActividad() {
         <TextInput
           style={styles.input}
           placeholder="Ej: Gimnasia"
-          placeholderTextColor="#999"
+          placeholderTextColor="#6E9C7E"
           value={nombre}
           onChangeText={setNombre}
         />
@@ -127,7 +133,7 @@ export default function AgregarActividad() {
         <TextInput
           style={styles.input}
           placeholder="Ej: 08:30"
-          placeholderTextColor="#999"
+          placeholderTextColor="#6E9C7E"
           value={hora}
           onChangeText={setHora}
           keyboardType="numbers-and-punctuation"
@@ -206,6 +212,15 @@ export default function AgregarActividad() {
             <Text style={styles.label}>
               Repetir los días
             </Text>
+
+            <TouchableOpacity
+              style={styles.todaLaSemanaButton}
+              onPress={alternarTodaLaSemana}
+            >
+              <Text style={styles.todaLaSemanaText}>
+                {todosSeleccionados ? "QUITAR TODOS" : "TODA LA SEMANA"}
+              </Text>
+            </TouchableOpacity>
 
             <View style={styles.daysContainer}>
               {diasSemana.map((dia) => {
@@ -304,11 +319,31 @@ const styles = StyleSheet.create({
     width: "90%",
     maxWidth: 420,
     height: 55,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(2, 32, 15, 0.92)",
+    borderWidth: 1.5,
+    borderColor: "#105a2c",
+    color: "#FFFFFF",
     borderRadius: 14,
     paddingHorizontal: 18,
     fontSize: 17,
-    color: "#000000",
+  },
+
+  todaLaSemanaButton: {
+    alignSelf: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "#105a2c",
+    backgroundColor: "rgba(2, 32, 15, 0.92)",
+    marginBottom: 12,
+  },
+
+  todaLaSemanaText: {
+    color: "#00FF7F",
+    fontSize: 13,
+    fontWeight: "bold",
+    letterSpacing: 0.5,
   },
 
   // FECHA
@@ -363,16 +398,18 @@ const styles = StyleSheet.create({
   },
 
   typeTextSelected: {
-    color: "#000000",
+    color: "#FFFFFF",
   },
 
   // DÍAS
 
   daysContainer: {
     width: "90%",
+    maxWidth: 420,
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     flexWrap: "wrap",
+    gap: 10,
     marginTop: 5,
   },
 
@@ -397,7 +434,7 @@ const styles = StyleSheet.create({
   },
 
   dayTextSelected: {
-    color: "#000000",
+    color: "#FFFFFF",
   },
 
   // BOTÓN GUARDAR

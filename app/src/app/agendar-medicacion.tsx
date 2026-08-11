@@ -10,7 +10,6 @@ import {
   Pressable,
 } from "react-native";
 
-import DateTimePicker from "@react-native-community/datetimepicker";
 
 import LavaBackground from "../components/LavaBackground";
 import { agendarPastilla } from "../lib/voitos";
@@ -20,7 +19,6 @@ export default function AgregarMedicacion() {
   const [nombre, setNombre] = useState("");
   const [cantidad, setCantidad] = useState(1);
   const [hora, setHora] = useState("");
-  const [mostrarHora, setMostrarHora] = useState(false);
 
   const diasSemana = [
     "L",
@@ -36,6 +34,12 @@ export default function AgregarMedicacion() {
   const [error, setError] = useState("");
   const [exito, setExito] = useState("");
   const [guardando, setGuardando] = useState(false);
+
+  const todosSeleccionados = diasSeleccionados.length === diasSemana.length;
+
+  function alternarTodaLaSemana() {
+    setDiasSeleccionados(todosSeleccionados ? [] : [...diasSemana]);
+  }
 
   function cambiarDia(dia: string) {
     if (diasSeleccionados.includes(dia)) {
@@ -74,7 +78,7 @@ export default function AgregarMedicacion() {
         <TextInput
           style={styles.input}
           placeholder="Nombre del medicamento"
-          placeholderTextColor="#999"
+          placeholderTextColor="#6E9C7E"
           value={nombre}
           onChangeText={setNombre}
         />
@@ -123,52 +127,17 @@ export default function AgregarMedicacion() {
         </Text>
 
 
-        <TouchableOpacity
+        {/* Se escribe la hora a mano. DateTimePicker no funciona en web:
+            react-native-web no lo implementa, asi que el campo no abria nada. */}
+        <TextInput
           style={styles.input}
-          onPress={() => setMostrarHora(true)}
-        >
-
-          <Text
-            style={{
-              color: hora ? "#000" : "#999",
-              fontSize: 17,
-            }}
-          >
-            {hora || "Seleccionar hora"}
-          </Text>
-
-        </TouchableOpacity>
-
-
-        {mostrarHora && (
-          <DateTimePicker
-            value={new Date()}
-            mode="time"
-            is24Hour={true}
-            display="default"
-            onChange={(event, selectedDate) => {
-
-              setMostrarHora(false);
-
-              if (selectedDate) {
-
-                const horas = selectedDate
-                  .getHours()
-                  .toString()
-                  .padStart(2, "0");
-
-                const minutos = selectedDate
-                  .getMinutes()
-                  .toString()
-                  .padStart(2, "0");
-
-
-                setHora(`${horas}:${minutos}`);
-              }
-
-            }}
-          />
-        )}
+          placeholder="Ej: 08:30"
+          placeholderTextColor="#6E9C7E"
+          value={hora}
+          onChangeText={setHora}
+          keyboardType="numbers-and-punctuation"
+          maxLength={5}
+        />
 
 
 
@@ -176,6 +145,14 @@ export default function AgregarMedicacion() {
           Días de la semana
         </Text>
 
+        <TouchableOpacity
+          style={styles.todaLaSemanaButton}
+          onPress={alternarTodaLaSemana}
+        >
+          <Text style={styles.todaLaSemanaText}>
+            {todosSeleccionados ? "QUITAR TODOS" : "TODA LA SEMANA"}
+          </Text>
+        </TouchableOpacity>
 
         <View style={styles.daysContainer}>
 
@@ -300,7 +277,10 @@ const styles = StyleSheet.create({
   width: "80%", 
   maxWidth: 450,
   height: 50, 
-  backgroundColor: "#FFFFFF",
+  backgroundColor: "rgba(2, 32, 15, 0.92)",
+    borderWidth: 1.5,
+    borderColor: "#105a2c",
+    color: "#FFFFFF",
   borderRadius: 18,
   paddingHorizontal: 20,
   justifyContent: "center",
@@ -337,7 +317,10 @@ const styles = StyleSheet.create({
   width: 180,
   height: 55,
 
-  backgroundColor: "#FFFFFF",
+  backgroundColor: "rgba(2, 32, 15, 0.92)",
+    borderWidth: 1.5,
+    borderColor: "#105a2c",
+    color: "#FFFFFF",
   borderRadius: 18,
 
   paddingHorizontal: 12,
@@ -368,16 +351,36 @@ const styles = StyleSheet.create({
   counterNumber: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#000000",
+    color: "#FFFFFF",
   },
 
 
   daysContainer: {
   flexDirection: "row",
   justifyContent: "center",
+  flexWrap: "wrap",
+  gap: 10,
   width: "100%",
   marginTop: 8,
 },
+
+  todaLaSemanaButton: {
+    alignSelf: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "#105a2c",
+    backgroundColor: "rgba(2, 32, 15, 0.92)",
+    marginTop: 10,
+  },
+
+  todaLaSemanaText: {
+    color: "#00FF7F",
+    fontSize: 13,
+    fontWeight: "bold",
+    letterSpacing: 0.5,
+  },
 
   dayButton: {
   width: 38,
@@ -414,7 +417,7 @@ const styles = StyleSheet.create({
 
 
   dayTextSelected: {
-    color: "#000000",
+    color: "#FFFFFF",
   },
 
 

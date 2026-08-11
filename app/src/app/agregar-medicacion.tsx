@@ -101,9 +101,11 @@ export default function CrearCuenta() {
 
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [exito, setExito] = useState("");
 
   const handleAgregar = async () => {
     setError("");
+    setExito("");
 
     if (!nombre) {
       setError("Poné el nombre de la pastilla");
@@ -119,7 +121,12 @@ export default function CrearCuenta() {
         // (ej: cuantas trae la caja), no la dosis. Va como caracteristica.
         caracteristicas: cantidad ? `Cantidad: ${cantidad}` : undefined,
       });
-      router.back();
+      setExito(`Se agregó ${nombre}. Ya la podés agendar.`);
+      setNombre("");
+      setCantidad("");
+
+      // Se deja ver la confirmacion antes de volver
+      setTimeout(() => router.back(), 1600);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -152,7 +159,7 @@ export default function CrearCuenta() {
           <TextInput
             style={styles.input}
             placeholder="PASTILLA...."
-            placeholderTextColor="#B3B3B3"
+            placeholderTextColor="#6E9C7E"
             value={nombre}
             onChangeText={setNombre}
           />
@@ -174,7 +181,7 @@ export default function CrearCuenta() {
           <TextInput
             style={styles.input}
             placeholder="CANTIDAD...."
-            placeholderTextColor="#B3B3B3"
+            placeholderTextColor="#6E9C7E"
             keyboardType="numeric"
             value={cantidad}
             onChangeText={setCantidad}
@@ -182,6 +189,7 @@ export default function CrearCuenta() {
         </View>
 
         <Mensaje texto={error} />
+        <Mensaje texto={exito} tipo="ok" />
 
         <TouchableOpacity style={styles.button} onPress={handleAgregar} disabled={guardando}>
           <Text style={styles.buttonText}>{guardando ? "GUARDANDO..." : "AGREGAR"}</Text>
@@ -217,7 +225,10 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(2, 32, 15, 0.92)",
+    borderWidth: 1.5,
+    borderColor: "#105a2c",
+    color: "#FFFFFF",
     width: "85%",
     maxWidth: 400,
     height: 50,
@@ -225,8 +236,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     fontSize: 16,
     marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 5, height: 5 },
+    shadowColor: "#00FF7F",
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 6,
@@ -235,12 +246,13 @@ const styles = StyleSheet.create({
   picker: {
   width: 400,
   height: 50,
-  backgroundColor: "#FFFFFF",
+  backgroundColor: "rgba(2, 32, 15, 0.92)",
+  borderWidth: 1.5,
+  borderColor: "#105a2c",
   borderRadius: 10,
-  borderWidth: 0,
   paddingHorizontal: 20,
   marginVertical: 6,
-  color: "#000000",
+  color: "#FFFFFF",
 
   shadowColor: "#00FF7F",
   shadowOffset: {
