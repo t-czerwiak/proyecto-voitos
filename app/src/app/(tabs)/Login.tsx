@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { iniciarSesion } from "../../lib/voitos";
-import { avisar } from "../../lib/avisar";
+import Mensaje from "../../components/Mensaje";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -100,10 +100,13 @@ export default function CrearCuenta() {
   const [mail, setMail] = useState("");
   const [password, setPassword] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
 
   const handleIniciarSesion = async () => {
+    setError("");
+
     if (!mail || !password) {
-      avisar("Faltan datos", "Completa el mail y la contrasena");
+      setError("Completá el mail y la contraseña");
       return;
     }
 
@@ -112,7 +115,7 @@ export default function CrearCuenta() {
       await iniciarSesion(mail, password);
       router.push("/home");
     } catch (e: any) {
-      avisar("No se pudo iniciar sesion", e.message);
+      setError(e.message);
     } finally {
       setCargando(false);
     }
@@ -175,6 +178,8 @@ export default function CrearCuenta() {
             onChangeText={setPassword}
           />
         </View>
+
+        <Mensaje texto={error} />
 
         <TouchableOpacity
           style={styles.button}

@@ -10,7 +10,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import LavaBackground from "../components/LavaBackground";
 import { crearActividad } from "../lib/voitos";
-import { avisar } from "../lib/avisar";
+import Mensaje from "../components/Mensaje";
 
 export default function AgregarActividad() {
   const { fecha: fechaParametro } = useLocalSearchParams<{
@@ -27,6 +27,7 @@ export default function AgregarActividad() {
   const diasSemana = ["L", "M", "X", "J", "V", "S", "D"];
 
   const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([]);
+  const [error, setError] = useState("");
 
   function seleccionarDia(dia: string) {
     if (diasSeleccionados.includes(dia)) {
@@ -54,11 +55,15 @@ export default function AgregarActividad() {
   }
 
   async function guardarActividad() {
+    setError("");
+
     if (!nombre || !hora) {
+      setError("Completá el nombre y la hora");
       return;
     }
 
     if (tipo === "una-vez" && !fecha) {
+      setError("Elegí la fecha de la actividad");
       return;
     }
 
@@ -66,6 +71,7 @@ export default function AgregarActividad() {
       tipo === "rutina" &&
       diasSeleccionados.length === 0
     ) {
+      setError("Elegí al menos un día de la semana");
       return;
     }
 
@@ -82,7 +88,7 @@ export default function AgregarActividad() {
 
       router.back();
     } catch (e: any) {
-      avisar("No se pudo guardar la actividad", e.message);
+      setError(e.message);
     }
   }
 
@@ -235,6 +241,8 @@ export default function AgregarActividad() {
         )}
 
         {/* GUARDAR */}
+
+        <Mensaje texto={error} />
 
         <TouchableOpacity
           style={styles.saveButton}
