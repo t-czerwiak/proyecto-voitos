@@ -16,7 +16,15 @@ services:
     rootDir: backend
     buildCommand: npm install && npm run build
     startCommand: npm start
-    healthCheckPath: /api/sensor/pendiente
+    # Sin healthCheckPath a proposito. El unico endpoint publico que responde
+    # rapido es /api/sensor/pendiente, y consulta Supabase: usarlo como health
+    # check haria que Render golpee la base cada pocos minutos, para siempre.
+    # Sin health check, Render da el servicio por vivo cuando toma el puerto.
+    #
+    # OJO con el plan free: el servicio se duerme a los 15 minutos sin trafico.
+    # Mientras duerme, el scheduler de dosis no tomadas NO corre, asi que ese
+    # mail puede no salir. Para la demo alcanza; para uso real hace falta el
+    # plan pago o un cron externo que lo despierte.
     envVars:
       - key: NODE_VERSION
         value: "20"
