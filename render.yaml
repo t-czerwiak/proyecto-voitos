@@ -26,8 +26,12 @@ services:
     # mail puede no salir. Para la demo alcanza; para uso real hace falta el
     # plan pago o un cron externo que lo despierte.
     envVars:
+      # Node 22 o mas, no menos: @supabase/supabase-js crea un RealtimeClient
+      # al construir el cliente, y ese busca el WebSocket nativo. En Node 20 no
+      # existe, asi que el proceso muere al arrancar con
+      # "Node.js detected but native WebSocket not found".
       - key: NODE_VERSION
-        value: "20"
+        value: "22"
       - key: SUPABASE_URL
         value: https://pshejdspqqhuhyjbzslx.supabase.co
       - key: SUPABASE_SERVICE_ROLE_KEY
