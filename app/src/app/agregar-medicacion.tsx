@@ -159,7 +159,7 @@ export default function CrearCuenta() {
           <TextInput
             style={styles.input}
             placeholder="PASTILLA...."
-            placeholderTextColor="#6E9C7E"
+            placeholderTextColor="#B3B3B3"
             value={nombre}
             onChangeText={setNombre}
           />
@@ -181,7 +181,7 @@ export default function CrearCuenta() {
           <TextInput
             style={styles.input}
             placeholder="CANTIDAD...."
-            placeholderTextColor="#6E9C7E"
+            placeholderTextColor="#B3B3B3"
             keyboardType="numeric"
             value={cantidad}
             onChangeText={setCantidad}
@@ -225,10 +225,7 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    backgroundColor: "rgba(2, 32, 15, 0.92)",
-    borderWidth: 1.5,
-    borderColor: "#105a2c",
-    color: "#FFFFFF",
+    backgroundColor: "#fff",
     width: "85%",
     maxWidth: 400,
     height: 50,
@@ -236,8 +233,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     fontSize: 16,
     marginVertical: 10,
-    shadowColor: "#00FF7F",
-    shadowOffset: { width: 0, height: 0 },
+    shadowColor: "#000",
+    shadowOffset: { width: 5, height: 5 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 6,
@@ -246,13 +243,12 @@ const styles = StyleSheet.create({
   picker: {
   width: 400,
   height: 50,
-  backgroundColor: "rgba(2, 32, 15, 0.92)",
-  borderWidth: 1.5,
-  borderColor: "#105a2c",
+  backgroundColor: "#FFFFFF",
   borderRadius: 10,
+  borderWidth: 0,
   paddingHorizontal: 20,
   marginVertical: 6,
-  color: "#FFFFFF",
+  color: "#000000",
 
   shadowColor: "#00FF7F",
   shadowOffset: {

@@ -358,12 +358,9 @@ const styles = StyleSheet.create({
 
   yearContainer: {
     width: "90%",
-    maxWidth: 320,
-    alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 28,
+    justifyContent: "space-between",
     marginBottom: 15,
   },
 
@@ -386,18 +383,14 @@ const styles = StyleSheet.create({
 
   arrowText: {
     color: "#00FF7F",
-    fontSize: 30,
-    lineHeight: 30,
-    textAlign: "center",
-    includeFontPadding: false,
+    fontSize: 32,
+    lineHeight: 34,
   },
 
   // MES
 
   monthContainer: {
     width: "90%",
-    maxWidth: 420,
-    alignSelf: "center",
     height: 55,
     flexDirection: "row",
     alignItems: "center",
@@ -425,10 +418,7 @@ const styles = StyleSheet.create({
 
   monthArrowText: {
     color: "#00FF7F",
-    fontSize: 30,
-    lineHeight: 30,
-    textAlign: "center",
-    includeFontPadding: false,
+    fontSize: 32,
   },
 
   // DÍAS
