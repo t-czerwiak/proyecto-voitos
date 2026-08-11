@@ -1,30 +1,51 @@
 # Dependencias
 node_modules/
 
-# Build
+# Builds
 dist/
 build/
+web-build/
 
-# Variables de entorno
+# Variables de entorno (nunca subir: tienen la service_role key y la del mail)
 .env
 .env.local
 .env.*.local
 
+# Expo
+.expo/
+expo-env.d.ts
+.metro-health-check*
+
+# Nativo
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+/ios
+/android
+
 # TypeScript
+*.tsbuildinfo
 *.js.map
 *.d.ts.map
 
 # Logs
 logs/
 *.log
-npm-debug.log*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
 # Sistema operativo
 .DS_Store
 Thumbs.db
+*.pem
 
 # IDEs
-.vscode/
+# .vscode/ va versionado a proposito: tiene la config compartida del equipo
 .idea/
 *.suo
 *.ntvs*
@@ -38,3 +59,6 @@ Thumbs.db
 # Claude Code
 CLAUDE.md
 claude.md
+
+# Vercel
+.vercel
