@@ -26,10 +26,23 @@ const dosDigitos = (n: number) => String(n).padStart(2, "0");
 export const formatearHora = (hora: number, minuto: number) =>
   `${dosDigitos(hora)}:${dosDigitos(minuto)}`;
 
-// "2026-08-11" -> "martes 11 de agosto"
+// "2026-08-11" -> "hoy", "ayer" o "martes 11 de agosto".
+// Decir "hoy" ubica mucho mas rapido que una fecha completa, que obliga a
+// pensar que dia es hoy para saber si el aviso es viejo.
 export const formatearFecha = (fecha: string): string => {
   const partes = fecha.split("-");
   if (partes.length !== 3) return fecha;
+
+  // El sistema trabaja en hora de Argentina, no en la del servidor
+  const ahora = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const hoy = ahora.toISOString().split("T")[0];
+
+  const ayerDate = new Date(ahora);
+  ayerDate.setUTCDate(ayerDate.getUTCDate() - 1);
+  const ayer = ayerDate.toISOString().split("T")[0];
+
+  if (fecha === hoy) return "hoy";
+  if (fecha === ayer) return "ayer";
 
   const meses = [
     "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -162,7 +175,7 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
       <tr>
         <td style="background-color:${VERDE_CLARO};border-radius:10px;padding:18px 20px;">
           <p style="margin:0;color:${VERDE_TEXTO};font-size:17px;font-weight:600;">
-            Tomó la ${d.pastilla} de las ${hhmm}
+            Se retiró la ${d.pastilla} de las ${hhmm}
           </p>
         </td>
       </tr>
@@ -176,12 +189,17 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
       ${fila("Dispositivo", d.dispositivo)}
     </table>
 
+    <p style="margin:18px 0 0;color:${GRIS_SUAVE};font-size:13px;line-height:19px;">
+      El pastillero registra cuándo se retira la medicación. Que haya salido no
+      confirma por sí solo que se haya tomado.
+    </p>
+
     ${stock}`;
 
   const texto = [
     `Hola ${d.cuidadorNombre},`,
     ``,
-    `Tomó la ${d.pastilla} de las ${hhmm}.`,
+    `Se retiró la ${d.pastilla} de las ${hhmm} del pastillero.`,
     ``,
     `  Medicamento: ${d.pastilla}`,
     `  Cantidad:    ${pastillas}`,
@@ -201,7 +219,7 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
   ].join("\n");
 
   return {
-    asunto: `Tomó la ${d.pastilla} de las ${hhmm}`,
+    asunto: `Se retiró la ${d.pastilla} de las ${hhmm}`,
     html: envolver({
       preheader: `${d.pastilla}, ${pastillas}, a las ${hhmm}.`,
       titulo: "Dosis tomada",
@@ -244,10 +262,10 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
       <tr>
         <td style="background-color:${AMBAR_FONDO};border-radius:10px;padding:18px 20px;">
           <p style="margin:0;color:${AMBAR_TEXTO};font-size:17px;font-weight:600;">
-            No retiró la ${d.pastilla} de las ${hhmm}
+            No se retiró la ${d.pastilla} de las ${hhmm}
           </p>
           <p style="margin:6px 0 0;color:${AMBAR_TEXTO};font-size:14px;">
-            Hace ${d.minutosDeRetraso} minutos que la dosis está esperando.
+            Hace ${d.minutosDeRetraso} minutos que la dosis espera en el pastillero.
           </p>
         </td>
       </tr>
@@ -261,8 +279,8 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
     </table>
 
     <p style="margin:24px 0 0;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
-      La alarma sonó cuatro veces y nadie apretó el botón. Puede que no la haya
-      escuchado o que no esté en casa.
+      La alarma sonó cuatro veces y el botón nunca se apretó. Puede que no se haya
+      escuchado, o que no haya nadie en casa.
     </p>
 
     <p style="margin:14px 0 0;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
@@ -274,15 +292,15 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
   const texto = [
     `Hola ${d.cuidadorNombre},`,
     ``,
-    `No retiró la ${d.pastilla} de las ${hhmm}. Hace ${d.minutosDeRetraso} minutos que la dosis está esperando.`,
+    `No se retiró la ${d.pastilla} de las ${hhmm}. Hace ${d.minutosDeRetraso} minutos que la dosis espera en el pastillero.`,
     ``,
     `  Medicamento: ${d.pastilla}`,
     `  Cantidad:    ${pastillas}`,
     `  Día:         ${formatearFecha(d.dia)}`,
     `  Hora:        ${hhmm}`,
     ``,
-    `La alarma sonó cuatro veces y nadie apretó el botón. Puede que no la haya`,
-    `escuchado o que no esté en casa. Conviene que llames para chequear.`,
+    `La alarma sonó cuatro veces y el botón nunca se apretó. Puede que no se haya`,
+    `escuchado, o que no haya nadie en casa. Conviene que llames para chequear.`,
     ``,
     ...(d.contactos.length
       ? ["Contactos de emergencia:", ...d.contactos.map((c) => `  ${c.nombre} ${c.apellido}: ${c.numero}`), ""]
@@ -291,7 +309,7 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
   ].join("\n");
 
   return {
-    asunto: `No retiró la ${d.pastilla} de las ${hhmm}`,
+    asunto: `No se retiró la ${d.pastilla} de las ${hhmm}`,
     html: envolver({
       preheader: `Pasaron ${d.minutosDeRetraso} minutos y la dosis sigue sin retirarse.`,
       titulo: "Dosis sin retirar",
