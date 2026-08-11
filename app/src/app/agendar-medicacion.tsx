@@ -14,7 +14,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 
 import LavaBackground from "../components/LavaBackground";
 import { agendarPastilla } from "../lib/voitos";
-import { avisar } from "../lib/avisar";
+import Mensaje from "../components/Mensaje";
 
 export default function AgregarMedicacion() {
   const [nombre, setNombre] = useState("");
@@ -33,6 +33,9 @@ export default function AgregarMedicacion() {
   ];
 
   const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  const [exito, setExito] = useState("");
+  const [guardando, setGuardando] = useState(false);
 
   function cambiarDia(dia: string) {
     if (diasSeleccionados.includes(dia)) {
@@ -206,15 +209,23 @@ export default function AgregarMedicacion() {
 
 
 
+        <Mensaje texto={error} />
+        <Mensaje texto={exito} tipo="ok" />
+
         <TouchableOpacity
           style={styles.addButton}
+          disabled={guardando}
           onPress={async () => {
 
+            setError("");
+            setExito("");
+
             if (!nombre || !hora) {
-              avisar("Faltan datos", "Poner el nombre de la pastilla y la hora");
+              setError("Completá el nombre de la pastilla y la hora");
               return;
             }
 
+            setGuardando(true);
             try {
               const cuantas = await agendarPastilla({
                 nombrePastilla: nombre,
@@ -223,23 +234,25 @@ export default function AgregarMedicacion() {
                 dias: diasSeleccionados,
               });
 
-              avisar(
-                "Listo",
+              setExito(
                 cuantas === 1
-                  ? "Se agendo la dosis"
-                  : `Se agendaron ${cuantas} dosis para las proximas 4 semanas`
+                  ? "Se agendó la dosis"
+                  : `Se agendaron ${cuantas} dosis para las próximas 4 semanas`
               );
 
-              router.back();
+              // Se deja ver el mensaje antes de volver a la pantalla anterior
+              setTimeout(() => router.back(), 1500);
             } catch (e: any) {
-              avisar("No se pudo agendar", e.message);
+              setError(e.message);
+            } finally {
+              setGuardando(false);
             }
 
           }}
         >
 
           <Text style={styles.addButtonText}>
-            AGENDAR
+            {guardando ? "AGENDANDO..." : "AGENDAR"}
           </Text>
 
         </TouchableOpacity>

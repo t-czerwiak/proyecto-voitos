@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { crearPastilla } from "../lib/voitos";
-import { avisar } from "../lib/avisar";
+import Mensaje from "../components/Mensaje";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -100,10 +100,13 @@ export default function CrearCuenta() {
   const [cantidad, setCantidad] = useState("");
 
   const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
 
   const handleAgregar = async () => {
+    setError("");
+
     if (!nombre) {
-      avisar("Faltan datos", "Poner el nombre de la pastilla");
+      setError("Poné el nombre de la pastilla");
       return;
     }
 
@@ -118,7 +121,7 @@ export default function CrearCuenta() {
       });
       router.back();
     } catch (e: any) {
-      avisar("No se pudo agregar la pastilla", e.message);
+      setError(e.message);
     } finally {
       setGuardando(false);
     }
@@ -177,6 +180,8 @@ export default function CrearCuenta() {
             onChangeText={setCantidad}
           />
         </View>
+
+        <Mensaje texto={error} />
 
         <TouchableOpacity style={styles.button} onPress={handleAgregar} disabled={guardando}>
           <Text style={styles.buttonText}>{guardando ? "GUARDANDO..." : "AGREGAR"}</Text>

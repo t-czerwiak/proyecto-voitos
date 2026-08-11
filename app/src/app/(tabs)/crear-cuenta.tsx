@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { registrarse } from "../../lib/voitos";
-import { avisar } from "../../lib/avisar";
+import Mensaje from "../../components/Mensaje";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -101,10 +101,13 @@ export default function CrearCuenta() {
   const [mail, setMail] = useState("");
   const [password, setPassword] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
 
   const handleCrearCuenta = async () => {
+    setError("");
+
     if (!nombre || !apellido || !mail || !password) {
-      avisar("Faltan datos", "Completa todos los campos");
+      setError("Completá todos los campos");
       return;
     }
 
@@ -113,7 +116,7 @@ export default function CrearCuenta() {
       await registrarse({ nombre, apellido, mail, password });
       router.push("/home");
     } catch (e: any) {
-      avisar("No se pudo crear la cuenta", e.message);
+      setError(e.message);
     } finally {
       setCargando(false);
     }
@@ -176,6 +179,8 @@ export default function CrearCuenta() {
             onChangeText={setPassword}
           />
         </View>
+
+        <Mensaje texto={error} />
 
         <TouchableOpacity
           style={styles.button}
