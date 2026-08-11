@@ -18,6 +18,9 @@ const AMBAR_TEXTO = "#8A5200";
 const GRIS_TEXTO = "#3C4A42";
 const GRIS_SUAVE = "#78877E";
 
+// Identificador del logo adjunto. email.service lo adjunta con este mismo cid.
+export const LOGO_CID = "voitos-logo";
+
 const dosDigitos = (n: number) => String(n).padStart(2, "0");
 
 export const formatearHora = (hora: number, minuto: number) =>
@@ -73,11 +76,12 @@ const envolver = ({ preheader, titulo, saludo, cuerpo }: Layout) => `<!DOCTYPE h
 
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
 
-          <!-- Encabezado -->
+          <!-- Encabezado. El logo va como adjunto embebido (cid) porque Gmail
+               bloquea las imagenes en data: URI y no queremos depender de que
+               el archivo este publicado en algun servidor. -->
           <tr>
-            <td style="background-color:${VERDE_OSCURO};padding:26px 32px;">
-              <span style="color:#FFFFFF;font-size:22px;font-weight:700;letter-spacing:0.5px;">Voitos</span>
-              <span style="color:#5FD68F;font-size:13px;padding-left:10px;">pastillero inteligente</span>
+            <td style="background-color:${VERDE_OSCURO};padding:24px 32px;">
+              <img src="cid:${LOGO_CID}" width="132" alt="Voitos" style="display:block;border:0;height:auto;">
             </td>
           </tr>
 
@@ -93,8 +97,7 @@ const envolver = ({ preheader, titulo, saludo, cuerpo }: Layout) => `<!DOCTYPE h
           <tr>
             <td style="background-color:#F7FAF8;padding:20px 32px;border-top:1px solid #E4EAE6;">
               <p style="margin:0;color:${GRIS_SUAVE};font-size:12px;line-height:18px;">
-                Este mensaje se envía automáticamente cuando el pastillero registra una dosis.
-                No hace falta que respondas.
+                Voitos · aviso automático del pastillero
               </p>
             </td>
           </tr>
@@ -159,7 +162,7 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
       <tr>
         <td style="background-color:${VERDE_CLARO};border-radius:10px;padding:18px 20px;">
           <p style="margin:0;color:${VERDE_TEXTO};font-size:17px;font-weight:600;">
-            La medicación de las ${hhmm} ya fue tomada
+            Tomó la ${d.pastilla} de las ${hhmm}
           </p>
         </td>
       </tr>
@@ -178,7 +181,7 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
   const texto = [
     `Hola ${d.cuidadorNombre},`,
     ``,
-    `La medicación de las ${hhmm} ya fue tomada.`,
+    `Tomó la ${d.pastilla} de las ${hhmm}.`,
     ``,
     `  Medicamento: ${d.pastilla}`,
     `  Cantidad:    ${pastillas}`,
@@ -194,15 +197,15 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
       ? `Quedan pocas pastillas: ${d.quedanEnModulo} en el pastillero.`
       : `Quedan ${d.quedanEnModulo} pastillas cargadas en el pastillero.`,
     ``,
-    `Este mensaje se envía automáticamente. No hace falta que respondas.`,
+    `Voitos · aviso automático del pastillero`,
   ].join("\n");
 
   return {
-    asunto: `${d.pastilla} de las ${hhmm}: dosis tomada`,
+    asunto: `Tomó la ${d.pastilla} de las ${hhmm}`,
     html: envolver({
       preheader: `${d.pastilla}, ${pastillas}, a las ${hhmm}.`,
       titulo: "Dosis tomada",
-      saludo: `Hola ${d.cuidadorNombre}, todo en orden.`,
+      saludo: `Hola ${d.cuidadorNombre},`,
       cuerpo,
     }),
     texto,
@@ -241,10 +244,10 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
       <tr>
         <td style="background-color:${AMBAR_FONDO};border-radius:10px;padding:18px 20px;">
           <p style="margin:0;color:${AMBAR_TEXTO};font-size:17px;font-weight:600;">
-            La medicación de las ${hhmm} todavía no se retiró
+            No retiró la ${d.pastilla} de las ${hhmm}
           </p>
           <p style="margin:6px 0 0;color:${AMBAR_TEXTO};font-size:14px;">
-            Pasaron ${d.minutosDeRetraso} minutos del horario.
+            Hace ${d.minutosDeRetraso} minutos que la dosis está esperando.
           </p>
         </td>
       </tr>
@@ -258,13 +261,12 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
     </table>
 
     <p style="margin:24px 0 0;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
-      El pastillero avisó con la alarma sonora y volvió a insistir, pero nadie apretó
-      el botón para retirar la medicación. Puede que no la haya escuchado, que no
-      estuviera en casa, o que necesite una mano.
+      La alarma sonó cuatro veces y nadie apretó el botón. Puede que no la haya
+      escuchado o que no esté en casa.
     </p>
 
     <p style="margin:14px 0 0;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
-      Si podés, comunicate para chequear que esté todo bien.
+      Conviene que llames para chequear.
     </p>
 
     ${contactos}`;
@@ -272,29 +274,28 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
   const texto = [
     `Hola ${d.cuidadorNombre},`,
     ``,
-    `La medicación de las ${hhmm} todavía no se retiró. Pasaron ${d.minutosDeRetraso} minutos del horario.`,
+    `No retiró la ${d.pastilla} de las ${hhmm}. Hace ${d.minutosDeRetraso} minutos que la dosis está esperando.`,
     ``,
     `  Medicamento: ${d.pastilla}`,
     `  Cantidad:    ${pastillas}`,
     `  Día:         ${formatearFecha(d.dia)}`,
     `  Hora:        ${hhmm}`,
     ``,
-    `El pastillero avisó con la alarma sonora y volvió a insistir, pero nadie apretó`,
-    `el botón para retirar la medicación. Si podés, comunicate para chequear que esté`,
-    `todo bien.`,
+    `La alarma sonó cuatro veces y nadie apretó el botón. Puede que no la haya`,
+    `escuchado o que no esté en casa. Conviene que llames para chequear.`,
     ``,
     ...(d.contactos.length
       ? ["Contactos de emergencia:", ...d.contactos.map((c) => `  ${c.nombre} ${c.apellido}: ${c.numero}`), ""]
       : []),
-    `Este mensaje se envía automáticamente. No hace falta que respondas.`,
+    `Voitos · aviso automático del pastillero`,
   ].join("\n");
 
   return {
-    asunto: `${d.pastilla} de las ${hhmm}: la dosis no se retiró`,
+    asunto: `No retiró la ${d.pastilla} de las ${hhmm}`,
     html: envolver({
       preheader: `Pasaron ${d.minutosDeRetraso} minutos y la dosis sigue sin retirarse.`,
       titulo: "Dosis sin retirar",
-      saludo: `Hola ${d.cuidadorNombre}, necesitamos avisarte algo.`,
+      saludo: `Hola ${d.cuidadorNombre},`,
       cuerpo,
     }),
     texto,

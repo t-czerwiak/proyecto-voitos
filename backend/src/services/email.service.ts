@@ -1,8 +1,11 @@
 import nodemailer, { Transporter } from "nodemailer";
 import dotenv from "dotenv";
+import path from "path";
+import fs from "fs";
 import {
   plantillaDispensacionOk,
   plantillaDosisNoTomada,
+  LOGO_CID,
   DatosOk,
   DatosNoTomada,
 } from "./plantillas-mail";
@@ -46,6 +49,23 @@ const getTransporter = (): Transporter | null => {
   return transporter;
 };
 
+// El logo viaja adjunto y se referencia desde el HTML con cid:. Es la unica
+// forma confiable de mostrar una imagen propia en Gmail sin publicarla en un
+// servidor: las imagenes en data: URI las bloquea.
+//
+// La ruta sube dos niveles desde este archivo, asi funciona tanto en
+// desarrollo (backend/src/services) como compilado (backend/dist/services).
+const RUTA_LOGO = path.join(__dirname, "..", "..", "assets", "voitos-logo.png");
+const hayLogo = fs.existsSync(RUTA_LOGO);
+
+if (!hayLogo) {
+  console.warn(`No se encontro el logo en ${RUTA_LOGO}: los mails salen sin el.`);
+}
+
+const adjuntos = hayLogo
+  ? [{ filename: "voitos.png", path: RUTA_LOGO, cid: LOGO_CID }]
+  : [];
+
 interface Mail {
   para: string;
   asunto: string;
@@ -68,7 +88,14 @@ const enviar = async ({ para, asunto, texto, html }: Mail): Promise<boolean> => 
   try {
     // Se manda html y texto. Los clientes que no renderizan html, y los
     // lectores de pantalla, usan la version de texto.
-    await t.sendMail({ from: MAIL_FROM, to: para, subject: asunto, text: texto, html });
+    await t.sendMail({
+      from: MAIL_FROM,
+      to: para,
+      subject: asunto,
+      text: texto,
+      html,
+      attachments: adjuntos,
+    });
     console.log(`Mail enviado a ${para}: ${asunto}`);
     return true;
   } catch (error: any) {
