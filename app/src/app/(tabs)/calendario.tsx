@@ -9,7 +9,19 @@ import {
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import LavaBackground from "../../components/LavaBackground";
-import { getActividades, getHorariosDelUsuario, Horario } from "../../lib/voitos";
+import {
+  getActividades,
+  getHorariosDelUsuario,
+  cancelarRutina,
+  Horario,
+} from "../../lib/voitos";
+import { confirmar } from "../../lib/avisos";
+import {
+  armarRutinas,
+  comoFecha,
+  DIAS_SEMANA,
+  Rutina,
+} from "../../lib/rutinas";
 
 type Actividad = {
   id: string;
@@ -35,7 +47,7 @@ const meses = [
   "DICIEMBRE",
 ];
 
-const diasSemana = ["L", "M", "X", "J", "V", "S", "D"];
+const diasSemana = DIAS_SEMANA;
 
 export default function Calendario() {
   const [mes, setMes] = useState(new Date().getMonth());
@@ -51,6 +63,34 @@ export default function Calendario() {
   // se marcan distinto: una rutina de medicacion ya viene materializada como
   // una fila por dia, asi que no hay que resolver dias de la semana.
   const [horarios, setHorarios] = useState<Horario[]>([]);
+  const [borrando, setBorrando] = useState(false);
+
+  const rutinas = useMemo(() => armarRutinas(horarios), [horarios]);
+
+  const recargarHorarios = () =>
+    getHorariosDelUsuario()
+      .then(setHorarios)
+      .catch(() => setHorarios([]));
+
+  const handleBorrarRutina = async (rutina: Rutina) => {
+    const seguir = await confirmar(
+      `Borrar la rutina de ${rutina.nombre}`,
+      `Se borran las ${rutina.pendientes} dosis que todavía no salieron. ` +
+        `Las ya tomadas quedan en el historial.
+
+¿Seguro?`,
+      "Borrar rutina"
+    );
+    if (!seguir) return;
+
+    setBorrando(true);
+    try {
+      await cancelarRutina(rutina.pastillaId);
+      await recargarHorarios();
+    } finally {
+      setBorrando(false);
+    }
+  };
 
   // Se recargan cada vez que la pantalla vuelve a estar en foco, asi al volver
   // de "agregar actividad" ya aparece la nueva.
@@ -127,9 +167,14 @@ export default function Calendario() {
     });
   }
 
-  function tieneMedicacion(dia: number) {
+  // Las rutinas que tienen una dosis este dia. Se usa para pintar un marcador
+  // por rutina, cada uno con su color, en vez de un punto generico.
+  function rutinasDelDia(dia: number) {
     const fecha = obtenerFecha(dia);
-    return horarios.some((h) => h.dia === fecha);
+    const conDosis = new Set(
+      horarios.filter((h) => h.dia === fecha).map((h) => h.pastilla_id)
+    );
+    return rutinas.filter((r) => conDosis.has(r.pastillaId));
   }
 
   function medicacionDelDia() {
@@ -283,12 +328,67 @@ export default function Calendario() {
 
                 <View style={styles.dotsRow}>
                   {actividad && <View style={styles.activityDot} />}
-                  {tieneMedicacion(dia) && <View style={styles.medicationDot} />}
+                  {rutinasDelDia(dia).map((r) => (
+                    <View
+                      key={r.pastillaId}
+                      style={[
+                        styles.medicationDot,
+                        { backgroundColor: r.color, shadowColor: r.color },
+                      ]}
+                    />
+                  ))}
                 </View>
               </TouchableOpacity>
             );
           })}
         </View>
+
+        {/* RUTINAS ACTIVAS */}
+
+        {rutinas.length > 0 && (
+          <View style={styles.activitiesContainer}>
+            <Text style={styles.activitiesTitle}>RUTINAS</Text>
+
+            {rutinas.map((r) => (
+              <View key={r.pastillaId} style={styles.activity}>
+                {/* Misma barra de color que el marcador del calendario, asi
+                    se ve de una cual rutina es cual */}
+                <View
+                  style={[
+                    styles.rutinaColor,
+                    { backgroundColor: r.color, shadowColor: r.color },
+                  ]}
+                />
+
+                <View style={styles.activityInfo}>
+                  <Text style={styles.activityName}>
+                    {r.nombre} · {r.hora}
+                  </Text>
+
+                  <Text style={styles.activityType}>
+                    {r.dias.join("  ")} · {r.semanas === 1 ? "1 SEMANA" : `${r.semanas} SEMANAS`}
+                  </Text>
+
+                  <Text style={styles.rutinaDetalle}>
+                    {comoFecha(r.desde)} al {comoFecha(r.hasta)}
+                  </Text>
+
+                  <Text style={styles.rutinaDetalle}>
+                    {r.dosis} dosis de {r.cantidad} · {r.pendientes} sin tomar
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.botonBorrar}
+                  onPress={() => handleBorrarRutina(r)}
+                  disabled={borrando}
+                >
+                  <Text style={styles.botonBorrarTexto}>BORRAR</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* FECHA SELECCIONADA */}
 
@@ -543,24 +643,69 @@ const styles = StyleSheet.create({
   // los muestre juntos en vez de pisarse.
   dotsRow: {
     position: "absolute",
-    bottom: 4,
+    bottom: 8,
     flexDirection: "row",
-    gap: 3,
+    flexWrap: "wrap",
+    justifyContent: "center",
+    maxWidth: "90%",
+    gap: 4,
+  },
+
+  // Franja vertical de color al costado de la rutina, del mismo color que su
+  // marcador en el calendario.
+  rutinaColor: {
+    width: 6,
+    height: 46,
+    borderRadius: 3,
+    marginRight: 14,
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+  },
+
+  rutinaDetalle: {
+    color: "#7FA98C",
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  botonBorrar: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: "#2a0d0d",
+    borderWidth: 1,
+    borderColor: "#7a1f1f",
+  },
+
+  botonBorrarTexto: {
+    color: "#FF8080",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.5,
   },
 
   activityDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 14,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: "#00FF7F",
+    shadowColor: "#00FF7F",
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
   },
 
-  // Blanco para distinguirlo del verde de las actividades.
+  // Barra y no punto: un circulo de 4px se perdia contra el fondo oscuro.
+  // El color lo pone cada rutina en linea, esto es solo la forma.
   medicationDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#FFFFFF",
+    width: 14,
+    height: 6,
+    borderRadius: 3,
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
   },
 
   // FECHA
