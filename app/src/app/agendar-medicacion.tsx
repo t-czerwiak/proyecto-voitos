@@ -365,14 +365,28 @@ export default function AgregarMedicacion() {
                 semanas,
               });
 
-              setExito(
+              // Si hoy era uno de los dias elegidos pero la hora ya paso, la
+              // rutina arranco la semana que viene. Conviene decirlo: si no,
+              // parece que no agendo nada para hoy por error.
+              const ahora = new Date();
+              const hoyISO = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(ahora.getDate()).padStart(2, "0")}`;
+              const letraHoy = ["D", "L", "M", "X", "J", "V", "S"][ahora.getDay()];
+              const seSalteoHoy =
+                diasSeleccionados.includes(letraHoy) && fechas[0] !== hoyISO;
+
+              const cuerpo =
                 cuantas === 1
                   ? "Se agendó la dosis"
-                  : `Se agendaron ${cuantas} dosis en ${semanas === 1 ? "1 semana" : semanas + " semanas"}`
+                  : `Se agendaron ${cuantas} dosis en ${semanas === 1 ? "1 semana" : semanas + " semanas"}`;
+
+              setExito(
+                seSalteoHoy
+                  ? `${cuerpo}. Las ${dosDigitos(hora)}:${dosDigitos(minuto)} de hoy ya pasaron, así que arranca el ${fechas[0].split("-").reverse().join("/")}.`
+                  : `${cuerpo}. Arranca el ${fechas[0].split("-").reverse().join("/")}.`
               );
 
               // Se deja ver el mensaje antes de volver a la pantalla anterior
-              setTimeout(() => router.back(), 1500);
+              setTimeout(() => router.back(), 3000);
             } catch (e: any) {
               setError(e.message);
             } finally {
