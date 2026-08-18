@@ -120,6 +120,44 @@ export default function Calendario() {
     }
   };
 
+  // Carga inicial y recarga al volver a la pantalla.
+  //
+  // Va con useFocusEffect y no useEffect porque el Stack de expo-router deja
+  // la pantalla montada: al volver de agendar una dosis, un useEffect con []
+  // no se volveria a ejecutar y el calendario seguiria mostrando lo viejo.
+  useFocusEffect(
+    useCallback(() => {
+      let vigente = true;
+
+      getActividades()
+        .then((datos) => {
+          if (vigente) setActividades(datos as Actividad[]);
+        })
+        .catch(() => {
+          // Sin sesion o sin backend: el calendario se muestra vacio
+          if (vigente) setActividades([]);
+        });
+
+      getHorariosDelUsuario()
+        .then((datos) => {
+          if (!vigente) return;
+          setHorarios(datos);
+          setErrorCarga("");
+        })
+        .catch((e: any) => {
+          // Antes esto vaciaba la lista en silencio, asi que un 401 o un
+          // backend caido se veian identicos a "no hay dosis para este dia".
+          if (!vigente) return;
+          setHorarios([]);
+          setErrorCarga(e?.message ?? "No se pudieron cargar las dosis");
+        });
+
+      return () => {
+        vigente = false;
+      };
+    }, [])
+  );
+
   const cantidadDias = new Date(anio, mes + 1, 0).getDate();
 
   const primerDia = new Date(anio, mes, 1).getDay();
