@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Pressable, // Added missing import
 } from "react-native";
 import { router } from "expo-router";
 import LavaBackground from "../../components/LavaBackground";
@@ -19,18 +20,8 @@ type Actividad = {
 };
 
 const meses = [
-  "ENERO",
-  "FEBRERO",
-  "MARZO",
-  "ABRIL",
-  "MAYO",
-  "JUNIO",
-  "JULIO",
-  "AGOSTO",
-  "SEPTIEMBRE",
-  "OCTUBRE",
-  "NOVIEMBRE",
-  "DICIEMBRE",
+  "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+  "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
 ];
 
 const diasSemana = ["L", "M", "X", "J", "V", "S", "D"];
@@ -61,14 +52,11 @@ export default function Calendario() {
     },
   ]);
 
-  const cantidadDias = new Date(anio, mes + 1, 0).getDate();
-
-  const primerDia = new Date(anio, mes, 1).getDay();
-
-  // Convertimos domingo=0 a lunes=0
-  const primerDiaAjustado = primerDia === 0 ? 6 : primerDia - 1;
-
   const diasCalendario = useMemo(() => {
+    const cantidadDias = new Date(anio, mes + 1, 0).getDate();
+    const primerDia = new Date(anio, mes, 1).getDay();
+    const primerDiaAjustado = primerDia === 0 ? 6 : primerDia - 1;
+
     const dias: (number | null)[] = [];
 
     for (let i = 0; i < primerDiaAjustado; i++) {
@@ -80,7 +68,7 @@ export default function Calendario() {
     }
 
     return dias;
-  }, [mes, anio, primerDiaAjustado, cantidadDias]);
+  }, [mes, anio]);
 
   function obtenerFecha(dia: number) {
     const mesTexto = String(mes + 1).padStart(2, "0");
@@ -98,9 +86,7 @@ export default function Calendario() {
       }
 
       const fechaObjeto = new Date(`${fecha}T12:00:00`);
-
       const diaSemana = fechaObjeto.getDay();
-
       const indice = diaSemana === 0 ? 6 : diaSemana - 1;
 
       return actividad.dias?.includes(diasSemana[indice]);
@@ -114,9 +100,7 @@ export default function Calendario() {
       }
 
       const fecha = new Date(`${fechaSeleccionada}T12:00:00`);
-
       const diaSemana = fecha.getDay();
-
       const indice = diaSemana === 0 ? 6 : diaSemana - 1;
 
       return actividad.dias?.includes(diasSemana[indice]);
@@ -158,10 +142,11 @@ export default function Calendario() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>CALENDARIO</Text>
+        <Pressable onPress={() => router.push("/home")}>
+          <Text style={styles.title}>CALENDARIO</Text>
+        </Pressable>
 
         {/* AÑO */}
-
         <View style={styles.yearContainer}>
           <TouchableOpacity
             style={styles.arrow}
@@ -181,7 +166,6 @@ export default function Calendario() {
         </View>
 
         {/* MES */}
-
         <View style={styles.monthContainer}>
           <TouchableOpacity
             style={styles.monthArrow}
@@ -201,7 +185,6 @@ export default function Calendario() {
         </View>
 
         {/* DÍAS DE LA SEMANA */}
-
         <View style={styles.weekHeader}>
           {diasSemana.map((dia) => (
             <Text key={dia} style={styles.weekText}>
@@ -211,7 +194,6 @@ export default function Calendario() {
         </View>
 
         {/* CALENDARIO */}
-
         <View style={styles.calendar}>
           {diasCalendario.map((dia, index) => {
             if (dia === null) {
@@ -224,10 +206,7 @@ export default function Calendario() {
             }
 
             const fecha = obtenerFecha(dia);
-
-            const seleccionado =
-              fecha === fechaSeleccionada;
-
+            const seleccionado = fecha === fechaSeleccionada;
             const actividad = tieneActividad(dia);
 
             return (
@@ -237,9 +216,7 @@ export default function Calendario() {
                   styles.day,
                   seleccionado && styles.selectedDay,
                 ]}
-                onPress={() => {
-                  setFechaSeleccionada(fecha);
-                }}
+                onPress={() => setFechaSeleccionada(fecha)}
               >
                 <Text
                   style={[
@@ -250,16 +227,13 @@ export default function Calendario() {
                   {dia}
                 </Text>
 
-                {actividad && (
-                  <View style={styles.activityDot} />
-                )}
+                {actividad && <View style={styles.activityDot} />}
               </TouchableOpacity>
             );
           })}
         </View>
 
         {/* FECHA SELECCIONADA */}
-
         <View style={styles.selectedDateContainer}>
           <Text style={styles.selectedDateTitle}>
             FECHA SELECCIONADA
@@ -271,11 +245,8 @@ export default function Calendario() {
         </View>
 
         {/* ACTIVIDADES DEL DÍA */}
-
         <View style={styles.activitiesContainer}>
-          <Text style={styles.activitiesTitle}>
-            ACTIVIDADES
-          </Text>
+          <Text style={styles.activitiesTitle}>ACTIVIDADES</Text>
 
           {actividadesDelDia().length === 0 ? (
             <Text style={styles.noActivities}>
@@ -283,14 +254,9 @@ export default function Calendario() {
             </Text>
           ) : (
             actividadesDelDia()
-              .sort((a, b) =>
-                a.hora.localeCompare(b.hora)
-              )
+              .sort((a, b) => a.hora.localeCompare(b.hora))
               .map((actividad) => (
-                <View
-                  key={actividad.id}
-                  style={styles.activity}
-                >
+                <View key={actividad.id} style={styles.activity}>
                   <Text style={styles.activityTime}>
                     {actividad.hora}
                   </Text>
@@ -312,7 +278,6 @@ export default function Calendario() {
         </View>
 
         {/* AGREGAR ACTIVIDAD */}
-
         <TouchableOpacity
           style={styles.addButton}
           onPress={agregarActividad}
@@ -331,7 +296,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000000",
   },
-
   scroll: {
     flexGrow: 1,
     alignItems: "center",
@@ -339,7 +303,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     paddingHorizontal: 20,
   },
-
   title: {
     color: "#FFFFFF",
     fontSize: 30,
@@ -347,9 +310,6 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginBottom: 20,
   },
-
-  // AÑO
-
   yearContainer: {
     width: "90%",
     flexDirection: "row",
@@ -357,13 +317,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 15,
   },
-
   year: {
     color: "#FFFFFF",
     fontSize: 24,
     fontWeight: "bold",
   },
-
   arrow: {
     width: 42,
     height: 42,
@@ -374,15 +332,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   arrowText: {
     color: "#00FF7F",
     fontSize: 32,
     lineHeight: 34,
   },
-
-  // MES
-
   monthContainer: {
     width: "90%",
     height: 55,
@@ -395,35 +349,28 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginBottom: 20,
   },
-
   month: {
     color: "#FFFFFF",
     fontSize: 21,
     fontWeight: "bold",
     letterSpacing: 1,
   },
-
   monthArrow: {
     width: 50,
     height: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
-
   monthArrowText: {
     color: "#00FF7F",
     fontSize: 32,
   },
-
-  // DÍAS
-
   weekHeader: {
     width: "95%",
     flexDirection: "row",
     justifyContent: "space-around",
     marginBottom: 8,
   },
-
   weekText: {
     width: 40,
     textAlign: "center",
@@ -431,9 +378,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "bold",
   },
-
-  // CALENDARIO
-
   calendar: {
     width: "90%",
     flexDirection: "row",
@@ -445,7 +389,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 3,
   },
-
   day: {
     width: "14.285%",
     aspectRatio: 1,
@@ -453,22 +396,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 20,
   },
-
   dayText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
   },
-
   selectedDay: {
     backgroundColor: "#00FF7F",
   },
-
   selectedDayText: {
     color: "#000000",
     fontWeight: "bold",
   },
-
   activityDot: {
     position: "absolute",
     bottom: 4,
@@ -477,50 +416,39 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: "#00FF7F",
   },
-
-  // FECHA
-
   selectedDateContainer: {
     width: "75%",
     alignItems: "center",
     marginTop: 20,
   },
-
   selectedDateTitle: {
     color: "#90EE90",
     fontSize: 13,
     fontWeight: "bold",
     letterSpacing: 1,
   },
-
   selectedDate: {
     color: "#FFFFFF",
     fontSize: 22,
     fontWeight: "bold",
     marginTop: 4,
   },
-
-  // ACTIVIDADES
-
   activitiesContainer: {
     width: "75%",
     marginTop: 20,
   },
-
   activitiesTitle: {
     color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 12,
   },
-
   noActivities: {
     color: "#AAAAAA",
     fontSize: 16,
     textAlign: "center",
     paddingVertical: 20,
   },
-
   activity: {
     width: "100%",
     minHeight: 70,
@@ -533,33 +461,26 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingHorizontal: 15,
   },
-
   activityTime: {
     color: "#00FF7F",
     fontSize: 18,
     fontWeight: "bold",
     width: 65,
   },
-
   activityInfo: {
     flex: 1,
   },
-
   activityName: {
     color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "bold",
   },
-
   activityType: {
     color: "#90EE90",
     fontSize: 12,
     fontWeight: "bold",
     marginTop: 4,
   },
-
-  // BOTÓN
-
   addButton: {
     width: 280,
     height: 60,
@@ -570,7 +491,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 25,
-
     shadowColor: "#00FF7F",
     shadowOffset: {
       width: 0,
@@ -580,7 +500,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 10,
   },
-
   addButtonText: {
     color: "#FFFFFF",
     fontSize: 18,
@@ -588,4 +507,3 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 });
-
