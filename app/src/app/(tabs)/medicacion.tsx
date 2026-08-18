@@ -28,6 +28,12 @@ export default function Medicacion() {
           <Text style={styles.buttonText}>AGENDAR</Text>
           <Ionicons name="calendar-outline" size={34} color="white" />
         </Pressable>
+
+        <Pressable style={styles.button}
+        onPress={() => router.push("/recargar-medicacion")}>
+          <Text style={styles.buttonText}>RECARGAR</Text>
+          <Ionicons name="refresh-outline" size={34} color="white" />
+        </Pressable>
       </View>
     </View>
   );
