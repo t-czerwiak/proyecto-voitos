@@ -21,6 +21,7 @@ import {
   comoDiaYFecha,
   comoFecha,
   DIAS_SEMANA,
+  rutinaDeHorario,
   rutinasActivas,
   rutinasEnFecha,
   Rutina,
@@ -70,8 +71,6 @@ export default function Calendario() {
   const [errorRutina, setErrorRutina] = useState("");
   const [errorCarga, setErrorCarga] = useState("");
 
-  // Todas las rutinas, para poder pintar los marcadores del calendario
-  // tambien en los dias ya pasados.
   const rutinas = useMemo(() => armarRutinas(horarios), [horarios]);
 
   // Las que se listan abajo son solo las que siguen teniendo dosis por salir.
@@ -212,8 +211,11 @@ export default function Calendario() {
   // pastilla, y como varias rutinas pueden ser de la misma pastilla, un dia con
   // una sola dosis pintaba el marcador de todas: salian ocho marcadores donde
   // correspondia uno.
+  // Solo las activas. Marcar tambien las terminadas llenaba el calendario de
+  // dosis sueltas viejas, en dias anteriores a cualquier rutina en curso, y
+  // con colores que no correspondian a ninguna tarjeta de abajo.
   function rutinasDelDia(dia: number) {
-    return rutinasEnFecha(rutinas, obtenerFecha(dia));
+    return rutinasEnFecha(activas, obtenerFecha(dia));
   }
 
   function medicacionDelDia() {
@@ -491,30 +493,55 @@ export default function Calendario() {
           ) : (
             medicacionDelDia()
               .sort((a, b) => a.hora - b.hora || a.minuto - b.minuto)
-              .map((dosis) => (
-                <View key={dosis.id} style={styles.activity}>
-                  <Text style={styles.activityTime}>
-                    {String(dosis.hora).padStart(2, "0")}:
-                    {String(dosis.minuto).padStart(2, "0")}
-                  </Text>
+              .map((dosis) => {
+                // La rutina de la que sale esta dosis. Se usa para pintarla
+                // del mismo color que su marcador y su tarjeta, asi se ve a
+                // cual pertenece cuando hay varias a la misma hora.
+                const suRutina = rutinaDeHorario(activas, dosis);
 
-                  <View style={styles.activityInfo}>
-                    <Text style={styles.activityName}>
-                      {dosis.pastillas?.nombre ?? "Pastilla"}
+                return (
+                  <View key={dosis.id} style={styles.activity}>
+                    <View
+                      style={[
+                        styles.rutinaColor,
+                        styles.colorDeDosis,
+                        suRutina
+                          ? { backgroundColor: suRutina.color, shadowColor: suRutina.color }
+                          : { backgroundColor: "#2C4A38" },
+                      ]}
+                    />
+
+                    <Text style={styles.activityTime}>
+                      {String(dosis.hora).padStart(2, "0")}:
+                      {String(dosis.minuto).padStart(2, "0")}
                     </Text>
 
-                    {/* No dice si se tomo o no. El sistema solo sabe que la
-                        pastilla salio del modulo, no que la persona se la
-                        haya tomado, y afirmarlo seria decir de mas. El aviso
-                        al cuidador lo hacen los mails. */}
-                    <Text style={styles.activityType}>
-                      {dosis.cantidad === 1
-                        ? "1 PASTILLA"
-                        : `${dosis.cantidad} PASTILLAS`}
-                    </Text>
+                    <View style={styles.activityInfo}>
+                      <Text style={styles.activityName}>
+                        {dosis.pastillas?.nombre ?? "Pastilla"}
+                      </Text>
+
+                      {/* No dice si se tomo o no. El sistema solo sabe que la
+                          pastilla salio del modulo, no que la persona se la
+                          haya tomado, y afirmarlo seria decir de mas. El aviso
+                          al cuidador lo hacen los mails. */}
+                      <Text style={styles.activityType}>
+                        {dosis.cantidad === 1
+                          ? "1 PASTILLA"
+                          : `${dosis.cantidad} PASTILLAS`}
+                      </Text>
+
+                      {suRutina ? (
+                        <Text style={styles.rutinaDetalle}>
+                          Rutina: {suRutina.dias.join(" ")} a las {suRutina.horaTexto}
+                        </Text>
+                      ) : (
+                        <Text style={styles.rutinaDetalle}>Dosis suelta</Text>
+                      )}
+                    </View>
                   </View>
-                </View>
-              ))
+                );
+              })
           )}
         </View>
 
@@ -766,6 +793,12 @@ const styles = StyleSheet.create({
     color: "#4A6A55",
     backgroundColor: "#0C2415",
     overflow: "hidden",
+  },
+
+  // La misma franja de la tarjeta de rutina, mas baja, para las filas de dosis.
+  colorDeDosis: {
+    height: 52,
+    marginRight: 12,
   },
 
   rutinaProxima: {

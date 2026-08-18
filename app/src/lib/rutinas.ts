@@ -155,4 +155,16 @@ export const comoDiaYFecha = (iso: string) => {
   return `${NOMBRE_DIA[d.getDay()]} ${dd}/${mm}`;
 };
 
+// A que rutina pertenece una dosis. Hace falta para pintar cada dosis del dia
+// con el color de su rutina: dos rutinas pueden coincidir en hora y solo se
+// distinguen por la pastilla, o al reves.
+export const rutinaDeHorario = (rutinas: Rutina[], horario: Horario) =>
+  rutinas.find(
+    (r) =>
+      r.pastillaId === horario.pastilla_id &&
+      r.hora === horario.hora &&
+      r.minuto === horario.minuto &&
+      r.fechas.includes(horario.dia)
+  ) ?? null;
+
 export const comoFecha = (iso: string) => iso.split("-").reverse().join("/");
