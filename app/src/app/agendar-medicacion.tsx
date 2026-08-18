@@ -294,15 +294,30 @@ export default function AgregarMedicacion() {
               return;
             }
 
+            // Sin dias no hay rutina. Antes, con ninguno marcado, agendaba
+            // una dosis suelta para hoy sin avisar, que no es lo que uno pide
+            // cuando deja los siete dias sin tocar.
+            if (!diasSeleccionados.length) {
+              setError("Elegí al menos un día de la semana");
+              return;
+            }
+
             // Las fechas se calculan aca y no adentro de agendarPastilla
             // porque hacen falta antes, para poder contar cuantas pastillas
             // consume la rutina y avisar ANTES de crear 24 filas.
-            const fechas = diasSeleccionados.length
-              ? fechasDeLaRutina(diasSeleccionados, semanas)
-              : [new Date().toISOString().split("T")[0]];
+            //
+            // Se pasan hora y minuto para que, si hoy es uno de los dias
+            // elegidos pero la hora ya paso, la rutina arranque la semana que
+            // viene en vez de nacer con una dosis vencida.
+            const fechas = fechasDeLaRutina(
+              diasSeleccionados,
+              semanas,
+              hora,
+              minuto
+            );
 
             if (!fechas.length) {
-              setError("Elegí al menos un día de la semana");
+              setError("No quedó ninguna fecha para agendar con esos días");
               return;
             }
 

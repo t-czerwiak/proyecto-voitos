@@ -66,6 +66,7 @@ export default function Calendario() {
   const [horarios, setHorarios] = useState<Horario[]>([]);
   const [borrando, setBorrando] = useState(false);
   const [errorRutina, setErrorRutina] = useState("");
+  const [errorCarga, setErrorCarga] = useState("");
 
   // Todas las rutinas, para poder pintar los marcadores del calendario
   // tambien en los dias ya pasados.
@@ -78,8 +79,11 @@ export default function Calendario() {
 
   const recargarHorarios = () =>
     getHorariosDelUsuario()
-      .then(setHorarios)
-      .catch(() => setHorarios([]));
+      .then((datos) => {
+        setHorarios(datos);
+        setErrorCarga("");
+      })
+      .catch((e: any) => setErrorCarga(e?.message ?? "No se pudieron cargar las dosis"));
 
   const handleBorrarRutina = async (rutina: Rutina) => {
     const seguir = await confirmar(
@@ -408,7 +412,9 @@ export default function Calendario() {
             MEDICACIÓN
           </Text>
 
-          {medicacionDelDia().length === 0 ? (
+          {errorCarga !== "" ? (
+            <Text style={styles.errorRutina}>{errorCarga}</Text>
+          ) : medicacionDelDia().length === 0 ? (
             <Text style={styles.noActivities}>
               No hay dosis para este día
             </Text>
