@@ -1,5 +1,20 @@
 import nodemailer, { Transporter } from "nodemailer";
 import dotenv from "dotenv";
+import path from "path";
+import fs from "fs";
+import {
+  plantillaDispensacionOk,
+  plantillaDosisNoTomada,
+  plantillaVerificacion,
+  plantillaBienvenida,
+  plantillaPastilleroVacio,
+  LOGO_CID,
+  DatosOk,
+  DatosNoTomada,
+  DatosVerificacion,
+  DatosBienvenida,
+  DatosVacio,
+} from "./plantillas-mail";
 
 // Este modulo lee las variables al cargarse, y los imports se ejecutan antes
 // que el dotenv.config() de index.ts. Sin esta linea funcionaria solo por
@@ -40,13 +55,31 @@ const getTransporter = (): Transporter | null => {
   return transporter;
 };
 
+// El logo viaja adjunto y se referencia desde el HTML con cid:. Es la unica
+// forma confiable de mostrar una imagen propia en Gmail sin publicarla en un
+// servidor: las imagenes en data: URI las bloquea.
+//
+// La ruta sube dos niveles desde este archivo, asi funciona tanto en
+// desarrollo (backend/src/services) como compilado (backend/dist/services).
+const RUTA_LOGO = path.join(__dirname, "..", "..", "assets", "voitos-logo.png");
+const hayLogo = fs.existsSync(RUTA_LOGO);
+
+if (!hayLogo) {
+  console.warn(`No se encontro el logo en ${RUTA_LOGO}: los mails salen sin el.`);
+}
+
+const adjuntos = hayLogo
+  ? [{ filename: "voitos.png", path: RUTA_LOGO, cid: LOGO_CID }]
+  : [];
+
 interface Mail {
   para: string;
   asunto: string;
   texto: string;
+  html: string;
 }
 
-const enviar = async ({ para, asunto, texto }: Mail): Promise<boolean> => {
+const enviar = async ({ para, asunto, texto, html }: Mail): Promise<boolean> => {
   const t = getTransporter();
 
   if (!t) {
@@ -59,7 +92,16 @@ const enviar = async ({ para, asunto, texto }: Mail): Promise<boolean> => {
   }
 
   try {
-    await t.sendMail({ from: MAIL_FROM, to: para, subject: asunto, text: texto });
+    // Se manda html y texto. Los clientes que no renderizan html, y los
+    // lectores de pantalla, usan la version de texto.
+    await t.sendMail({
+      from: MAIL_FROM,
+      to: para,
+      subject: asunto,
+      text: texto,
+      html,
+      attachments: adjuntos,
+    });
     console.log(`Mail enviado a ${para}: ${asunto}`);
     return true;
   } catch (error: any) {
@@ -69,90 +111,49 @@ const enviar = async ({ para, asunto, texto }: Mail): Promise<boolean> => {
   }
 };
 
-const dosHDigitos = (n: number) => String(n).padStart(2, "0");
-
-export interface DatosDispensacion {
+export interface DatosDispensacion extends DatosOk {
   cuidadorMail: string;
-  cuidadorNombre: string;
-  pastilla: string;
-  cantidad: number;
-  hora: number;
-  minuto: number;
-  dia: string;
-  dispositivo: string;
-  quedanEnModulo: number | null;
 }
 
 export const avisarDispensacionOk = async (d: DatosDispensacion) => {
-  const hhmm = `${dosHDigitos(d.hora)}:${dosHDigitos(d.minuto)}`;
-  const pastillas = d.cantidad === 1 ? "1 pastilla" : `${d.cantidad} pastillas`;
-
-  const stock =
-    d.quedanEnModulo === null
-      ? ""
-      : d.quedanEnModulo === 0
-      ? "\nATENCION: el modulo quedo vacio. Hay que recargarlo antes de la proxima dosis.\n"
-      : d.quedanEnModulo <= 3
-      ? `\nATENCION: quedan solo ${d.quedanEnModulo} pastillas en el modulo. Conviene recargarlo.\n`
-      : `\nQuedan ${d.quedanEnModulo} pastillas en el modulo.\n`;
-
-  return enviar({
-    para: d.cuidadorMail,
-    asunto: `Voitos: se tomo la dosis de ${d.pastilla} de las ${hhmm}`,
-    texto: `Hola ${d.cuidadorNombre},
-
-La dosis se dispenso correctamente.
-
-  Medicamento:  ${d.pastilla}
-  Cantidad:     ${pastillas}
-  Horario:      ${d.dia} a las ${hhmm}
-  Dispositivo:  ${d.dispositivo}
-${stock}
-Este es un aviso automatico de Voitos. No hace falta que respondas.`,
-  });
+  const { asunto, html, texto } = plantillaDispensacionOk(d);
+  return enviar({ para: d.cuidadorMail, asunto, html, texto });
 };
 
-export interface DatosDosisNoTomada {
+export interface DatosDosisNoTomada extends DatosNoTomada {
   cuidadorMail: string;
-  cuidadorNombre: string;
-  pastilla: string;
-  cantidad: number;
-  hora: number;
-  minuto: number;
-  dia: string;
-  minutosDeRetraso: number;
-  contactos: Array<{ nombre: string; apellido: string; numero: string }>;
 }
 
 export const avisarDosisNoTomada = async (d: DatosDosisNoTomada) => {
-  const hhmm = `${dosHDigitos(d.hora)}:${dosHDigitos(d.minuto)}`;
-  const pastillas = d.cantidad === 1 ? "1 pastilla" : `${d.cantidad} pastillas`;
+  const { asunto, html, texto } = plantillaDosisNoTomada(d);
+  return enviar({ para: d.cuidadorMail, asunto, html, texto });
+};
 
-  const contactos = d.contactos.length
-    ? "\nContactos de emergencia cargados:\n" +
-      d.contactos.map((c) => `  - ${c.nombre} ${c.apellido}: ${c.numero}`).join("\n") +
-      "\n"
-    : "";
+export interface DatosVerificacionMail extends DatosVerificacion {
+  cuidadorMail: string;
+}
 
-  return enviar({
-    para: d.cuidadorMail,
-    asunto: `Voitos: NO se tomo la dosis de ${d.pastilla} de las ${hhmm}`,
-    texto: `Hola ${d.cuidadorNombre},
+export const avisarVerificacion = async (d: DatosVerificacionMail) => {
+  const { asunto, html, texto } = plantillaVerificacion(d);
+  return enviar({ para: d.cuidadorMail, asunto, html, texto });
+};
 
-La dosis de las ${hhmm} no se dispenso, y ya pasaron ${d.minutosDeRetraso} minutos.
+export interface DatosBienvenidaMail extends DatosBienvenida {
+  cuidadorMail: string;
+}
 
-  Medicamento:  ${d.pastilla}
-  Cantidad:     ${pastillas}
-  Horario:      ${d.dia} a las ${hhmm}
+export const avisarBienvenida = async (d: DatosBienvenidaMail) => {
+  const { asunto, html, texto } = plantillaBienvenida(d);
+  return enviar({ para: d.cuidadorMail, asunto, html, texto });
+};
 
-El pastillero aviso con la alarma sonora, pero nadie apreto el boton para
-retirar la medicacion. Puede que la persona no haya escuchado la alarma, que no
-estuviera en casa, o que necesite ayuda.
+export interface DatosVacioMail extends DatosVacio {
+  cuidadorMail: string;
+}
 
-Te sugerimos comunicarte para verificar que este todo bien.
-${contactos}
-Este es un aviso automatico de Voitos. No hace falta que respondas.`,
-  });
+export const avisarPastilleroVacio = async (d: DatosVacioMail) => {
+  const { asunto, html, texto } = plantillaPastilleroVacio(d);
+  return enviar({ para: d.cuidadorMail, asunto, html, texto });
 };
 
 export const smtpConfigurado = () => configurado;

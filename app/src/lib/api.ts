@@ -147,6 +147,7 @@ export const api = {
   get: <T>(ruta: string) => pedir<T>(ruta),
   post: <T>(ruta: string, cuerpo?: unknown) => pedir<T>(ruta, { metodo: "POST", cuerpo }),
   put: <T>(ruta: string, cuerpo?: unknown) => pedir<T>(ruta, { metodo: "PUT", cuerpo }),
+  patch: <T>(ruta: string, cuerpo?: unknown) => pedir<T>(ruta, { metodo: "PATCH", cuerpo }),
   delete: <T>(ruta: string) => pedir<T>(ruta, { metodo: "DELETE" }),
 
   // Login y registro son los unicos que no mandan token: son los que lo emiten

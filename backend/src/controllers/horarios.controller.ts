@@ -5,7 +5,8 @@ import * as horariosService from "../services/horarios.service";
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const pastilla_id = req.query.pastilla_id as string | undefined;
-    const data = await horariosService.getAllHorarios(pastilla_id);
+    const usuario_id = req.query.usuario_id as string | undefined;
+    const data = await horariosService.getAllHorarios({ pastilla_id, usuario_id });
     res.json({ success: true, data });
   } catch (error) {
     next(error);
