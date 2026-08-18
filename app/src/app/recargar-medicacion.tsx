@@ -16,7 +16,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import {
   getPastillas,
   ajustarStock,
-  cancelarRutina,
   borrarPastilla,
   Pastilla,
 } from "../lib/voitos";
@@ -127,35 +126,6 @@ export default function RecargarMedicacion() {
   useEffect(cargarPastillas, []);
 
   const seleccionada = pastillas.find((p) => p.id === pastillaSel);
-
-  const handleCancelarRutina = async () => {
-    setError("");
-    setExito("");
-    if (!seleccionada) return;
-
-    const seguir = await confirmar(
-      `Cancelar la rutina de ${seleccionada.nombre}`,
-      `Se borran las dosis que todavía no salieron. Las ya dispensadas quedan en el historial.
-
-¿Seguro?`,
-      "Cancelar rutina"
-    );
-    if (!seguir) return;
-
-    setAjustando(true);
-    try {
-      const r = await cancelarRutina(seleccionada.id);
-      setExito(
-        r.canceladas === 0
-          ? "Esa pastilla no tenía dosis pendientes"
-          : `Se cancelaron ${r.canceladas} dosis pendientes`
-      );
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setAjustando(false);
-    }
-  };
 
   const handleBorrarPastilla = async () => {
     setError("");
@@ -300,23 +270,15 @@ Esto no se puede deshacer. ¿Seguro?`,
               </TouchableOpacity>
             </View>
 
-            <View style={styles.fila}>
-              <TouchableOpacity
-                style={[styles.button, styles.botonChico, styles.botonPeligro]}
-                onPress={handleCancelarRutina}
-                disabled={ajustando}
-              >
-                <Text style={styles.buttonTextChico}>CANCELAR RUTINA</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, styles.botonChico, styles.botonPeligro]}
-                onPress={handleBorrarPastilla}
-                disabled={ajustando}
-              >
-                <Text style={styles.buttonTextChico}>ELIMINAR PASTILLA</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Cancelar una rutina se hace desde el calendario, que es donde
+                se ve cual es cual. Aca solo queda borrar la pastilla entera. */}
+            <TouchableOpacity
+              style={[styles.button, styles.botonPeligro]}
+              onPress={handleBorrarPastilla}
+              disabled={ajustando}
+            >
+              <Text style={styles.buttonText}>ELIMINAR PASTILLA</Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
