@@ -92,6 +92,14 @@ const mensajeDeError = (error: unknown): string => {
   return "No se pudo completar la operacion";
 };
 
+// Cuanto se espera al backend antes de darlo por inalcanzable.
+//
+// fetch no tiene timeout propio: si la IP configurada no existe en la red
+// actual, el pedido queda colgado hasta que lo corta el sistema operativo, que
+// puede tardar minutos o no cortar nunca. En pantalla eso se ve como un boton
+// que dice "INGRESANDO..." para siempre, sin error y sin poder reintentar.
+const TIMEOUT_MS = 10_000;
+
 export class ErrorApi extends Error {
   constructor(public readonly status: number, mensaje: string) {
     super(mensaje);
@@ -112,19 +120,31 @@ const pedir = async <T>(
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
+  // AbortController a mano y no AbortSignal.timeout, que no existe en todas
+  // las versiones de react-native-web.
+  const control = new AbortController();
+  const corte = setTimeout(() => control.abort(), TIMEOUT_MS);
+
   let respuesta: Response;
   try {
     respuesta = await fetch(`${API_URL}${ruta}`, {
       method: metodo,
       headers,
       body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+      signal: control.signal,
     });
-  } catch {
-    // fetch solo tira excepcion si no llego a conectar
+  } catch (e: any) {
+    // fetch solo tira excepcion si no llego a conectar, o si lo abortamos.
+    const porTimeout = e?.name === "AbortError";
     throw new ErrorApi(
       0,
-      `No se pudo conectar con el servidor (${API_URL}). Verifica que este levantado.`
+      porTimeout
+        ? `El servidor (${API_URL}) no respondio en ${TIMEOUT_MS / 1000} segundos. ` +
+          `Suele pasar cuando cambiaste de red y la IP quedo vieja: revisa EXPO_PUBLIC_API_URL.`
+        : `No se pudo conectar con el servidor (${API_URL}). Verifica que este levantado.`
     );
+  } finally {
+    clearTimeout(corte);
   }
 
   let json: RespuestaApi<T>;
