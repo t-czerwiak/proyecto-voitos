@@ -20,6 +20,7 @@ import {
   armarRutinas,
   comoFecha,
   DIAS_SEMANA,
+  rutinasActivas,
   Rutina,
 } from "../../lib/rutinas";
 
@@ -64,8 +65,16 @@ export default function Calendario() {
   // una fila por dia, asi que no hay que resolver dias de la semana.
   const [horarios, setHorarios] = useState<Horario[]>([]);
   const [borrando, setBorrando] = useState(false);
+  const [errorRutina, setErrorRutina] = useState("");
 
+  // Todas las rutinas, para poder pintar los marcadores del calendario
+  // tambien en los dias ya pasados.
   const rutinas = useMemo(() => armarRutinas(horarios), [horarios]);
+
+  // Las que se listan abajo son solo las que siguen teniendo dosis por salir.
+  // Una rutina terminada no se puede borrar ni modificar, asi que listarla solo
+  // confunde: al cancelarla quedaba ahi con "0 sin tomar" y parecia rota.
+  const activas = useMemo(() => rutinasActivas(rutinas), [rutinas]);
 
   const recargarHorarios = () =>
     getHorariosDelUsuario()
@@ -75,8 +84,11 @@ export default function Calendario() {
   const handleBorrarRutina = async (rutina: Rutina) => {
     const seguir = await confirmar(
       `Borrar la rutina de ${rutina.nombre}`,
-      `Se borran las ${rutina.pendientes} dosis que todavía no salieron. ` +
-        `Las ya tomadas quedan en el historial.
+      `${rutina.horaTexto}, ${rutina.dias.join(" ")}.
+
+` +
+        `Se borran las ${rutina.pendientes} dosis que todavía no salieron. ` +
+        `Las ya dispensadas quedan en el historial.
 
 ¿Seguro?`,
       "Borrar rutina"
@@ -84,42 +96,25 @@ export default function Calendario() {
     if (!seguir) return;
 
     setBorrando(true);
+    setErrorRutina("");
     try {
-      await cancelarRutina(rutina.pastillaId);
+      // Se mandan hora, minuto y rango para borrar SOLO esta rutina. Sin eso
+      // se llevaria por delante las otras rutinas de la misma pastilla.
+      await cancelarRutina(rutina.pastillaId, {
+        hora: rutina.hora,
+        minuto: rutina.minuto,
+        desde: rutina.desde,
+        hasta: rutina.hasta,
+      });
       await recargarHorarios();
+    } catch (e: any) {
+      // Antes esto se tragaba el error y la rutina quedaba en pantalla sin
+      // ninguna explicacion.
+      setErrorRutina(e.message ?? "No se pudo borrar la rutina");
     } finally {
       setBorrando(false);
     }
   };
-
-  // Se recargan cada vez que la pantalla vuelve a estar en foco, asi al volver
-  // de "agregar actividad" ya aparece la nueva.
-  useFocusEffect(
-    useCallback(() => {
-      let vigente = true;
-
-      getActividades()
-        .then((datos) => {
-          if (vigente) setActividades(datos as Actividad[]);
-        })
-        .catch(() => {
-          // Sin sesion o sin backend: el calendario se muestra vacio
-          if (vigente) setActividades([]);
-        });
-
-      getHorariosDelUsuario()
-        .then((datos) => {
-          if (vigente) setHorarios(datos);
-        })
-        .catch(() => {
-          if (vigente) setHorarios([]);
-        });
-
-      return () => {
-        vigente = false;
-      };
-    }, [])
-  );
 
   const cantidadDias = new Date(anio, mes + 1, 0).getDate();
 
@@ -345,12 +340,16 @@ export default function Calendario() {
 
         {/* RUTINAS ACTIVAS */}
 
-        {rutinas.length > 0 && (
+        {activas.length > 0 && (
           <View style={styles.activitiesContainer}>
             <Text style={styles.activitiesTitle}>RUTINAS</Text>
 
-            {rutinas.map((r) => (
-              <View key={r.pastillaId} style={styles.activity}>
+            {errorRutina !== "" && (
+              <Text style={styles.errorRutina}>{errorRutina}</Text>
+            )}
+
+            {activas.map((r) => (
+              <View key={r.id} style={styles.activity}>
                 {/* Misma barra de color que el marcador del calendario, asi
                     se ve de una cual rutina es cual */}
                 <View
@@ -362,7 +361,7 @@ export default function Calendario() {
 
                 <View style={styles.activityInfo}>
                   <Text style={styles.activityName}>
-                    {r.nombre} · {r.hora}
+                    {r.nombre} · {r.horaTexto}
                   </Text>
 
                   <Text style={styles.activityType}>
@@ -428,11 +427,14 @@ export default function Calendario() {
                       {dosis.pastillas?.nombre ?? "Pastilla"}
                     </Text>
 
+                    {/* No dice si se tomo o no. El sistema solo sabe que la
+                        pastilla salio del modulo, no que la persona se la
+                        haya tomado, y afirmarlo seria decir de mas. El aviso
+                        al cuidador lo hacen los mails. */}
                     <Text style={styles.activityType}>
                       {dosis.cantidad === 1
                         ? "1 PASTILLA"
                         : `${dosis.cantidad} PASTILLAS`}
-                      {dosis.dispensado ? " · TOMADA" : ""}
                     </Text>
                   </View>
                 </View>
@@ -661,6 +663,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.9,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
+  },
+
+  errorRutina: {
+    color: "#FF8080",
+    fontSize: 13,
+    marginBottom: 10,
   },
 
   rutinaDetalle: {
