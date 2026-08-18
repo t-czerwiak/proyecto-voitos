@@ -1,9 +1,24 @@
 import { supabase } from "../config/supabase";
 import { HorarioCreate, HorarioUpdate } from "../schemas/horarios.schema";
 
-export const getAllHorarios = async (pastilla_id?: string) => {
-  let query = supabase.from("horarios").select("*");
-  if (pastilla_id) query = query.eq("pastilla_id", pastilla_id);
+// El calendario necesita todas las dosis del usuario para poder marcar los
+// dias, y horarios no tiene usuario_id: se llega por la pastilla. El !inner
+// hace que el filtro del join descarte filas en vez de traerlas con la
+// relacion en null.
+export const getAllHorarios = async (filtros: {
+  pastilla_id?: string;
+  usuario_id?: string;
+}) => {
+  let query = supabase
+    .from("horarios")
+    .select("*, pastillas!inner(id, nombre, tipo, usuario_id)")
+    .order("dia", { ascending: true })
+    .order("hora", { ascending: true })
+    .order("minuto", { ascending: true });
+
+  if (filtros.pastilla_id) query = query.eq("pastilla_id", filtros.pastilla_id);
+  if (filtros.usuario_id) query = query.eq("pastillas.usuario_id", filtros.usuario_id);
+
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return data;

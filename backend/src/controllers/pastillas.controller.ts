@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction } from "express";
-import { PastillaCreateSchema, PastillaUpdateSchema } from "../schemas/pastillas.schema";
+import {
+  PastillaCreateSchema,
+  PastillaUpdateSchema,
+  StockAjusteSchema,
+} from "../schemas/pastillas.schema";
 import * as pastillasService from "../services/pastillas.service";
+import { ajustarStockDePastilla } from "../services/modulos.service";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -69,6 +74,23 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
 export const getHorarios = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await pastillasService.getHorariosByPastilla(req.params.id);
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Suma o resta pastillas del modulo donde esta cargada esta. Se hace por
+// pastilla y no por modulo porque el cuidador piensa en "me quedan pocas
+// aspirinas", no en "el modulo 2 esta bajo".
+export const ajustarStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const result = StockAjusteSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ success: false, error: result.error.flatten() });
+    return;
+  }
+  try {
+    const data = await ajustarStockDePastilla(req.params.id, result.data.delta);
     res.json({ success: true, data });
   } catch (error) {
     next(error);

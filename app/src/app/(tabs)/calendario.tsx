@@ -5,10 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Pressable, // Added missing import
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import LavaBackground from "../../components/LavaBackground";
-import { getActividades } from "../../lib/voitos";
+import { getActividades, getHorariosDelUsuario, Horario } from "../../lib/voitos";
 
 type Actividad = {
   id: string;
@@ -46,6 +47,11 @@ export default function Calendario() {
 
   const [actividades, setActividades] = useState<Actividad[]>([]);
 
+  // Las dosis agendadas. Van aparte de las actividades porque son otra tabla y
+  // se marcan distinto: una rutina de medicacion ya viene materializada como
+  // una fila por dia, asi que no hay que resolver dias de la semana.
+  const [horarios, setHorarios] = useState<Horario[]>([]);
+
   // Se recargan cada vez que la pantalla vuelve a estar en foco, asi al volver
   // de "agregar actividad" ya aparece la nueva.
   useFocusEffect(
@@ -59,6 +65,14 @@ export default function Calendario() {
         .catch(() => {
           // Sin sesion o sin backend: el calendario se muestra vacio
           if (vigente) setActividades([]);
+        });
+
+      getHorariosDelUsuario()
+        .then((datos) => {
+          if (vigente) setHorarios(datos);
+        })
+        .catch(() => {
+          if (vigente) setHorarios([]);
         });
 
       return () => {
@@ -113,6 +127,15 @@ export default function Calendario() {
     });
   }
 
+  function tieneMedicacion(dia: number) {
+    const fecha = obtenerFecha(dia);
+    return horarios.some((h) => h.dia === fecha);
+  }
+
+  function medicacionDelDia() {
+    return horarios.filter((h) => h.dia === fechaSeleccionada);
+  }
+
   function actividadesDelDia() {
     return actividades.filter((actividad) => {
       if (actividad.tipo === "una-vez") {
@@ -164,7 +187,9 @@ export default function Calendario() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>CALENDARIO</Text>
+        <Pressable onPress={() => router.push("/home")}>
+          <Text style={styles.title}>CALENDARIO</Text>
+        </Pressable>
 
         {/* AÑO */}
 
@@ -256,9 +281,10 @@ export default function Calendario() {
                   {dia}
                 </Text>
 
-                {actividad && (
-                  <View style={styles.activityDot} />
-                )}
+                <View style={styles.dotsRow}>
+                  {actividad && <View style={styles.activityDot} />}
+                  {tieneMedicacion(dia) && <View style={styles.medicationDot} />}
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -274,6 +300,44 @@ export default function Calendario() {
           <Text style={styles.selectedDate}>
             {fechaSeleccionada.split("-").reverse().join("/")}
           </Text>
+        </View>
+
+        {/* MEDICACIÓN DEL DÍA */}
+
+        <View style={styles.activitiesContainer}>
+          <Text style={styles.activitiesTitle}>
+            MEDICACIÓN
+          </Text>
+
+          {medicacionDelDia().length === 0 ? (
+            <Text style={styles.noActivities}>
+              No hay dosis para este día
+            </Text>
+          ) : (
+            medicacionDelDia()
+              .sort((a, b) => a.hora - b.hora || a.minuto - b.minuto)
+              .map((dosis) => (
+                <View key={dosis.id} style={styles.activity}>
+                  <Text style={styles.activityTime}>
+                    {String(dosis.hora).padStart(2, "0")}:
+                    {String(dosis.minuto).padStart(2, "0")}
+                  </Text>
+
+                  <View style={styles.activityInfo}>
+                    <Text style={styles.activityName}>
+                      {dosis.pastillas?.nombre ?? "Pastilla"}
+                    </Text>
+
+                    <Text style={styles.activityType}>
+                      {dosis.cantidad === 1
+                        ? "1 PASTILLA"
+                        : `${dosis.cantidad} PASTILLAS`}
+                      {dosis.dispensado ? " · TOMADA" : ""}
+                    </Text>
+                  </View>
+                </View>
+              ))
+          )}
         </View>
 
         {/* ACTIVIDADES DEL DÍA */}
@@ -475,13 +539,28 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
-  activityDot: {
+  // Los dos puntos van en una fila para que un dia con actividad Y medicacion
+  // los muestre juntos en vez de pisarse.
+  dotsRow: {
     position: "absolute",
     bottom: 4,
+    flexDirection: "row",
+    gap: 3,
+  },
+
+  activityDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
     backgroundColor: "#00FF7F",
+  },
+
+  // Blanco para distinguirlo del verde de las actividades.
+  medicationDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#FFFFFF",
   },
 
   // FECHA
