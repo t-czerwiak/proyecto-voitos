@@ -40,6 +40,12 @@ const HUECO_MAXIMO = 14;
 
 export type Rutina = {
   id: string;
+  // Las fechas concretas de esta rutina. Sin esto el calendario no puede saber
+  // que rutina toca cada dia: filtrando por pastilla, dos rutinas de la misma
+  // pastilla pintaban las dos en cualquier dia que tuviera una sola dosis.
+  fechas: string[];
+  // Primera dosis que todavia no salio, para mostrar "proxima" sin recalcular.
+  proxima: string | null;
   pastillaId: string;
   nombre: string;
   color: string;
@@ -103,8 +109,12 @@ export const armarRutinas = (horarios: Horario[]): Rutina[] => {
         (a, b) => DIAS_SEMANA.indexOf(a) - DIAS_SEMANA.indexOf(b)
       );
 
+      const pendientes = dosis.filter((d) => !d.dispensado);
+
       return {
         id: `${primera.pastilla_id}|${primera.hora}|${primera.minuto}|${desde}`,
+        fechas: dosis.map((d) => d.dia),
+        proxima: pendientes[0]?.dia ?? null,
         pastillaId: primera.pastilla_id,
         nombre: primera.pastillas?.nombre ?? "Pastilla",
         color: COLORES_RUTINA[i % COLORES_RUTINA.length],
@@ -114,7 +124,7 @@ export const armarRutinas = (horarios: Horario[]): Rutina[] => {
         // Semanas que abarca de punta a punta, contando la primera como 1.
         semanas: Math.floor((aDias(hasta) - aDias(desde)) / 7) + 1,
         dosis: dosis.length,
-        pendientes: dosis.filter((d) => !d.dispensado).length,
+        pendientes: pendientes.length,
         hora: primera.hora,
         minuto: primera.minuto,
         horaTexto: `${String(primera.hora).padStart(2, "0")}:${String(primera.minuto).padStart(2, "0")}`,
@@ -127,5 +137,22 @@ export const armarRutinas = (horarios: Horario[]): Rutina[] => {
 // terminaron no se listan: no hay nada que hacer con ellas y solo ensucian.
 export const rutinasActivas = (rutinas: Rutina[]) =>
   rutinas.filter((r) => r.pendientes > 0);
+
+// Que rutinas tienen una dosis en esta fecha. Se compara contra las fechas de
+// la rutina y no contra la pastilla: dos rutinas de la misma pastilla a
+// distinta hora caen en dias distintos y tienen que marcarse por separado.
+export const rutinasEnFecha = (rutinas: Rutina[], fecha: string) =>
+  rutinas.filter((r) => r.fechas.includes(fecha));
+
+// "mar 25/08" — dia de la semana abreviado y fecha corta, que es como uno
+// dice cuando toca la proxima.
+const NOMBRE_DIA = ["dom", "lun", "mar", "mie", "jue", "vie", "sab"];
+
+export const comoDiaYFecha = (iso: string) => {
+  const d = new Date(`${iso}T12:00:00`);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${NOMBRE_DIA[d.getDay()]} ${dd}/${mm}`;
+};
 
 export const comoFecha = (iso: string) => iso.split("-").reverse().join("/");
