@@ -75,10 +75,27 @@ export const ajustarStock = (pastillaId: string, delta: number) =>
 // lleva sus horarios y dispensaciones; el modulo queda libre, no se borra.
 export const borrarPastilla = (id: string) => api.delete(`/api/pastillas/${id}`);
 
-// Cancela la rutina sin borrar la pastilla: saca las dosis que todavia no
+// Cancela una rutina sin borrar la pastilla: saca las dosis que todavia no
 // salieron y conserva el historial de las ya dispensadas.
-export const cancelarRutina = (pastillaId: string) =>
-  api.delete<{ canceladas: number }>(`/api/pastillas/${pastillaId}/horarios`);
+//
+// Los filtros importan: una pastilla puede tener varias rutinas a la vez (la
+// misma a las 8 y a las 20). Sin hora y minuto, cancelar una se llevaria
+// puestas las otras.
+export const cancelarRutina = (
+  pastillaId: string,
+  filtros: { hora?: number; minuto?: number; desde?: string; hasta?: string } = {}
+) => {
+  const params = new URLSearchParams();
+  if (filtros.hora !== undefined) params.set("hora", String(filtros.hora));
+  if (filtros.minuto !== undefined) params.set("minuto", String(filtros.minuto));
+  if (filtros.desde) params.set("desde", filtros.desde);
+  if (filtros.hasta) params.set("hasta", filtros.hasta);
+
+  const query = params.toString();
+  return api.delete<{ canceladas: number }>(
+    `/api/pastillas/${pastillaId}/horarios${query ? `?${query}` : ""}`
+  );
+};
 
 export interface Horario {
   id: string;

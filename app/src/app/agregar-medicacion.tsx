@@ -13,15 +13,7 @@ import {
   ScrollView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  crearPastilla,
-  getPastillas,
-  ajustarStock,
-  cancelarRutina,
-  borrarPastilla,
-  Pastilla,
-} from "../lib/voitos";
-import { confirmar } from "../lib/avisos";
+import { crearPastilla } from "../lib/voitos";
 import Mensaje from "../components/Mensaje";
 import Animated, {
   useSharedValue,
@@ -112,112 +104,6 @@ export default function CrearCuenta() {
   const [error, setError] = useState("");
   const [exito, setExito] = useState("");
 
-  // Pastillas que ya existen, para poder recargarles el modulo sin crearlas
-  // de nuevo. Se recargan despues de cada cambio asi el stock que se ve es el
-  // que quedo en la base.
-  const [pastillas, setPastillas] = useState<Pastilla[]>([]);
-  const [pastillaSel, setPastillaSel] = useState("");
-  const [ajuste, setAjuste] = useState("");
-  const [ajustando, setAjustando] = useState(false);
-
-  const cargarPastillas = () => {
-    getPastillas()
-      .then((lista) => {
-        setPastillas(lista);
-        setPastillaSel((actual) => actual || lista[0]?.id || "");
-      })
-      .catch(() => setPastillas([]));
-  };
-
-  useEffect(cargarPastillas, []);
-
-  const seleccionada = pastillas.find((p) => p.id === pastillaSel);
-
-  const handleCancelarRutina = async () => {
-    setError("");
-    setExito("");
-    if (!seleccionada) return;
-
-    const seguir = await confirmar(
-      `Cancelar la rutina de ${seleccionada.nombre}`,
-      `Se borran las dosis que todavía no salieron. Las ya dispensadas quedan en el historial.
-
-¿Seguro?`,
-      "Cancelar rutina"
-    );
-    if (!seguir) return;
-
-    setAjustando(true);
-    try {
-      const r = await cancelarRutina(seleccionada.id);
-      setExito(
-        r.canceladas === 0
-          ? "Esa pastilla no tenía dosis pendientes"
-          : `Se cancelaron ${r.canceladas} dosis pendientes`
-      );
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setAjustando(false);
-    }
-  };
-
-  const handleBorrarPastilla = async () => {
-    setError("");
-    setExito("");
-    if (!seleccionada) return;
-
-    const seguir = await confirmar(
-      `Eliminar ${seleccionada.nombre}`,
-      `Se borra la pastilla y todas sus dosis, incluido el historial de las ya dispensadas. El módulo queda libre pero no se borra.
-
-Esto no se puede deshacer. ¿Seguro?`,
-      "Eliminar"
-    );
-    if (!seguir) return;
-
-    setAjustando(true);
-    try {
-      await borrarPastilla(seleccionada.id);
-      setExito(`Se eliminó ${seleccionada.nombre}`);
-      setPastillaSel("");
-      cargarPastillas();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setAjustando(false);
-    }
-  };
-
-  const handleAjustar = async (signo: 1 | -1) => {
-    setError("");
-    setExito("");
-
-    const cuantas = Number(ajuste);
-    if (!pastillaSel) {
-      setError("Elegí una pastilla");
-      return;
-    }
-    if (!Number.isInteger(cuantas) || cuantas <= 0) {
-      setError("Poné cuántas pastillas sumar o restar");
-      return;
-    }
-
-    setAjustando(true);
-    try {
-      const modulo = await ajustarStock(pastillaSel, signo * cuantas);
-      setExito(
-        `Módulo ${modulo.numero}: quedan ${modulo.cantidad_actual} pastillas`
-      );
-      setAjuste("");
-      cargarPastillas();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setAjustando(false);
-    }
-  };
-
   const handleAgregar = async () => {
     setError("");
     setExito("");
@@ -245,7 +131,6 @@ Esto no se puede deshacer. ¿Seguro?`,
       );
       setNombre("");
       setCantidad("");
-      cargarPastillas();
 
     } catch (e: any) {
       setError(e.message);
@@ -318,83 +203,6 @@ Esto no se puede deshacer. ¿Seguro?`,
         {/* Recarga de una pastilla que ya existe. Va separado de crear porque
             es la operacion del dia a dia: la pastilla se crea una vez y se
             recarga muchas. */}
-        {pastillas.length > 0 && (
-          <View style={styles.form}>
-            <Text style={styles.label}>RECARGAR UNA PASTILLA</Text>
-
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={pastillaSel}
-                onValueChange={(v) => setPastillaSel(v)}
-                dropdownIconColor="#00FF7F"
-                style={styles.picker}
-              >
-                {pastillas.map((p) => (
-                  <Picker.Item
-                    key={p.id}
-                    label={
-                      p.modulo
-                        ? `${p.nombre} — módulo ${p.modulo.numero} (${p.modulo.cantidad_actual})`
-                        : `${p.nombre} — sin módulo`
-                    }
-                    value={p.id}
-                  />
-                ))}
-              </Picker>
-            </View>
-
-            <Text style={styles.stockTexto}>
-              {seleccionada?.modulo
-                ? `Ahora hay ${seleccionada.modulo.cantidad_actual} en el módulo ${seleccionada.modulo.numero}`
-                : "Esta pastilla no está cargada en ningún módulo"}
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="CUÁNTAS...."
-              placeholderTextColor="#B3B3B3"
-              keyboardType="numeric"
-              value={ajuste}
-              onChangeText={setAjuste}
-            />
-
-            <View style={styles.fila}>
-              <TouchableOpacity
-                style={[styles.button, styles.botonChico]}
-                onPress={() => handleAjustar(1)}
-                disabled={ajustando}
-              >
-                <Text style={styles.buttonText}>SUMAR</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, styles.botonChico]}
-                onPress={() => handleAjustar(-1)}
-                disabled={ajustando}
-              >
-                <Text style={styles.buttonText}>RESTAR</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.fila}>
-              <TouchableOpacity
-                style={[styles.button, styles.botonChico, styles.botonPeligro]}
-                onPress={handleCancelarRutina}
-                disabled={ajustando}
-              >
-                <Text style={styles.buttonTextChico}>CANCELAR RUTINA</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, styles.botonChico, styles.botonPeligro]}
-                onPress={handleBorrarPastilla}
-                disabled={ajustando}
-              >
-                <Text style={styles.buttonTextChico}>ELIMINAR PASTILLA</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
       </ScrollView>
     </LinearGradient>
   );

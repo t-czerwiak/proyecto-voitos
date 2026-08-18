@@ -92,18 +92,32 @@ export const getHorariosByPastilla = async (id: string) => {
   return data;
 };
 
-// Cancela la rutina de una pastilla: borra las dosis que todavia no salieron.
+// Cancela una rutina: borra las dosis que todavia no salieron.
 //
-// Las ya dispensadas NO se tocan, porque son el historial de lo que la persona
-// tomo. Ademas borrarlas se llevaria puestas las filas de dispensaciones, que
+// Los filtros son necesarios porque una pastilla puede tener varias rutinas a
+// la vez (la misma aspirina a las 8 y a las 20). Sin hora y minuto, borrar una
+// se llevaria puestas las otras. El rango de fechas separa dos rutinas del
+// mismo horario agendadas en periodos distintos.
+//
+// Las ya dispensadas NO se tocan: son el historial de lo que salio del
+// pastillero, y ademas borrarlas se llevaria las filas de dispensaciones, que
 // cuelgan de horarios con ON DELETE CASCADE.
-export const cancelarRutina = async (pastilla_id: string) => {
-  const { data, error } = await supabase
+export const cancelarRutina = async (
+  pastilla_id: string,
+  filtros: { hora?: number; minuto?: number; desde?: string; hasta?: string } = {}
+) => {
+  let query = supabase
     .from("horarios")
     .delete()
     .eq("pastilla_id", pastilla_id)
-    .eq("dispensado", false)
-    .select("id");
+    .eq("dispensado", false);
+
+  if (filtros.hora !== undefined) query = query.eq("hora", filtros.hora);
+  if (filtros.minuto !== undefined) query = query.eq("minuto", filtros.minuto);
+  if (filtros.desde) query = query.gte("dia", filtros.desde);
+  if (filtros.hasta) query = query.lte("dia", filtros.hasta);
+
+  const { data, error } = await query.select("id");
 
   if (error) throw new Error(error.message);
   return { canceladas: data?.length ?? 0 };

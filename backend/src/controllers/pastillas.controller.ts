@@ -97,11 +97,19 @@ export const ajustarStock = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-// Borra las dosis pendientes de esta pastilla, dejando la pastilla y su
-// historial en pie.
+// Borra las dosis pendientes de una rutina, dejando la pastilla y el historial
+// en pie. Los filtros llegan por query string porque son opcionales: sin
+// ninguno, borra todas las pendientes de la pastilla.
 export const cancelarRutina = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const aNumero = (v: unknown) => (v === undefined ? undefined : Number(v));
+
   try {
-    const data = await pastillasService.cancelarRutina(req.params.id);
+    const data = await pastillasService.cancelarRutina(req.params.id, {
+      hora: aNumero(req.query.hora),
+      minuto: aNumero(req.query.minuto),
+      desde: req.query.desde as string | undefined,
+      hasta: req.query.hasta as string | undefined,
+    });
     res.json({ success: true, data });
   } catch (error) {
     next(error);
