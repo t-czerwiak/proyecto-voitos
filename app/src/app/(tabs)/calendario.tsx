@@ -18,9 +18,11 @@ import {
 import { confirmar } from "../../lib/avisos";
 import {
   armarRutinas,
+  comoDiaYFecha,
   comoFecha,
   DIAS_SEMANA,
   rutinasActivas,
+  rutinasEnFecha,
   Rutina,
 } from "../../lib/rutinas";
 
@@ -204,14 +206,14 @@ export default function Calendario() {
     });
   }
 
-  // Las rutinas que tienen una dosis este dia. Se usa para pintar un marcador
-  // por rutina, cada uno con su color, en vez de un punto generico.
+  // Las rutinas que tienen una dosis este dia.
+  //
+  // Se compara contra las fechas de cada rutina. Antes se filtraba por
+  // pastilla, y como varias rutinas pueden ser de la misma pastilla, un dia con
+  // una sola dosis pintaba el marcador de todas: salian ocho marcadores donde
+  // correspondia uno.
   function rutinasDelDia(dia: number) {
-    const fecha = obtenerFecha(dia);
-    const conDosis = new Set(
-      horarios.filter((h) => h.dia === fecha).map((h) => h.pastilla_id)
-    );
-    return rutinas.filter((r) => conDosis.has(r.pastillaId));
+    return rutinasEnFecha(rutinas, obtenerFecha(dia));
   }
 
   function medicacionDelDia() {
@@ -406,16 +408,46 @@ export default function Calendario() {
                     {r.nombre} · {r.horaTexto}
                   </Text>
 
-                  <Text style={styles.activityType}>
-                    {r.dias.join("  ")} · {r.semanas === 1 ? "1 SEMANA" : `${r.semanas} SEMANAS`}
+                  {/* Los siete dias siempre a la vista, con los de la rutina
+                      encendidos en su color. Leer "L M X V" suelto obliga a
+                      reconstruir la semana mentalmente; asi se ve de una. */}
+                  <View style={styles.diasRutina}>
+                    {DIAS_SEMANA.map((d) => {
+                      const activo = r.dias.includes(d);
+                      return (
+                        <Text
+                          key={d}
+                          style={[
+                            styles.diaRutina,
+                            activo && {
+                              color: "#0A0A0A",
+                              backgroundColor: r.color,
+                              fontWeight: "900",
+                            },
+                          ]}
+                        >
+                          {d}
+                        </Text>
+                      );
+                    })}
+                  </View>
+
+                  {r.proxima && (
+                    <Text style={styles.rutinaProxima}>
+                      Próxima: {comoDiaYFecha(r.proxima)} a las {r.horaTexto}
+                    </Text>
+                  )}
+
+                  <Text style={styles.rutinaDetalle}>
+                    {r.cantidad === 1 ? "1 pastilla" : `${r.cantidad} pastillas`} por dosis
+                    {"  ·  "}
+                    {r.pendientes} de {r.dosis} sin tomar
                   </Text>
 
                   <Text style={styles.rutinaDetalle}>
+                    {r.semanas === 1 ? "1 semana" : `${r.semanas} semanas`}
+                    {"  ·  "}
                     {comoFecha(r.desde)} al {comoFecha(r.hasta)}
-                  </Text>
-
-                  <Text style={styles.rutinaDetalle}>
-                    {r.dosis} dosis de {r.cantidad} · {r.pendientes} sin tomar
                   </Text>
                 </View>
 
@@ -701,7 +733,7 @@ const styles = StyleSheet.create({
   // marcador en el calendario.
   rutinaColor: {
     width: 6,
-    height: 46,
+    height: 92,
     borderRadius: 3,
     marginRight: 14,
     shadowOpacity: 0.9,
@@ -713,6 +745,34 @@ const styles = StyleSheet.create({
     color: "#FF8080",
     fontSize: 13,
     marginBottom: 10,
+  },
+
+  diasRutina: {
+    flexDirection: "row",
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 6,
+  },
+
+  // Apagado por defecto; el color lo enciende la rutina en linea.
+  diaRutina: {
+    width: 20,
+    height: 20,
+    lineHeight: 20,
+    borderRadius: 10,
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#4A6A55",
+    backgroundColor: "#0C2415",
+    overflow: "hidden",
+  },
+
+  rutinaProxima: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 2,
   },
 
   rutinaDetalle: {
