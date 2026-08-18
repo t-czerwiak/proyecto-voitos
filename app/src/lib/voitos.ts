@@ -124,23 +124,57 @@ export const borrarHorario = (id: string) => api.delete(`/api/horarios/${id}`);
 // Letra de dia de la semana -> numero que devuelve Date.getDay()
 const DIAS: Record<string, number> = { D: 0, L: 1, M: 2, X: 3, J: 4, V: 5, S: 6 };
 
-const aFechaISO = (d: Date) => d.toISOString().split("T")[0];
+// A "YYYY-MM-DD" en hora LOCAL, no UTC.
+//
+// toISOString() convierte a UTC, asi que en Argentina (UTC-3) desde las 21:00
+// devolvia la fecha del dia siguiente. Una dosis agendada de noche se guardaba
+// para manana y no aparecia en el calendario del dia correcto.
+const aFechaISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
 
 // Fechas concretas de una rutina.
 //
 // La tabla horarios guarda fechas, no reglas de repeticion, asi que una rutina
 // "lunes y viernes por 6 semanas" se materializa como una fila por dia. Por eso
 // la duracion hay que pedirla: sin un limite no se sabe cuantas filas crear.
-export const fechasDeLaRutina = (letrasDeDias: string[], semanas: number): string[] => {
+export const fechasDeLaRutina = (
+  letrasDeDias: string[],
+  semanas: number,
+  hora?: number,
+  minuto?: number
+): string[] => {
   const buscados = letrasDeDias.map((l) => DIAS[l]).filter((n) => n !== undefined);
   if (!buscados.length) return [];
 
-  const fechas: string[] = [];
-  const hoy = new Date();
+  const ahora = new Date();
 
-  for (let i = 0; i < semanas * 7; i++) {
-    const d = new Date(hoy);
-    d.setDate(hoy.getDate() + i);
+  // Si hoy es uno de los dias elegidos pero la hora ya paso, la primera dosis
+  // no puede ser hoy: agendarla seria crear una dosis vencida, que el
+  // scheduler nunca va a disparar y que el cuidador ve como "no tomada".
+  const yaPasoLaHora =
+    hora !== undefined &&
+    (ahora.getHours() > hora ||
+      (ahora.getHours() === hora && ahora.getMinutes() >= (minuto ?? 0)));
+
+  // Se busca el primer dia valido y recien desde ahi se cuentan las semanas.
+  // Contarlas desde hoy hacia adelante hacia que, al saltear el dia de hoy,
+  // una rutina de una semana quedara sin ninguna dosis.
+  let inicio = 0;
+  while (inicio < 14) {
+    const d = new Date(ahora);
+    d.setDate(ahora.getDate() + inicio);
+    const sirve = buscados.includes(d.getDay()) && !(inicio === 0 && yaPasoLaHora);
+    if (sirve) break;
+    inicio++;
+  }
+
+  const fechas: string[] = [];
+
+  for (let i = inicio; i < inicio + semanas * 7; i++) {
+    const d = new Date(ahora);
+    d.setDate(ahora.getDate() + i);
     if (buscados.includes(d.getDay())) fechas.push(aFechaISO(d));
   }
 
@@ -216,9 +250,13 @@ export const agendarPastilla = async (datos: {
     throw new Error("La hora tiene que tener formato HH:MM");
   }
 
-  const fechas = datos.dias.length
-    ? fechasDeLaRutina(datos.dias, datos.semanas)
-    : [aFechaISO(new Date())];
+  const fechas = fechasDeLaRutina(datos.dias, datos.semanas, hora, minuto);
+
+  if (!fechas.length) {
+    throw new Error(
+      "No quedo ninguna fecha para agendar. Elegi al menos un dia de la semana."
+    );
+  }
 
   for (const dia of fechas) {
     await crearHorario({
