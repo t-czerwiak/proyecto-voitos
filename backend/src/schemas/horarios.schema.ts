@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { uuid } from "./uuid";
 
 export const HorarioCreateSchema = z.object({
-  pastilla_id: z.string().uuid("pastilla_id debe ser UUID"),
+  pastilla_id: uuid("pastilla_id debe ser UUID"),
   dia: z.string().min(1, "dia requerido"),
   hora: z.number().int().min(0).max(23, "hora debe estar entre 0 y 23"),
   minuto: z.number().int().min(0).max(59, "minuto debe estar entre 0 y 59"),

@@ -13,7 +13,15 @@ import {
   ScrollView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { crearPastilla, getPastillas, ajustarStock, Pastilla } from "../lib/voitos";
+import {
+  crearPastilla,
+  getPastillas,
+  ajustarStock,
+  cancelarRutina,
+  borrarPastilla,
+  Pastilla,
+} from "../lib/voitos";
+import { confirmar } from "../lib/avisos";
 import Mensaje from "../components/Mensaje";
 import Animated, {
   useSharedValue,
@@ -124,6 +132,62 @@ export default function CrearCuenta() {
   useEffect(cargarPastillas, []);
 
   const seleccionada = pastillas.find((p) => p.id === pastillaSel);
+
+  const handleCancelarRutina = async () => {
+    setError("");
+    setExito("");
+    if (!seleccionada) return;
+
+    const seguir = await confirmar(
+      `Cancelar la rutina de ${seleccionada.nombre}`,
+      `Se borran las dosis que todavía no salieron. Las ya dispensadas quedan en el historial.
+
+¿Seguro?`,
+      "Cancelar rutina"
+    );
+    if (!seguir) return;
+
+    setAjustando(true);
+    try {
+      const r = await cancelarRutina(seleccionada.id);
+      setExito(
+        r.canceladas === 0
+          ? "Esa pastilla no tenía dosis pendientes"
+          : `Se cancelaron ${r.canceladas} dosis pendientes`
+      );
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setAjustando(false);
+    }
+  };
+
+  const handleBorrarPastilla = async () => {
+    setError("");
+    setExito("");
+    if (!seleccionada) return;
+
+    const seguir = await confirmar(
+      `Eliminar ${seleccionada.nombre}`,
+      `Se borra la pastilla y todas sus dosis, incluido el historial de las ya dispensadas. El módulo queda libre pero no se borra.
+
+Esto no se puede deshacer. ¿Seguro?`,
+      "Eliminar"
+    );
+    if (!seguir) return;
+
+    setAjustando(true);
+    try {
+      await borrarPastilla(seleccionada.id);
+      setExito(`Se eliminó ${seleccionada.nombre}`);
+      setPastillaSel("");
+      cargarPastillas();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setAjustando(false);
+    }
+  };
 
   const handleAjustar = async (signo: 1 | -1) => {
     setError("");
@@ -311,6 +375,24 @@ export default function CrearCuenta() {
                 <Text style={styles.buttonText}>RESTAR</Text>
               </TouchableOpacity>
             </View>
+
+            <View style={styles.fila}>
+              <TouchableOpacity
+                style={[styles.button, styles.botonChico, styles.botonPeligro]}
+                onPress={handleCancelarRutina}
+                disabled={ajustando}
+              >
+                <Text style={styles.buttonTextChico}>CANCELAR RUTINA</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.botonChico, styles.botonPeligro]}
+                onPress={handleBorrarPastilla}
+                disabled={ajustando}
+              >
+                <Text style={styles.buttonTextChico}>ELIMINAR PASTILLA</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -425,6 +507,22 @@ const styles = StyleSheet.create({
   botonChico: {
     width: 132,
     height: 56,
+  },
+
+  // Rojo apagado para las acciones destructivas, manteniendo la forma del
+  // resto de los botones.
+  botonPeligro: {
+    backgroundColor: "#2a0d0d",
+    borderColor: "#7a1f1f",
+    shadowColor: "#FF4444",
+  },
+
+  buttonTextChico: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+    textAlign: "center",
   },
 
   buttonText: {

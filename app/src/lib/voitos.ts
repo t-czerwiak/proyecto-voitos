@@ -71,7 +71,14 @@ export const crearPastilla = (datos: {
 export const ajustarStock = (pastillaId: string, delta: number) =>
   api.patch<Modulo>(`/api/pastillas/${pastillaId}/stock`, { delta });
 
+// Borra la pastilla entera. Las FK de la base estan en CASCADE, asi que se
+// lleva sus horarios y dispensaciones; el modulo queda libre, no se borra.
 export const borrarPastilla = (id: string) => api.delete(`/api/pastillas/${id}`);
+
+// Cancela la rutina sin borrar la pastilla: saca las dosis que todavia no
+// salieron y conserva el historial de las ya dispensadas.
+export const cancelarRutina = (pastillaId: string) =>
+  api.delete<{ canceladas: number }>(`/api/pastillas/${pastillaId}/horarios`);
 
 export interface Horario {
   id: string;
