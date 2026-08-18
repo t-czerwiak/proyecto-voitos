@@ -28,12 +28,21 @@ export const iniciarSesion = async (mail: string, password: string): Promise<Usu
 
 export const cerrarSesion = () => sesion.cerrar();
 
+// El modulo fisico donde esta cargada la pastilla. Es de donde sale el stock:
+// pastillas no tiene cantidad, la tiene el modulo.
+export interface Modulo {
+  id: string;
+  numero: number;
+  cantidad_actual: number;
+}
+
 export interface Pastilla {
   id: string;
   usuario_id: string;
   nombre: string;
   tipo?: string;
   caracteristicas?: string;
+  modulo?: Modulo | null;
 }
 
 export const getPastillas = () => {
@@ -42,11 +51,25 @@ export const getPastillas = () => {
   return api.get<Pastilla[]>(`/api/pastillas${filtro}`);
 };
 
-export const crearPastilla = (datos: { nombre: string; tipo?: string; caracteristicas?: string }) => {
+// cantidad_inicial son las pastillas que se cargan fisicamente en el modulo.
+// Antes este numero terminaba dentro del texto de "caracteristicas", asi que
+// la pastilla quedaba sin modulo y no se podia dispensar ni descontar.
+export const crearPastilla = (datos: {
+  nombre: string;
+  tipo?: string;
+  caracteristicas?: string;
+  cantidad_inicial?: number;
+  modulo_numero?: number;
+}) => {
   const usuario = sesion.getUsuario();
   if (!usuario) throw new Error("No hay sesion iniciada");
   return api.post<Pastilla>("/api/pastillas", { ...datos, usuario_id: usuario.id });
 };
+
+// Suma o resta pastillas del modulo. El delta va con signo: +10 al recargar,
+// -3 para corregir un conteo mal anotado.
+export const ajustarStock = (pastillaId: string, delta: number) =>
+  api.patch<Modulo>(`/api/pastillas/${pastillaId}/stock`, { delta });
 
 export const borrarPastilla = (id: string) => api.delete(`/api/pastillas/${id}`);
 
@@ -77,21 +100,21 @@ export const borrarHorario = (id: string) => api.delete(`/api/horarios/${id}`);
 // Letra de dia de la semana -> numero que devuelve Date.getDay()
 const DIAS: Record<string, number> = { D: 0, L: 1, M: 2, X: 3, J: 4, V: 5, S: 6 };
 
-// Cuantas semanas hacia adelante se agenda una rutina. La tabla horarios
-// guarda fechas concretas, no reglas de repeticion, asi que hay que generar
-// una fila por cada dia que corresponda.
-const SEMANAS_A_AGENDAR = 4;
-
 const aFechaISO = (d: Date) => d.toISOString().split("T")[0];
 
-export const fechasDeLosProximos = (letrasDeDias: string[]): string[] => {
+// Fechas concretas de una rutina.
+//
+// La tabla horarios guarda fechas, no reglas de repeticion, asi que una rutina
+// "lunes y viernes por 6 semanas" se materializa como una fila por dia. Por eso
+// la duracion hay que pedirla: sin un limite no se sabe cuantas filas crear.
+export const fechasDeLaRutina = (letrasDeDias: string[], semanas: number): string[] => {
   const buscados = letrasDeDias.map((l) => DIAS[l]).filter((n) => n !== undefined);
   if (!buscados.length) return [];
 
   const fechas: string[] = [];
   const hoy = new Date();
 
-  for (let i = 0; i < SEMANAS_A_AGENDAR * 7; i++) {
+  for (let i = 0; i < semanas * 7; i++) {
     const d = new Date(hoy);
     d.setDate(hoy.getDate() + i);
     if (buscados.includes(d.getDay())) fechas.push(aFechaISO(d));
@@ -100,24 +123,67 @@ export const fechasDeLosProximos = (letrasDeDias: string[]): string[] => {
   return fechas;
 };
 
-// Agenda una pastilla por nombre. El formulario pide el nombre escrito a mano,
-// asi que hay que resolverlo contra las pastillas que ya tiene el usuario.
+export interface AnalisisDeStock {
+  alcanza: boolean;
+  totalDosis: number;
+  totalPastillas: number;
+  stock: number;
+  // Cuantas dosis completas cubre el stock actual
+  dosisCubiertas: number;
+  // Hasta que semana de la rutina llega sin recargar (1 = la primera)
+  semanasCubiertas: number;
+  // Cuantas faltan para completar la rutina entera
+  faltan: number;
+}
+
+// Cuenta si el stock del modulo aguanta toda la rutina, y si no, hasta donde
+// llega. Se calcula antes de crear nada: avisar despues de agendar 24 dosis no
+// le sirve a nadie.
+export const analizarStock = (datos: {
+  fechas: string[];
+  cantidadPorDosis: number;
+  stock: number;
+}): AnalisisDeStock => {
+  const { fechas, cantidadPorDosis, stock } = datos;
+
+  const totalDosis = fechas.length;
+  const totalPastillas = totalDosis * cantidadPorDosis;
+  const dosisCubiertas = Math.min(totalDosis, Math.floor(stock / cantidadPorDosis));
+
+  // En que semana cae la ultima dosis que el stock cubre. Se mide contra la
+  // primera fecha de la rutina y no contra hoy, porque la rutina puede
+  // arrancar en unos dias si hoy no es ninguno de los dias elegidos.
+  let semanasCubiertas = 0;
+  if (dosisCubiertas > 0) {
+    const inicio = new Date(fechas[0]);
+    const ultima = new Date(fechas[dosisCubiertas - 1]);
+    const dias = Math.round((ultima.getTime() - inicio.getTime()) / 86_400_000);
+    semanasCubiertas = Math.floor(dias / 7) + 1;
+  }
+
+  return {
+    alcanza: stock >= totalPastillas,
+    totalDosis,
+    totalPastillas,
+    stock,
+    dosisCubiertas,
+    semanasCubiertas,
+    faltan: Math.max(0, totalPastillas - stock),
+  };
+};
+
+// Agenda una rutina completa: una fila de horarios por cada dia que toca.
+//
+// Recibe el id de la pastilla y no el nombre porque ahora la pantalla usa un
+// desplegable con las pastillas que ya existen. Antes se escribia el nombre a
+// mano y habia que resolverlo contra la lista, que fallaba con un typo.
 export const agendarPastilla = async (datos: {
-  nombrePastilla: string;
+  pastilla_id: string;
   hora: string; // "HH:MM"
   cantidad: number;
   dias: string[]; // ["L","X","V"], vacio = solo hoy
+  semanas: number;
 }) => {
-  const pastillas = await getPastillas();
-  const buscada = datos.nombrePastilla.trim().toLowerCase();
-  const pastilla = pastillas.find((p) => p.nombre.trim().toLowerCase() === buscada);
-
-  if (!pastilla) {
-    throw new Error(
-      `No tenes ninguna pastilla que se llame "${datos.nombrePastilla}". Agregala primero desde AGREGAR.`
-    );
-  }
-
   const [horaTexto, minutoTexto] = datos.hora.split(":");
   const hora = Number(horaTexto);
   const minuto = Number(minutoTexto);
@@ -126,11 +192,13 @@ export const agendarPastilla = async (datos: {
     throw new Error("La hora tiene que tener formato HH:MM");
   }
 
-  const fechas = datos.dias.length ? fechasDeLosProximos(datos.dias) : [aFechaISO(new Date())];
+  const fechas = datos.dias.length
+    ? fechasDeLaRutina(datos.dias, datos.semanas)
+    : [aFechaISO(new Date())];
 
   for (const dia of fechas) {
     await crearHorario({
-      pastilla_id: pastilla.id,
+      pastilla_id: datos.pastilla_id,
       dia,
       hora,
       minuto,
@@ -140,6 +208,30 @@ export const agendarPastilla = async (datos: {
 
   return fechas.length;
 };
+
+// Todas las dosis del usuario, para que el calendario pueda marcar los dias.
+export const getHorariosDelUsuario = () => {
+  const usuario = sesion.getUsuario();
+  const filtro = usuario ? `?usuario_id=${usuario.id}` : "";
+  return api.get<Horario[]>(`/api/horarios${filtro}`);
+};
+
+// Le pide al backend que le mande la senal de dispensar al pastillero ahora
+// mismo. Es la ruta publica del sensor: el backend inicia la conexion contra
+// la ESP32 por la red local.
+export interface ResultadoDispensar {
+  enviado: boolean;
+  destino: string;
+  respuesta_dispositivo: string;
+  horario_id: string | null;
+  cantidad: number;
+}
+
+export const dispensarAhora = (datos: {
+  cantidad?: number;
+  destino?: string;
+  horario_id?: string;
+}) => api.post<ResultadoDispensar>("/api/sensor/dispensar", datos);
 
 export interface Actividad {
   id: string;

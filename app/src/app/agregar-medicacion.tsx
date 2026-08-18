@@ -10,9 +10,10 @@ import {
   StyleSheet,
   Pressable,
   Dimensions,
+  ScrollView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { crearPastilla } from "../lib/voitos";
+import { crearPastilla, getPastillas, ajustarStock, Pastilla } from "../lib/voitos";
 import Mensaje from "../components/Mensaje";
 import Animated, {
   useSharedValue,
@@ -103,6 +104,56 @@ export default function CrearCuenta() {
   const [error, setError] = useState("");
   const [exito, setExito] = useState("");
 
+  // Pastillas que ya existen, para poder recargarles el modulo sin crearlas
+  // de nuevo. Se recargan despues de cada cambio asi el stock que se ve es el
+  // que quedo en la base.
+  const [pastillas, setPastillas] = useState<Pastilla[]>([]);
+  const [pastillaSel, setPastillaSel] = useState("");
+  const [ajuste, setAjuste] = useState("");
+  const [ajustando, setAjustando] = useState(false);
+
+  const cargarPastillas = () => {
+    getPastillas()
+      .then((lista) => {
+        setPastillas(lista);
+        setPastillaSel((actual) => actual || lista[0]?.id || "");
+      })
+      .catch(() => setPastillas([]));
+  };
+
+  useEffect(cargarPastillas, []);
+
+  const seleccionada = pastillas.find((p) => p.id === pastillaSel);
+
+  const handleAjustar = async (signo: 1 | -1) => {
+    setError("");
+    setExito("");
+
+    const cuantas = Number(ajuste);
+    if (!pastillaSel) {
+      setError("Elegí una pastilla");
+      return;
+    }
+    if (!Number.isInteger(cuantas) || cuantas <= 0) {
+      setError("Poné cuántas pastillas sumar o restar");
+      return;
+    }
+
+    setAjustando(true);
+    try {
+      const modulo = await ajustarStock(pastillaSel, signo * cuantas);
+      setExito(
+        `Módulo ${modulo.numero}: quedan ${modulo.cantidad_actual} pastillas`
+      );
+      setAjuste("");
+      cargarPastillas();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setAjustando(false);
+    }
+  };
+
   const handleAgregar = async () => {
     setError("");
     setExito("");
@@ -114,19 +165,24 @@ export default function CrearCuenta() {
 
     setGuardando(true);
     try {
-      await crearPastilla({
+      // La cantidad son las pastillas que se cargan en el modulo fisico. Va
+      // como cantidad_inicial y no dentro de "caracteristicas": de ahi sale el
+      // stock que despues se descuenta y que avisa si alcanza para la rutina.
+      const creada = await crearPastilla({
         nombre,
         tipo,
-        // El campo "cantidad" del formulario describe la presentacion
-        // (ej: cuantas trae la caja), no la dosis. Va como caracteristica.
-        caracteristicas: cantidad ? `Cantidad: ${cantidad}` : undefined,
+        cantidad_inicial: cantidad ? Number(cantidad) : 0,
       });
-      setExito(`Se agregó ${nombre}. Ya la podés agendar.`);
+
+      setExito(
+        creada.modulo
+          ? `Se agregó ${nombre} en el módulo ${creada.modulo.numero} con ${creada.modulo.cantidad_actual}. Ya la podés agendar.`
+          : `Se agregó ${nombre}. Ya la podés agendar.`
+      );
       setNombre("");
       setCantidad("");
+      cargarPastillas();
 
-      // Se deja ver la confirmacion antes de volver
-      setTimeout(() => router.back(), 1600);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -147,7 +203,7 @@ export default function CrearCuenta() {
       </View>
 
       {/* Content Container */}
-      <View style={styles.contentLayer}>
+      <ScrollView contentContainerStyle={styles.contentLayer}>
         <Pressable onPress={() => router.push("/medicacion")}>
   <Image
     source={require("../../assets/images/logoClaro.png")}
@@ -159,7 +215,7 @@ export default function CrearCuenta() {
           <TextInput
             style={styles.input}
             placeholder="PASTILLA...."
-            placeholderTextColor="#6E9C7E"
+            placeholderTextColor="#B3B3B3"
             value={nombre}
             onChangeText={setNombre}
           />
@@ -181,7 +237,7 @@ export default function CrearCuenta() {
           <TextInput
             style={styles.input}
             placeholder="CANTIDAD...."
-            placeholderTextColor="#6E9C7E"
+            placeholderTextColor="#B3B3B3"
             keyboardType="numeric"
             value={cantidad}
             onChangeText={setCantidad}
@@ -194,7 +250,70 @@ export default function CrearCuenta() {
         <TouchableOpacity style={styles.button} onPress={handleAgregar} disabled={guardando}>
           <Text style={styles.buttonText}>{guardando ? "GUARDANDO..." : "AGREGAR"}</Text>
         </TouchableOpacity>
-      </View>
+
+        {/* Recarga de una pastilla que ya existe. Va separado de crear porque
+            es la operacion del dia a dia: la pastilla se crea una vez y se
+            recarga muchas. */}
+        {pastillas.length > 0 && (
+          <View style={styles.form}>
+            <Text style={styles.label}>RECARGAR UNA PASTILLA</Text>
+
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={pastillaSel}
+                onValueChange={(v) => setPastillaSel(v)}
+                dropdownIconColor="#00FF7F"
+                style={styles.picker}
+              >
+                {pastillas.map((p) => (
+                  <Picker.Item
+                    key={p.id}
+                    label={
+                      p.modulo
+                        ? `${p.nombre} — módulo ${p.modulo.numero} (${p.modulo.cantidad_actual})`
+                        : `${p.nombre} — sin módulo`
+                    }
+                    value={p.id}
+                  />
+                ))}
+              </Picker>
+            </View>
+
+            <Text style={styles.stockTexto}>
+              {seleccionada?.modulo
+                ? `Ahora hay ${seleccionada.modulo.cantidad_actual} en el módulo ${seleccionada.modulo.numero}`
+                : "Esta pastilla no está cargada en ningún módulo"}
+            </Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="CUÁNTAS...."
+              placeholderTextColor="#B3B3B3"
+              keyboardType="numeric"
+              value={ajuste}
+              onChangeText={setAjuste}
+            />
+
+            <View style={styles.fila}>
+              <TouchableOpacity
+                style={[styles.button, styles.botonChico]}
+                onPress={() => handleAjustar(1)}
+                disabled={ajustando}
+              >
+                <Text style={styles.buttonText}>SUMAR</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.botonChico]}
+                onPress={() => handleAjustar(-1)}
+                disabled={ajustando}
+              >
+                <Text style={styles.buttonText}>RESTAR</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </ScrollView>
     </LinearGradient>
   );
 }
@@ -205,7 +324,9 @@ const styles = StyleSheet.create({
   },
 
   contentLayer: {
-    flex: 1,
+    // flexGrow: es el contentContainerStyle de un ScrollView (ver arriba),
+    // donde flex: 1 impediria el scroll al agregarse la seccion de recarga.
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "space-evenly",
     paddingHorizontal: 25,
@@ -225,10 +346,7 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    backgroundColor: "rgba(2, 32, 15, 0.92)",
-    borderWidth: 1.5,
-    borderColor: "#105a2c",
-    color: "#FFFFFF",
+    backgroundColor: "#fff",
     width: "85%",
     maxWidth: 400,
     height: 50,
@@ -236,8 +354,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     fontSize: 16,
     marginVertical: 10,
-    shadowColor: "#00FF7F",
-    shadowOffset: { width: 0, height: 0 },
+    shadowColor: "#000",
+    shadowOffset: { width: 5, height: 5 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 6,
@@ -246,13 +364,12 @@ const styles = StyleSheet.create({
   picker: {
   width: 400,
   height: 50,
-  backgroundColor: "rgba(2, 32, 15, 0.92)",
-  borderWidth: 1.5,
-  borderColor: "#105a2c",
+  backgroundColor: "#FFFFFF",
   borderRadius: 10,
+  borderWidth: 0,
   paddingHorizontal: 20,
   marginVertical: 6,
-  color: "#FFFFFF",
+  color: "#000000",
 
   shadowColor: "#00FF7F",
   shadowOffset: {
@@ -284,6 +401,31 @@ const styles = StyleSheet.create({
   // runtime era undefined y React Native lo ignoraba. Se deja vacio a proposito:
   // arregla el error de tipos sin cambiar como se ve hoy.
   pickerContainer: {},
+
+  label: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginTop: 10,
+  },
+
+  stockTexto: {
+    color: "#B3B3B3",
+    fontSize: 14,
+  },
+
+  fila: {
+    flexDirection: "row",
+    gap: 16,
+  },
+
+  // Mismo boton que el de AGREGAR pero angosto, para que los dos entren en
+  // una fila sin cambiar el aspecto.
+  botonChico: {
+    width: 132,
+    height: 56,
+  },
 
   buttonText: {
     color: "#FFFFFF",

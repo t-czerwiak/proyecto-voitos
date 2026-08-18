@@ -2,8 +2,11 @@ import { supabase } from "../config/supabase";
 import { Confirmacion, Dispensar } from "../schemas/sensor.schema";
 import { getHoraArgentina, getTramosVentana } from "../utils/tiempo";
 import { ErrorHttp } from "../utils/errores";
+import { formatearFecha, formatearHora } from "./plantillas-mail";
+
+const APP_URL = (process.env.APP_URL ?? "http://localhost:8081").replace(/\/$/, "");
 import { getModuloDePastilla, descontarDelModulo } from "./modulos.service";
-import { avisarDispensacionOk } from "./email.service";
+import { avisarDispensacionOk, avisarPastilleroVacio } from "./email.service";
 
 // Cada cuantos minutos consulta la ESP32. Define el tamano de la ventana de
 // busqueda: si buscaramos la hora exacta, una dosis se perderia para siempre
@@ -222,6 +225,34 @@ export const createConfirmacion = async (body: Confirmacion) => {
   // quedo registrada: si falla, email.service lo loguea y sigue.
   const pastilla = (horario as any)?.pastillas;
   const cuidador = pastilla?.usuarios;
+
+  if (cuidador?.mail && quedanEnModulo === 0) {
+    // Aviso aparte cuando el modulo se vacia. Va como mail propio y no como
+    // una linea dentro del de confirmacion porque pide una accion concreta
+    // (recargar) y se pierde mezclado con el resto.
+    const { data: proxima } = await supabase
+      .from("horarios")
+      .select("dia, hora, minuto")
+      .eq("pastilla_id", horario!.pastilla_id)
+      .eq("dispensado", false)
+      .order("dia", { ascending: true })
+      .order("hora", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    const moduloVacio = await getModuloDePastilla(horario!.pastilla_id);
+
+    await avisarPastilleroVacio({
+      cuidadorMail: cuidador.mail,
+      cuidadorNombre: cuidador.nombre,
+      pastilla: pastilla.nombre,
+      modulo: moduloVacio?.numero ?? 1,
+      proximaDosis: proxima
+        ? `${formatearFecha(proxima.dia)} a las ${formatearHora(proxima.hora, proxima.minuto)}`
+        : null,
+      enlaceApp: APP_URL,
+    });
+  }
 
   if (cuidador?.mail) {
     await avisarDispensacionOk({

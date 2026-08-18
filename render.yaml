@@ -44,3 +44,8 @@ services:
         sync: false
       - key: MAIL_PASS
         sync: false
+      # Enlaces de los mails: APP_URL es el frontend, API_URL es este servicio
+      - key: APP_URL
+        value: https://voitos.vercel.app
+      - key: API_URL
+        value: https://voitos-backend.onrender.com
