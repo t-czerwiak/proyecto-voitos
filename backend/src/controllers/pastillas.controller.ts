@@ -96,3 +96,14 @@ export const ajustarStock = async (req: Request, res: Response, next: NextFuncti
     next(error);
   }
 };
+
+// Borra las dosis pendientes de esta pastilla, dejando la pastilla y su
+// historial en pie.
+export const cancelarRutina = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await pastillasService.cancelarRutina(req.params.id);
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};

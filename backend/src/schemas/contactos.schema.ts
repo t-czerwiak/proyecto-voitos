@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { uuid } from "./uuid";
 
 export const ContactoCreateSchema = z.object({
-  usuario_id: z.string().uuid("usuario_id debe ser UUID"),
+  usuario_id: uuid("usuario_id debe ser UUID"),
   nombre: z.string().min(1, "nombre requerido"),
   apellido: z.string().min(1, "apellido requerido"),
   numero: z.string().min(1, "numero requerido"),

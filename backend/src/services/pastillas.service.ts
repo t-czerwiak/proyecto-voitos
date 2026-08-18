@@ -91,3 +91,20 @@ export const getHorariosByPastilla = async (id: string) => {
   if (error) throw new Error(error.message);
   return data;
 };
+
+// Cancela la rutina de una pastilla: borra las dosis que todavia no salieron.
+//
+// Las ya dispensadas NO se tocan, porque son el historial de lo que la persona
+// tomo. Ademas borrarlas se llevaria puestas las filas de dispensaciones, que
+// cuelgan de horarios con ON DELETE CASCADE.
+export const cancelarRutina = async (pastilla_id: string) => {
+  const { data, error } = await supabase
+    .from("horarios")
+    .delete()
+    .eq("pastilla_id", pastilla_id)
+    .eq("dispensado", false)
+    .select("id");
+
+  if (error) throw new Error(error.message);
+  return { canceladas: data?.length ?? 0 };
+};
