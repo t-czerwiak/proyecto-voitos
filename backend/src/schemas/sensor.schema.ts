@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { uuid } from "./uuid";
 
 export const ConfirmacionSchema = z.object({
   dispositivo_id: z.string().min(1, "dispositivo_id requerido"),
-  horario_id: z.string().uuid("horario_id debe ser UUID"),
+  horario_id: uuid("horario_id debe ser UUID"),
   bateria: z.number().int().min(0).max(100, "bateria debe estar entre 0 y 100"),
   // Cuantas pastillas libero realmente el dispositivo. Es opcional para no
   // romper firmwares viejos que no lo mandan: en ese caso se usa la cantidad
@@ -24,7 +25,7 @@ export type Confirmacion = z.infer<typeof ConfirmacionSchema>;
 //   senal. No marca nada como dispensado.
 export const DispensarSchema = z.object({
   destino: z.string().min(1, "destino no puede estar vacio").optional(),
-  horario_id: z.string().uuid("horario_id debe ser UUID").optional(),
+  horario_id: uuid("horario_id debe ser UUID").optional(),
   // Pisa la cantidad del horario. Sirve para probar el hardware sin depender
   // de que haya una dosis cargada en la base.
   cantidad: z
