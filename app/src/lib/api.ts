@@ -22,19 +22,40 @@ const resolverUrl = (): string => {
 
   if (typeof window === "undefined") return delBuild;
 
+  // Lo que venga en la URL manda, aunque no se pueda guardar.
+  //
+  // Antes el valor del parametro solo surtia efecto DESPUES de pasar por
+  // localStorage, asi que si setItem tiraba (modo incognito, almacenamiento
+  // bloqueado, algunos navegadores de celular) el catch se tragaba todo y
+  // caia al valor del build. El parametro quedaba ignorado sin decir nada.
+  let deLaUrl: string | null = null;
   try {
-    const pedida = new URLSearchParams(window.location.search).get("api");
+    deLaUrl = new URLSearchParams(window.location.search).get("api");
+  } catch {
+    // sin location utilizable
+  }
 
-    if (pedida !== null) {
-      const limpia = pedida.trim().replace(/\/$/, "");
+  if (deLaUrl !== null) {
+    const limpia = deLaUrl.trim().replace(/\/$/, "");
+
+    // Persistir es lo que puede fallar, y es lo unico opcional: si no se
+    // puede, la URL sigue valiendo para esta carga.
+    try {
       if (limpia) localStorage.setItem(CLAVE_API, limpia);
       else localStorage.removeItem(CLAVE_API);
+    } catch {
+      // se pierde al recargar, pero ahora anda
     }
 
+    if (limpia) return limpia;
+    return delBuild;
+  }
+
+  try {
     const guardada = localStorage.getItem(CLAVE_API);
     if (guardada) return guardada;
   } catch {
-    // localStorage puede no existir; en ese caso vale la del build
+    // sin localStorage, vale la del build
   }
 
   return delBuild;
