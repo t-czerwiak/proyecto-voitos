@@ -4,8 +4,43 @@
 // (localhost) y en produccion (el backend desplegado). Las variables con el
 // prefijo EXPO_PUBLIC_ son las unicas que Expo mete en el bundle del cliente.
 
-export const API_URL =
-  process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+const CLAVE_API = "voitos_api_url";
+
+// De donde sale la URL del backend.
+//
+// EXPO_PUBLIC_API_URL se hornea en el bundle en tiempo de build, asi que la
+// version desplegada quedaria clavada para siempre a lo que hubiera cuando se
+// compilo. Eso hace imposible usar el sitio publicado contra un backend local,
+// que es justo lo que hace falta para probar el pastillero: el backend tiene
+// que estar en la misma red que la ESP32, pero la pagina se sirve por HTTPS.
+//
+// Por eso se puede pisar en caliente con ?api=... una sola vez; queda guardada
+// y sobrevive a los refrescos. Con ?api= vacio se borra y vuelve a la del build.
+const resolverUrl = (): string => {
+  const delBuild =
+    process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+
+  if (typeof window === "undefined") return delBuild;
+
+  try {
+    const pedida = new URLSearchParams(window.location.search).get("api");
+
+    if (pedida !== null) {
+      const limpia = pedida.trim().replace(/\/$/, "");
+      if (limpia) localStorage.setItem(CLAVE_API, limpia);
+      else localStorage.removeItem(CLAVE_API);
+    }
+
+    const guardada = localStorage.getItem(CLAVE_API);
+    if (guardada) return guardada;
+  } catch {
+    // localStorage puede no existir; en ese caso vale la del build
+  }
+
+  return delBuild;
+};
+
+export const API_URL = resolverUrl();
 
 // El token del usuario logueado. Se guarda en memoria y, en web, tambien en
 // localStorage para que sobreviva a un refresh de la pagina.
