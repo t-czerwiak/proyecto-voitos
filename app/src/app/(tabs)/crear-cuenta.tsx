@@ -1,0 +1,285 @@
+
+import React, { useState, useEffect } from "react";
+import { router } from "expo-router";
+import {
+  View,
+  TextInput,
+  TouchableOpacity,
+  Text,
+  Image,
+  StyleSheet,
+  Pressable,
+  Dimensions,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { registrarse } from "../../lib/voitos";
+import Mensaje from "../../components/Mensaje";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
+
+const { width, height } = Dimensions.get("window");
+
+type LavaBlobProps = {
+  size: number;
+  color: string;
+  duration: number;
+  initialX: number;
+  initialY: number;
+};
+
+// --- COMPONENTE DE LAS MANCHAS DE LAVA ---
+const LavaBlob = ({ size, color, duration, initialX, initialY }: LavaBlobProps) => {
+  const posX = useSharedValue(initialX);
+  const posY = useSharedValue(initialY);
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    posX.value = withRepeat(
+      withTiming(Math.random() * width, {
+        duration: duration + 3000,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+    posY.value = withRepeat(
+      withTiming(Math.random() * height, {
+        duration: duration,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+    rotation.value = withRepeat(
+      withTiming(360, { duration: duration + 5000, easing: Easing.linear }),
+      -1,
+      false
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: posX.value - size / 2 },
+      { translateY: posY.value - size / 2 },
+      { rotate: `${rotation.value}deg` },
+    ],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: "absolute",
+          width: size,
+          height: size * 0.9,
+          borderTopLeftRadius: size * 0.45,
+          borderTopRightRadius: size * 0.55,
+          borderBottomLeftRadius: size * 0.5,
+          borderBottomRightRadius: size * 0.4,
+          backgroundColor: color,
+          opacity: 0.12, // Opacidad sutil como en tu imagen de referencia
+          // El truco para la web y móvil: gran radio de desenfoque nativo
+          shadowColor: color,
+          shadowRadius: 65,
+          shadowOpacity: 1,
+          elevation: 20,
+        },
+        animatedStyle,
+      ]}
+    />
+  );
+};
+
+export default function CrearCuenta() {
+  const [nombre, setNombre] = useState("");
+  const [apellido, setApellido] = useState("");
+  const [mail, setMail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmacion, setConfirmacion] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleCrearCuenta = async () => {
+    setError("");
+
+    if (!nombre || !apellido || !mail || !password || !confirmacion) {
+      setError("Completá todos los campos");
+      return;
+    }
+
+    if (password !== confirmacion) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("La contraseña tiene que tener al menos 6 caracteres");
+      return;
+    }
+
+    setCargando(true);
+    try {
+      await registrarse({ nombre, apellido, mail, password });
+      router.push("/home");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  return (
+    // Reemplazamos la View base por el Degradado de fondo (Verde oscuro a Negro)
+    <LinearGradient
+      colors={["#002b11", "#021108", "#000000"]}
+      style={styles.container}
+    >
+      {/* --- CAPA DE MANCHAS FLUIDAS --- */}
+      <View style={StyleSheet.absoluteFill}>
+        <LavaBlob size={320} color="#00FF7F" duration={12000} initialX={width * 0.2} initialY={height * 0.1} />
+        <LavaBlob size={260} color="#90EE90" duration={15000} initialX={width * 0.7} initialY={height * 0.4} />
+        <LavaBlob size={350} color="#32CD32" duration={18000} initialX={width * 0.4} initialY={height * 0.8} />
+      </View>
+
+      {/* --- CAPA DEL CONTENIDO --- */}
+      <View style={styles.contentLayer}>
+        <Pressable onPress={() => router.push("/")}>
+          {/* Recuerda cambiar este asset por tu nuevo logo de Voitos cuando lo tengas */}
+          <Image
+            source={require("../../../assets/images/logoClaro.png")} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </Pressable>
+
+        <View style={styles.form}>
+          <TextInput
+            style={styles.input}
+            placeholder="NOMBRE...."
+            placeholderTextColor="#B3B3B3"
+            value={nombre}
+            onChangeText={setNombre}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="APELLIDO...."
+            placeholderTextColor="#B3B3B3"
+            value={apellido}
+            onChangeText={setApellido}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="MAIL....."
+            placeholderTextColor="#B3B3B3"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={mail}
+            onChangeText={setMail}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="CONTRASEÑA...."
+            placeholderTextColor="#B3B3B3"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="CONFIRMAR CONTRASEÑA...."
+            placeholderTextColor="#B3B3B3"
+            secureTextEntry
+            value={confirmacion}
+            onChangeText={setConfirmacion}
+          />
+        </View>
+
+        <Mensaje texto={error} />
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleCrearCuenta}
+          disabled={cargando}
+        >
+          <Text style={styles.buttonText}>
+            {cargando ? "CREANDO..." : "CREAR CUENTA"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+
+  contentLayer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "space-evenly",
+    paddingHorizontal: 25,
+    zIndex: 10,
+  },
+
+  logo: {
+    width: 250,
+    height: 140,
+    marginTop: 25,
+  },
+
+  form: {
+    width: "100%",
+    alignItems: "center",
+    gap: 22,
+  },
+
+  input: {
+    backgroundColor: "#fff",
+    width: "85%",
+    maxWidth: 400,
+    height: 50,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    fontSize: 16,
+    marginVertical: 10,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4, // Bajado un poco el brillo blanco para que acople mejor al nuevo diseño oscuro
+    shadowRadius: 6,
+    elevation: 6,
+  },
+
+  button: {
+    width: 280,
+    height: 66,
+    backgroundColor: "#01250e", // Verde más oscuro e integrado como el botón de tu captura
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#105a2c", // Borde verde brillante sutil
+
+    justifyContent: "center",
+    alignItems: "center",
+
+    // Brillo exterior verde (Glow) idéntico a tu diseño de Voitos
+    shadowColor: "#00FF7F",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
+    elevation: 12,
+    marginBottom: 30,
+  },
+
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+});
