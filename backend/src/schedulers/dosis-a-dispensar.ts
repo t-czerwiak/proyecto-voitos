@@ -92,7 +92,28 @@ const marcarSenalEnviada = async (id: string) => {
   }
 };
 
-export const iniciarSchedulerDosisADispensar = (): NodeJS.Timeout => {
+// Devuelve null cuando el pastillero no se puede contactar por push.
+//
+// Hay dos modelos posibles y son excluyentes:
+//
+//   push    el backend le pega a la placa. Necesita ESP32_URL y que los dos
+//           esten en la misma red, porque la IP del pastillero es privada.
+//   polling la placa pregunta sola con GET /api/sensor/pendiente. Solo necesita
+//           que la placa tenga salida a internet, asi que el backend puede
+//           estar en cualquier lado.
+//
+// Sin ESP32_URL se asume polling y este scheduler no arranca. Si arrancara,
+// intentaria contactar a un destino inexistente cada 60 segundos y llenaria el
+// log de errores 502 para siempre.
+export const iniciarSchedulerDosisADispensar = (): NodeJS.Timeout | null => {
+  if (!process.env.ESP32_URL) {
+    console.log(
+      "Sin ESP32_URL: modo polling, el pastillero consulta por su cuenta. " +
+        "No se inicia el scheduler de push."
+    );
+    return null;
+  }
+
   console.log(
     `Scheduler de dosis a dispensar activo (revisa cada ${INTERVALO_MS / 1000}s, ventana de ${MINUTOS_DE_GRACIA} min)`
   );
