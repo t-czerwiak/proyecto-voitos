@@ -171,6 +171,17 @@ const pedir = async <T>(
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
+  // localtunnel intercepta a los navegadores con una pagina de advertencia
+  // ("Tunnel website ahead!") y devuelve HTML en vez de la respuesta real, lo
+  // que rompe cualquier llamada a la API. Esta cabecera la saltea.
+  //
+  // Va solo cuando el backend es un tunel: una cabecera propia obliga al
+  // navegador a hacer un preflight OPTIONS antes de cada pedido, y no tiene
+  // sentido pagar ese viaje de ida y vuelta en el uso normal.
+  if (API_URL.includes(".loca.lt")) {
+    headers["bypass-tunnel-reminder"] = "1";
+  }
+
   if (conToken) {
     const token = sesion.getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
