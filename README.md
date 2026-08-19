@@ -55,22 +55,58 @@ queda registrado, el cuidador se entera tanto de lo que se tomó como de lo que 
 
 ---
 
-## Estado: demo integrada
+## Estado: probado de punta a punta
 
-Esta es la etapa donde **las tres partes del proyecto se juntan por primera
-vez**. Hasta ahora cada uno venía por su lado: el backend con su API, el
-frontend con sus pantallas, el hardware con su firmware.
+El 19 de agosto de 2026 el sistema completo funcionó por primera vez sin
+intervención manual en ningún paso.
 
 | Parte | Estado |
 | --- | --- |
-| 🔌 **Backend** | Funcionando. API REST completa, mails, scheduler |
-| 📱 **App** | Pantallas de la demo conectadas al backend de verdad |
-| 🤖 **Hardware** | Probado con la ESP32 real: dispensó 8 pastillas de una |
-| 📧 **Mails** | Enviando desde la cuenta del proyecto vía Gmail |
+| 🔌 **Backend** | Desplegado en Render. API REST, mails y schedulers |
+| 📱 **App** | Todas las pantallas de la demo conectadas |
+| 🤖 **Hardware** | Dispensó tres dosis agendadas seguidas |
+| 📧 **Mails** | Enviando desde la cuenta del proyecto |
+| 🗄️ **Base** | Supabase, con el registro completo de cada dispensación |
 
-**Lo que ya se probó punta a punta:** el backend manda la señal por WiFi, la
-ESP32 suena, alguien aprieta el botón, el servo libera las pastillas, la ESP32
-le avisa al backend, y queda registrado en Supabase con la cantidad exacta.
+**El recorrido que se probó:** se agenda una dosis desde el celular, llega la
+hora, el pastillero suena **solo**, alguien aprieta el botón, el servo libera
+las pastillas, la placa le avisa al backend, y queda todo registrado: la dosis
+marcada, la fila en `dispensaciones`, el stock del módulo descontado y el mail
+al cuidador.
+
+Quedó guardado en el tag `demo-push-funcionando` por si hay que volver.
+
+---
+
+## Cómo se comunican el backend y el pastillero
+
+Este es el punto donde el proyecto tomó su decisión de diseño más importante, y
+conviene entender por qué.
+
+### El primer modelo: push
+
+El backend le pegaba a `GET /dispense` en la ESP32, que levantaba un servidor
+web y esperaba. Funcionó, pero **obliga a que los dos estén en la misma red
+WiFi**: la placa tiene una IP privada y desde internet no se la alcanza.
+
+Eso significa que el backend nunca podría vivir en un servidor: tendría que
+correr en una computadora encendida en la misma casa que el pastillero.
+
+### El modelo actual: polling
+
+Se invirtió la dirección. Ahora **la placa pregunta**:
+
+```
+cada 30 segundos:  GET /api/sensor/pendiente
+                   ¿hay una dosis para ahora?
+```
+
+Con eso la ESP32 solo necesita salida a internet, igual que un celular. No hace
+falta abrir puertos, ni configurar el router, ni que nadie esté en la misma red.
+El backend vive en Render y el pastillero puede estar en cualquier casa.
+
+El backend soporta los dos modelos y elige solo: si existe la variable
+`ESP32_URL` usa push, y si no, asume polling y no arranca ese scheduler.
 
 ---
 
@@ -157,10 +193,23 @@ más cerradas de la base, no las menos.
 
 ## Lo que falta
 
-- Verificación de mail al registrarse
-- El disparo automático de la dosis (hoy se dispara a mano)
+**Antes de que esto salga de una demo**, hay tres deudas de seguridad que
+conviene saldar. Están documentadas con detalle en
+[`docs/ESTADO-Y-PROXIMOS-PASOS.md`](docs/ESTADO-Y-PROXIMOS-PASOS.md):
+
+- El `usuario_id` viaja como parámetro de la URL en vez de salir del token, así
+  que un usuario autenticado puede pedir los datos de otro
+- `GET /api/usuarios` devuelve todas las columnas, incluido el token de
+  verificación de cuenta
+- No hay límite de intentos en el login
+
+**Funcionalidad pendiente:**
+
+- Pantalla de historial: las dispensaciones se registran pero no se ven
 - Pantallas de configuración, emergencia y detalle del día
-- Sensor que confirme cuántas pastillas salieron de verdad
+- Sensor que confirme cuántas pastillas salieron de verdad (hoy se asume que
+  salieron las que se pidieron)
+- Un segundo módulo físico: la base ya lo soporta, el hardware todavía no
 
 ---
 
