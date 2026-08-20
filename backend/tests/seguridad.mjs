@@ -8,7 +8,9 @@
 //
 //   node tests/seguridad.mjs      (con el backend corriendo en localhost:3000)
 
-const API = "http://localhost:3000";
+// Por defecto corre contra el backend local. Para probar el desplegado:
+//   API=https://voitos-backend.onrender.com node tests/seguridad.mjs
+const API = process.env.API ?? "http://localhost:3000";
 
 let ok = 0;
 let fallos = 0;
