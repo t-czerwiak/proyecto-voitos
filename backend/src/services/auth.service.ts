@@ -15,10 +15,16 @@ const API_URL = (process.env.API_URL ?? "http://localhost:3000").replace(/\/$/, 
 
 // Trae la fila de la tabla usuarios que corresponde a una cuenta de Supabase
 // Auth. Son la misma persona porque comparten el id (ver registro()).
+// Las columnas van listadas y no select("*") porque esto es lo que devuelve el
+// login, y la app guarda ese objeto en localStorage. Con el asterisco, el
+// token_verificacion viajaba en cada inicio de sesion y quedaba escrito en el
+// navegador: cualquiera con acceso a esa maquina podia verificar la cuenta.
+const CAMPOS_PUBLICOS = "id, nombre, apellido, mail, edad, verificado, created_at";
+
 const getPerfil = async (id: string) => {
   const { data, error } = await supabase
     .from("usuarios")
-    .select("*")
+    .select(CAMPOS_PUBLICOS)
     .eq("id", id)
     .maybeSingle();
 

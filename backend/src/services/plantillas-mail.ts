@@ -19,6 +19,27 @@ const LINEA = "#E4EAE6";
 // Identificador del logo adjunto. email.service lo adjunta con este mismo cid.
 export const LOGO_CID = "voitos-logo";
 
+// Escapa el texto que viene de afuera antes de meterlo en el HTML del mail.
+//
+// Los mails se arman concatenando strings, asi que un dato con < o > entra
+// crudo en el marcado. React escapa solo en la app, pero aca no hay nada que
+// lo haga.
+//
+// El caso que importa no es el nombre de una pastilla, que va al mail del
+// propio usuario, sino dispositivo_id: llega por POST /api/sensor/confirmacion,
+// que es publico, asi que cualquiera puede mandar HTML ahi y terminar
+// inyectandolo en el mail de otra persona.
+//
+// Los clientes de mail no ejecutan scripts, pero si respetan el marcado: se
+// puede deformar el mensaje o colar contenido enganoso.
+const esc = (texto: string | number | null | undefined): string =>
+  String(texto ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 const dosDigitos = (n: number) => String(n).padStart(2, "0");
 
 export const formatearHora = (hora: number, minuto: number) =>
@@ -199,15 +220,15 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
     ${encabezadoEstado(
       "Dosis retirada",
       VERDE_ACENTO,
-      `Se retiró la ${d.pastilla} de las ${hhmm}`
+      `Se retiró la ${esc(d.pastilla)} de las ${hhmm}`
     )}
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      ${fila("Medicamento", d.pastilla)}
+      ${fila("Medicamento", esc(d.pastilla))}
       ${fila("Cantidad", pastillas)}
       ${fila("Día", formatearFecha(d.dia))}
       ${fila("Hora", hhmm)}
-      ${fila("Dispositivo", d.dispositivo)}
+      ${fila("Dispositivo", esc(d.dispositivo))}
     </table>
 
     <p style="margin:18px 0 0;color:${GRIS_SUAVE};font-size:13px;line-height:19px;">
@@ -240,11 +261,11 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
   ].join("\n");
 
   return {
-    asunto: `Se retiró la ${d.pastilla} de las ${hhmm}`,
+    asunto: `Se retiró la ${esc(d.pastilla)} de las ${hhmm}`,
     html: envolver({
-      preheader: `${d.pastilla}, ${pastillas}, a las ${hhmm}.`,
+      preheader: `${esc(d.pastilla)}, ${pastillas}, a las ${hhmm}.`,
       titulo: "Dosis tomada",
-      saludo: `Hola ${d.cuidadorNombre},`,
+      saludo: `Hola ${esc(d.cuidadorNombre)},`,
       cuerpo,
     }),
     texto,
@@ -282,12 +303,12 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
     ${encabezadoEstado(
       "Sin retirar",
       AMBAR_ACENTO,
-      `No se retiró la ${d.pastilla} de las ${hhmm}`,
+      `No se retiró la ${esc(d.pastilla)} de las ${hhmm}`,
       `Hace ${d.minutosDeRetraso} minutos que la dosis espera en el pastillero.`
     )}
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      ${fila("Medicamento", d.pastilla)}
+      ${fila("Medicamento", esc(d.pastilla))}
       ${fila("Cantidad", pastillas)}
       ${fila("Día", formatearFecha(d.dia))}
       ${fila("Hora", hhmm)}
@@ -324,11 +345,11 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
   ].join("\n");
 
   return {
-    asunto: `No se retiró la ${d.pastilla} de las ${hhmm}`,
+    asunto: `No se retiró la ${esc(d.pastilla)} de las ${hhmm}`,
     html: envolver({
       preheader: `Pasaron ${d.minutosDeRetraso} minutos y la dosis sigue sin retirarse.`,
       titulo: "Dosis sin retirar",
-      saludo: `Hola ${d.cuidadorNombre},`,
+      saludo: `Hola ${esc(d.cuidadorNombre)},`,
       cuerpo,
     }),
     texto,
@@ -393,7 +414,7 @@ export const plantillaVerificacion = (d: DatosVerificacion) => {
     html: envolver({
       preheader: "Un paso más y los avisos del pastillero quedan activos.",
       titulo: "Confirmá tu correo",
-      saludo: `Hola ${d.cuidadorNombre},`,
+      saludo: `Hola ${esc(d.cuidadorNombre)},`,
       cuerpo,
     }),
     texto,
@@ -456,7 +477,7 @@ export const plantillaBienvenida = (d: DatosBienvenida) => {
     html: envolver({
       preheader: "Tres pasos para dejar el pastillero funcionando.",
       titulo: "Cuenta activa",
-      saludo: `Hola ${d.cuidadorNombre},`,
+      saludo: `Hola ${esc(d.cuidadorNombre)},`,
       cuerpo,
     }),
     texto,
@@ -480,7 +501,7 @@ export const plantillaPastilleroVacio = (d: DatosVacio) => {
     ${encabezadoEstado(
       "Sin stock",
       AMBAR_ACENTO,
-      `El módulo ${d.modulo} se quedó sin ${d.pastilla}`,
+      `El módulo ${d.modulo} se quedó sin ${esc(d.pastilla)}`,
       d.proximaDosis
         ? `La próxima dosis está agendada para ${d.proximaDosis}.`
         : undefined
@@ -514,11 +535,11 @@ export const plantillaPastilleroVacio = (d: DatosVacio) => {
   ].join("\n");
 
   return {
-    asunto: `El pastillero se quedó sin ${d.pastilla}`,
+    asunto: `El pastillero se quedó sin ${esc(d.pastilla)}`,
     html: envolver({
       preheader: `Módulo ${d.modulo} vacío. Hay que recargarlo.`,
       titulo: "Pastillero vacío",
-      saludo: `Hola ${d.cuidadorNombre},`,
+      saludo: `Hola ${esc(d.cuidadorNombre)},`,
       cuerpo,
     }),
     texto,

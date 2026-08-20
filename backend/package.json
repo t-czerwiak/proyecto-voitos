@@ -10,13 +10,16 @@
     "start": "node dist/index.js",
     "lint": "tsc --noEmit",
     "dosis": "ts-node src/scripts/dosis-ahora.ts",
-    "test": "node tests/integracion.mjs"
+    "test": "node tests/integracion.mjs",
+    "test:seguridad": "node tests/seguridad.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
+    "express-rate-limit": "^8.6.2",
+    "helmet": "^8.3.0",
     "nodemailer": "^9.0.4",
     "zod": "^4.4.3"
   },
