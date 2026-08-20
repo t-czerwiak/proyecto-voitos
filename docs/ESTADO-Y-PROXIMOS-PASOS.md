@@ -290,36 +290,6 @@ un efecto lateral bienvenido: mantiene vivo también el scheduler de dosis no
 tomadas. El plan free da 750 horas de instancia al mes y un servicio despierto
 las 24 horas consume unas 720, así que entra justo.
 
-### El plan free de Render es el eslabón débil
-
-El servicio se duerme a los 15 minutos sin tráfico. Eso normalmente no molesta,
-porque la ESP32 consultando cada 30 segundos lo mantiene despierto sola. El
-problema es el arranque en frío: si nadie consultó en un rato, la primera
-petición tarda cerca de un minuto.
-
-El firmware lo tolera —si la consulta falla, reintenta en el próximo ciclo— pero
-para una demo eso significa que **hay que despertar el servicio antes de
-empezar**, no en el momento.
-
-Y el 20 de agosto pasó algo peor: Render tuvo un incidente con Google Cloud y
-**deshabilitó builds, deploys y spin-up para los servicios free**. El servicio
-dormido no pudo despertar en varias horas. No había forma de arreglarlo desde
-nuestro lado.
-
-**Para la demo, tener las dos vías listas:**
-
-| | Cómo | Riesgo |
-| --- | --- | --- |
-| Principal | Render + polling | Depende de que Render esté sano |
-| Respaldo | Backend local + push | Ninguno, pero exige que la compu y la placa compartan WiFi |
-
-El respaldo está en el tag `demo-push-funcionando` y en
-`docs/interno/backup-demo-push/`, con el firmware y las instrucciones. Volver a
-esa vía lleva unos diez minutos: flashear el sketch viejo con la IP de la compu
-y levantar el backend local.
-
-Conviene **probar la vía principal el día anterior**, no el mismo día.
-
 **Documentos internos** (en `docs/interno/`, fuera del control de versiones):
 - `sketch-final/` — firmware push, el que funcionó
 - `sketch-polling/` — firmware polling, sin probar
