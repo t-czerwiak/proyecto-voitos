@@ -17,6 +17,7 @@ import modulosRoutes from "./routes/modulos.routes";
 import actividadesRoutes from "./routes/actividades.routes";
 import alertasRoutes from "./routes/alertas.routes";
 import sensorRoutes from "./routes/sensor.routes";
+import adminRoutes from "./routes/admin.routes";
 
 dotenv.config();
 
@@ -73,6 +74,9 @@ app.use("/api/dispensaciones", dispensacionesRoutes);
 app.use("/api/modulos", modulosRoutes);
 app.use("/api/actividades", actividadesRoutes);
 app.use("/api/alertas", alertasRoutes);
+
+// Panel de administracion. Cada handler exige rol admin y responde 404 si no.
+app.use("/api/admin", adminRoutes);
 
 // Rutas publicas (la ESP32 no maneja JWT)
 app.use("/api/sensor", sensorRoutes);

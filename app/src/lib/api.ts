@@ -91,6 +91,9 @@ export interface Usuario {
   apellido: string;
   mail: string;
   edad?: number;
+  // Si confirmo su casilla de correo. La cuenta funciona igual sin verificar:
+  // solo se muestra un aviso, no se bloquea nada.
+  verificado?: boolean;
 }
 
 export const sesion = {

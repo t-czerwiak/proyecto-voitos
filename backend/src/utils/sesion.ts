@@ -1,5 +1,6 @@
 import { Request } from "express";
 import { ErrorHttp } from "./errores";
+import { supabase } from "../config/supabase";
 
 // De donde sale la identidad del que hace el pedido.
 //
@@ -27,4 +28,43 @@ export const idDelUsuario = (req: Request): string => {
   }
 
   return id;
+};
+
+// Si el que pide es administrador.
+//
+// El rol se lee de la base y NO del token. El token lo emite Supabase Auth y no
+// sabe nada de los roles de la aplicacion; ademas, un dato de permisos que
+// viaja en algo que el cliente guarda es un dato que el cliente puede intentar
+// manipular. La base es la unica fuente.
+//
+// Cuesta una consulta por llamada. Es aceptable: solo se usa cuando la
+// verificacion de propiedad ya fallo, o sea en el camino excepcional.
+export const esAdmin = async (req: Request): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("rol")
+    .eq("id", idDelUsuario(req))
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data?.rol === "admin";
+};
+
+// Deja pasar si el registro es suyo, o si es administrador.
+//
+// El orden importa: primero la propiedad, que es el caso normal y no cuesta
+// nada extra. La consulta del rol solo se hace si el primero fallo.
+export const puedeOperar = async (req: Request, esDueno: boolean): Promise<boolean> => {
+  if (esDueno) return true;
+  return await esAdmin(req);
+};
+
+// Corta el pedido si el que llama no es administrador.
+//
+// Se usa en las rutas exclusivas de admin. Responde 404 y no 403 para no
+// revelarle a un usuario normal que esa ruta existe.
+export const exigirAdmin = async (req: Request): Promise<void> => {
+  if (!(await esAdmin(req))) {
+    throw new ErrorHttp(404, "Ruta no encontrada");
+  }
 };

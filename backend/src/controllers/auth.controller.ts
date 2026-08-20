@@ -38,3 +38,14 @@ export const yo = async (req: Request, res: Response, next: NextFunction): Promi
     next(error);
   }
 };
+
+// Vuelve a mandar el mail de verificacion al dueño del token. No recibe ningun
+// parametro a proposito: solo se puede pedir para uno mismo.
+export const reenviarVerificacion = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await authService.reenviarVerificacion((req as any).user.id);
+    res.json({ success: true, data, message: "Te reenviamos el mail de verificación" });
+  } catch (error) {
+    next(error);
+  }
+};
