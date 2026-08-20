@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 
 import { logger } from "./middlewares/logger.middleware";
@@ -21,12 +23,45 @@ dotenv.config();
 const app = express();
 
 // Middlewares
+
+// Cabeceras de seguridad (X-Content-Type-Options, Referrer-Policy, HSTS y
+// demas). Va primero para que aplique tambien a las respuestas de error.
+//
+// Sin CSP: la API solo devuelve JSON, y la politica por defecto de helmet es
+// para paginas HTML. La unica excepcion es la pagina de verificacion de cuenta,
+// que se sirve desde aca y usa estilos en linea.
+app.use(helmet({ contentSecurityPolicy: false }));
+
 app.use(cors());
-app.use(express.json());
+
+// Limite de tamaño del cuerpo. Por defecto express acepta 100kb, que para esta
+// API es mucho: el objeto mas grande que recibe es una pastilla con sus datos.
+app.use(express.json({ limit: "16kb" }));
+
 app.use(logger);
 
 // Auth: /registro y /login son publicas (son las que emiten el token),
 // /yo esta protegida. Ver src/routes/auth.routes.ts.
+// Limite de intentos contra las rutas que emiten credenciales.
+//
+// Sin esto, nada impide probar contraseñas en bucle contra /login. El limite es
+// por IP y solo cuenta los intentos fallidos: alguien que se loguea bien varias
+// veces seguidas no se queda afuera.
+const limiteAuth = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Demasiados intentos. Espera 15 minutos y volve a probar.",
+  },
+});
+
+app.use("/api/auth/login", limiteAuth);
+app.use("/api/auth/registro", limiteAuth);
+
 app.use("/api/auth", authRoutes);
 
 // Rutas protegidas (requieren JWT de Supabase)

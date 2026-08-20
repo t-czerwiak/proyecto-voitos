@@ -24,14 +24,31 @@ export const getAllPastillas = async (usuario_id?: string) => {
   return (data ?? []).map(conModulo);
 };
 
-export const getPastillaById = async (id: string) => {
+// El usuario_id no es opcional a proposito: filtrar por dueño es lo que impide
+// que alguien lea una pastilla ajena poniendo su id en la URL. Devuelve null si
+// no existe O si es de otro, para no revelar cuales existen.
+export const getPastillaById = async (id: string, usuario_id: string) => {
   const { data, error } = await supabase
     .from("pastillas")
     .select("*, modulos(id, numero, cantidad_actual)")
     .eq("id", id)
-    .single();
+    .eq("usuario_id", usuario_id)
+    .maybeSingle();
   if (error) throw new Error(error.message);
-  return conModulo(data);
+  return data ? conModulo(data) : null;
+};
+
+// Verifica que la pastilla sea del usuario antes de dejar operar sobre ella.
+// Se usa en update, delete y en todo lo que reciba un id por la URL.
+export const esDelUsuario = async (id: string, usuario_id: string) => {
+  const { data, error } = await supabase
+    .from("pastillas")
+    .select("id")
+    .eq("id", id)
+    .eq("usuario_id", usuario_id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data !== null;
 };
 
 // Al crear una pastilla se la deja cargada en un modulo con su stock inicial.

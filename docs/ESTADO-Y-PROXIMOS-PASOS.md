@@ -176,52 +176,62 @@ o no aplica.
 | 19 | Forzar HTTPS | Render y Vercel lo hacen por defecto |
 | 20 | Escanear dependencias | `npm audit`: 0 vulnerabilidades |
 
-### Lo que falta, por gravedad
+### Lo que se arregló (19/08, después de la auditoría)
 
-**🔴 Grave — el `usuario_id` viene del cliente (práctica 7)**
+**El `usuario_id` ahora sale del token.** Era el agujero grave: los
+controladores lo leían de `req.query.usuario_id`, un valor que elige el cliente.
+El token se validaba pero después no se usaba, así que cualquier usuario con
+sesión podía pedir `?usuario_id=<ajeno>` y leer los datos de otra persona.
 
-Los controladores leen a quién pertenecen los datos de un parámetro de la URL:
+Ahora hay un solo lugar de donde sale la identidad, `utils/sesion.ts`. Los
+listados filtran por ahí, los `create` fuerzan el dueño aunque el body diga otra
+cosa, y las operaciones por id verifican propiedad antes de tocar nada. Se
+responde 404 y no 403, para no confirmar que ese id existe.
 
-```ts
-const usuario_id = req.query.usuario_id as string | undefined;
+**La API dejó de filtrar el token de verificación.** `getPerfil` usaba
+`select("*")`, y como es lo que devuelve el login y la app guarda ese objeto en
+`localStorage`, el `token_verificacion` quedaba escrito en el navegador de cada
+usuario. Ahora las columnas van listadas.
+
+**`GET /api/usuarios` devolvía todos los usuarios** del sistema a cualquiera con
+sesión. La app nunca lo usó, así que ahora devuelve solo el propio perfil.
+
+**Se agregaron:** `helmet` (con CSP apagada, porque la API devuelve JSON),
+límite de 10 intentos cada 15 minutos en login y registro contando solo los
+fallidos, límite de 16kb en el cuerpo de los pedidos, y escape de HTML en los
+mails.
+
+Lo del escape importa por `dispositivo_id`: llega por
+`POST /api/sensor/confirmacion`, que es público, así que sin escapar cualquiera
+podía inyectar marcado en el mail de otra persona.
+
+### Cómo se verificó
+
+Se escribió `backend/tests/seguridad.mjs`, que a diferencia de las pruebas de
+integración **intenta explotar cada agujero**. Una prueba que pasa ahí significa
+que el ataque fue rechazado.
+
+```bash
+npm run test:seguridad     # con el backend levantado
 ```
 
-Eso significa que un usuario autenticado puede pedir `?usuario_id=<id-ajeno>` y
-leer las pastillas, horarios, contactos y dispensaciones de otra persona. El
-token se valida, pero después no se usa para decidir a qué datos se accede.
+Crea dos usuarios reales y prueba, entre otras cosas, que B no pueda listar las
+pastillas de A pasando su `usuario_id`, que no pueda leer ni borrar un registro
+ajeno por id, que no pueda recargarle el stock, que crear con el `usuario_id` de
+otro quede a nombre propio, y que el login no devuelva el token de verificación.
 
-*Cómo se arregla:* que el `usuario_id` salga siempre de `req.user.id`, que ya
-está disponible porque el middleware lo deja ahí. Es un cambio de una línea por
-controlador. También hay que verificar la propiedad en las rutas por id, como
-`GET /api/pastillas/:id`, que hoy no comprueban nada.
+**15 pruebas de seguridad y 16 de integración, todas pasando.**
 
-**🔴 Grave — la API devuelve columnas de más (práctica 17)**
+### Lo que queda pendiente
 
-`usuarios.service.ts` usa `select("*")`, y la tabla `usuarios` tiene
-`token_verificacion` y `token_expira`. Ese token permite verificar una cuenta
-ajena. Además `GET /api/usuarios` devuelve la lista completa de usuarios.
+| # | Práctica | Estado |
+| --- | --- | --- |
+| 5 | Cifrar datos sensibles | No se hizo, y no se recomienda: Supabase ya cifra en reposo, y cifrar por campo rompería las búsquedas |
+| 12 | Protección anti-bots | No se hizo. Un captcha tiene sentido si el sistema es público y alguien tiene motivo para abusarlo |
 
-*Cómo se arregla:* listar las columnas explícitamente en el `select`, y sacar o
-proteger el endpoint que lista todos los usuarios.
-
-**🟡 Importante — sin límite de intentos en el login (práctica 11)**
-
-Nada impide probar contraseñas en bucle contra `POST /api/auth/login`.
-
-*Cómo se arregla:* `express-rate-limit`, unos 5 intentos cada 15 minutos por IP.
-Son tres líneas.
-
-**🟡 Importante — sin cabeceras de seguridad (práctica 18)**
-
-Falta `helmet`. Es una línea: `app.use(helmet())`.
-
-**🟡 Importante — HTML de los mails sin escapar (práctica 15)**
-
-Las plantillas de mail arman HTML concatenando datos del usuario. Si alguien
-registra una pastilla llamada `<script>...`, ese contenido entra crudo en el
-mail. React escapa solo en la app, pero los mails se construyen a mano.
-
-*Cómo se arregla:* una función que escape `< > & " '` antes de interpolar.
+**Una cuenta huérfana en Auth:** existe `test@voitos.com` en `auth.users` sin
+perfil en `usuarios`. Puede iniciar sesión pero no tiene datos. Es de alguna
+prueba vieja y conviene borrarla.
 
 ### Lo que no aplica
 
@@ -253,13 +263,14 @@ confundirse creyendo que RLS está protegiendo algo que en realidad no protege.
 
 En orden de prioridad:
 
-1. **Probar el firmware de polling** en la ESP32 (requiere la placa)
-2. **Arreglar el `usuario_id`**, que es el agujero real de seguridad
-3. **Recortar las respuestas** de la API para no filtrar el token de verificación
-4. Agregar `helmet` y `express-rate-limit`
-5. Pantalla de historial de dispensaciones
+1. **Probar el firmware de polling** en la ESP32. Es lo único que falta para
+   completar el cambio de arquitectura, y necesita la placa.
+2. **Redesplegar el backend** en Render para que tome los arreglos de seguridad
+   (Manual sync desde el blueprint, o esperar el deploy automático).
+3. Pantalla de historial: las dispensaciones se registran pero no se ven.
+4. Borrar la cuenta huérfana `test@voitos.com` de Auth.
 
-Los puntos 2, 3 y 4 se pueden hacer sin hardware.
+Los arreglos de seguridad de la auditoría **ya están hechos y verificados**.
 
 ---
 
