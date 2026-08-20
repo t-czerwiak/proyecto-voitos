@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "dosis": "ts-node src/scripts/dosis-ahora.ts",
     "test": "node tests/integracion.mjs",
-    "test:seguridad": "node tests/seguridad.mjs"
+    "test:seguridad": "node tests/seguridad.mjs",
+    "simulador": "node tests/simulador-esp32.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
