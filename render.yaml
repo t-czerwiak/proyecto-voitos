@@ -40,6 +40,18 @@ services:
       # plan free, asi que sin esto NINGUN mail sale: ni el de verificacion, ni
       # el de dispensacion, ni el de dosis no tomada. La clave se saca de
       # resend.com y se carga a mano en el panel.
+      # Envio de mails por API HTTPS. Render bloquea el SMTP saliente, asi que
+      # sin uno de estos NINGUN mail sale.
+      #
+      # Brevo es el que se usa: deja mandar a cualquier destinatario con solo
+      # verificar una casilla como remitente, sin dominio propio. Resend en su
+      # plan gratuito sin dominio solo entrega a la casilla del titular, y este
+      # proyecto le manda mails a cada cuidador que se registra.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_FROM_EMAIL
+        value: voitos.pastillero@gmail.com
+      # Alternativa, si alguna vez se verifica un dominio propio
       - key: RESEND_API_KEY
         sync: false
       # Las MAIL_* quedan para desarrollo local, donde el SMTP si funciona.

@@ -1,4 +1,5 @@
 import express from "express";
+import path from "path";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -77,6 +78,21 @@ app.use("/api/alertas", alertasRoutes);
 
 // Panel de administracion. Cada handler exige rol admin y responde 404 si no.
 app.use("/api/admin", adminRoutes);
+
+// El logo de los mails, servido por HTTPS.
+//
+// Cuando el mail sale por una API (Brevo, Resend) el logo no puede viajar
+// adjunto y referenciado con cid: como en SMTP, asi que la plantilla apunta
+// aca. Es publica porque la abre el cliente de correo de quien recibe el mail,
+// que obviamente no tiene sesion.
+//
+// maxAge de un dia: es una imagen que no cambia, y sin cache cada apertura de
+// cada mail seria un pedido mas al servidor.
+app.get("/api/logo.png", (_req, res) => {
+  res.sendFile(path.join(__dirname, "..", "assets", "voitos-logo.png"), {
+    maxAge: "1d",
+  });
+});
 
 // Rutas publicas (la ESP32 no maneja JWT)
 app.use("/api/sensor", sensorRoutes);
