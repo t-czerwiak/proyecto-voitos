@@ -22,19 +22,40 @@ const resolverUrl = (): string => {
 
   if (typeof window === "undefined") return delBuild;
 
+  // Lo que venga en la URL manda, aunque no se pueda guardar.
+  //
+  // Antes el valor del parametro solo surtia efecto DESPUES de pasar por
+  // localStorage, asi que si setItem tiraba (modo incognito, almacenamiento
+  // bloqueado, algunos navegadores de celular) el catch se tragaba todo y
+  // caia al valor del build. El parametro quedaba ignorado sin decir nada.
+  let deLaUrl: string | null = null;
   try {
-    const pedida = new URLSearchParams(window.location.search).get("api");
+    deLaUrl = new URLSearchParams(window.location.search).get("api");
+  } catch {
+    // sin location utilizable
+  }
 
-    if (pedida !== null) {
-      const limpia = pedida.trim().replace(/\/$/, "");
+  if (deLaUrl !== null) {
+    const limpia = deLaUrl.trim().replace(/\/$/, "");
+
+    // Persistir es lo que puede fallar, y es lo unico opcional: si no se
+    // puede, la URL sigue valiendo para esta carga.
+    try {
       if (limpia) localStorage.setItem(CLAVE_API, limpia);
       else localStorage.removeItem(CLAVE_API);
+    } catch {
+      // se pierde al recargar, pero ahora anda
     }
 
+    if (limpia) return limpia;
+    return delBuild;
+  }
+
+  try {
     const guardada = localStorage.getItem(CLAVE_API);
     if (guardada) return guardada;
   } catch {
-    // localStorage puede no existir; en ese caso vale la del build
+    // sin localStorage, vale la del build
   }
 
   return delBuild;
@@ -70,6 +91,9 @@ export interface Usuario {
   apellido: string;
   mail: string;
   edad?: number;
+  // Si confirmo su casilla de correo. La cuenta funciona igual sin verificar:
+  // solo se muestra un aviso, no se bloquea nada.
+  verificado?: boolean;
 }
 
 export const sesion = {
@@ -149,6 +173,17 @@ const pedir = async <T>(
   const { metodo = "GET", cuerpo, conToken = true } = opciones;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
+
+  // localtunnel intercepta a los navegadores con una pagina de advertencia
+  // ("Tunnel website ahead!") y devuelve HTML en vez de la respuesta real, lo
+  // que rompe cualquier llamada a la API. Esta cabecera la saltea.
+  //
+  // Va solo cuando el backend es un tunel: una cabecera propia obliga al
+  // navegador a hacer un preflight OPTIONS antes de cada pedido, y no tiene
+  // sentido pagar ese viaje de ida y vuelta en el uso normal.
+  if (API_URL.includes(".loca.lt")) {
+    headers["bypass-tunnel-reminder"] = "1";
+  }
 
   if (conToken) {
     const token = sesion.getToken();

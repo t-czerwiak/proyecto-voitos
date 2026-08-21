@@ -1,15 +1,22 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
+# Dependencias
 node_modules/
+
+# Builds
+dist/
+build/
+web-build/
+
+# Variables de entorno (nunca subir: tienen la service_role key y la del mail)
+.env
+.env.local
+.env.*.local
 
 # Expo
 .expo/
-dist/
-web-build/
 expo-env.d.ts
+.metro-health-check*
 
-# Native
+# Nativo
 .kotlin/
 *.orig.*
 *.jks
@@ -17,59 +24,28 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-example
-
-# generated native folders
 /ios
 /android
-.claude/
-CLAUDE.md
-# Dependencias
-node_modules/
-
-# Build
-dist/
-build/
-
-# Variables de entorno
-.env
-.env.local
-.env.*.local
 
 # TypeScript
+*.tsbuildinfo
 *.js.map
 *.d.ts.map
 
 # Logs
 logs/
 *.log
-npm-debug.log*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
 # Sistema operativo
 .DS_Store
 Thumbs.db
+*.pem
 
 # IDEs
-.vscode/
+# .vscode/ va versionado a proposito: tiene la config compartida del equipo
 .idea/
 *.suo
 *.ntvs*
@@ -83,3 +59,7 @@ Thumbs.db
 # Claude Code
 CLAUDE.md
 claude.md
+
+# Vercel
+.vercel
+.env*
