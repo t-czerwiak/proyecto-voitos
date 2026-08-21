@@ -61,13 +61,44 @@ const usaResend = Boolean(RESEND_API_KEY);
 // resend.com/domains y se cambia esta variable.
 const RESEND_FROM = process.env.RESEND_FROM ?? "Voitos <onboarding@resend.dev>";
 
+// Brevo. Se prefiere a Resend cuando esta configurado.
+//
+// La diferencia que importa: Brevo deja mandar a CUALQUIER destinatario con
+// solo verificar una casilla como remitente, sin dominio propio. Resend en su
+// plan gratuito sin dominio solo entrega a la casilla del titular de la cuenta,
+// y este proyecto le manda mails a cada cuidador que se registra.
+const BREVO_API_KEY = process.env.BREVO_API_KEY?.trim();
+const usaBrevo = Boolean(BREVO_API_KEY);
+
+// El remitente tiene que ser una casilla verificada en el panel de Brevo.
+const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL ?? MAIL_USER ?? "sin-configurar";
+const BREVO_FROM_NOMBRE = process.env.BREVO_FROM_NOMBRE ?? "Voitos";
+
+// De donde sale el logo cuando el mail va por una API.
+//
+// Por SMTP el logo viaja adjunto y se referencia con cid:, que es lo mas
+// confiable. Las APIs no manejan adjuntos en linea igual de bien, asi que en
+// ese camino se apunta a la copia que sirve el backend por HTTPS. Gmail bloquea
+// las imagenes en data: URI pero si carga las de una URL.
+const API_URL_PUBLICA = (process.env.API_URL ?? "").replace(/\/$/, "");
+
 // Ultimo error del proveedor, para poder verlo desde el panel de admin. Los
 // mails salen sin await, asi que si algo falla no hay a quien devolverselo: el
 // error solo quedaba en un log del servidor que nadie mira.
 let ultimoError: string | null = null;
 export const ultimoErrorDeMail = () => ultimoError;
 
-const configurado = Boolean(usaResend || (MAIL_USER && MAIL_PASS));
+// Cambia la referencia cid: del logo por la URL que sirve el backend.
+//
+// Si no hay API_URL configurada no se toca nada: es preferible un logo que no
+// carga a una URL rota apuntando a localhost, que ademas delata la direccion
+// interna a quien reciba el mail.
+const conLogoPorUrl = (html: string): string => {
+  if (!API_URL_PUBLICA) return html;
+  return html.split(`cid:${LOGO_CID}`).join(`${API_URL_PUBLICA}/api/logo.png`);
+};
+
+const configurado = Boolean(usaBrevo || usaResend || (MAIL_USER && MAIL_PASS));
 
 let transporter: Transporter | null = null;
 
@@ -124,12 +155,54 @@ interface Mail {
 // propio, asi que sin esto un envio lento cuelga a quien lo llamo.
 const TIMEOUT_MS = 10000;
 
+const enviarPorBrevo = async ({ para, asunto, texto, html }: Mail): Promise<boolean> => {
+  const corte = new AbortController();
+  const temporizador = setTimeout(() => corte.abort(), TIMEOUT_MS);
+
+  try {
+    const r = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": BREVO_API_KEY as string,
+        "Content-Type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        sender: { name: BREVO_FROM_NOMBRE, email: BREVO_FROM_EMAIL },
+        to: [{ email: para }],
+        subject: asunto,
+        htmlContent: conLogoPorUrl(html),
+        textContent: texto,
+      }),
+      signal: corte.signal,
+    });
+
+    if (!r.ok) {
+      const detalle = await r.text();
+      ultimoError = `${r.status} ${detalle}`;
+      console.error(`Brevo rechazo el mail a ${para}: ${ultimoError}`);
+      return false;
+    }
+
+    ultimoError = null;
+    console.log(`Mail enviado a ${para}: ${asunto}`);
+    return true;
+  } catch (error: any) {
+    const porTimeout = error?.name === "AbortError";
+    ultimoError = porTimeout ? `la API no respondio en ${TIMEOUT_MS / 1000}s` : error.message;
+    console.error(`No se pudo enviar el mail a ${para}:`, ultimoError);
+    return false;
+  } finally {
+    clearTimeout(temporizador);
+  }
+};
+
 const enviarPorResend = async ({ para, asunto, texto, html }: Mail): Promise<boolean> => {
   const cuerpo: Record<string, unknown> = {
     from: RESEND_FROM,
     to: [para],
     subject: asunto,
-    html,
+    html: conLogoPorUrl(html),
     text: texto,
   };
 
@@ -181,7 +254,12 @@ const enviarPorResend = async ({ para, asunto, texto, html }: Mail): Promise<boo
 };
 
 const enviar = async ({ para, asunto, texto, html }: Mail): Promise<boolean> => {
-  // Resend primero: si esta configurado, es el camino de produccion.
+  // Brevo primero: es el unico que entrega a cualquier destinatario sin tener
+  // dominio propio, que es lo que este proyecto necesita.
+  if (usaBrevo) {
+    return enviarPorBrevo({ para, asunto, texto, html });
+  }
+
   if (usaResend) {
     return enviarPorResend({ para, asunto, texto, html });
   }
