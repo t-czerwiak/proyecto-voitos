@@ -7,6 +7,34 @@ pueda retomar el proyecto sin reconstruir el contexto desde cero.
 
 ---
 
+## 0. Lo primero al retomar
+
+**Hay un solo paso pendiente y bloquea los mails a terceros.**
+
+Falta cargar `BREVO_API_KEY` en Render. Sin esa clave el backend cae a Resend,
+que sin dominio propio **solo entrega a `timoczerwiak@gmail.com`**. Hoy ya hay
+seis cuentas registradas y a las otras cinco no puede llegarles la verificación.
+
+En Brevo ya está todo listo: los dos remitentes verificados,
+`voitos.pastillero@gmail.com` (el que usa `render.yaml`) y
+`timoczerwiak@gmail.com`. Solo falta generar la clave en *SMTP y API → API Keys*
+y cargarla en Render, en el servicio `voitos-backend` → Environment.
+
+Para comprobar que quedó bien, con una cuenta admin:
+
+```
+POST /api/admin/probar-mail
+```
+
+Devuelve textual lo que contestó el proveedor. Y después conviene mandar uno a
+la casilla de otra persona, que es justamente lo que con Resend era imposible.
+
+Las advertencias de DKIM y DMARC que muestra Brevo son esperables: `gmail.com`
+no es un dominio propio y no se puede firmar. No bloquean el envío, pero algunos
+mails pueden caer en spam. Se arreglan solo con un dominio propio.
+
+---
+
 ## 1. Dónde estamos
 
 **El sistema funciona entero, y ya no depende de ninguna computadora.**
@@ -21,7 +49,8 @@ al backend en internet, así que puede estar en cualquier casa.
 | App | Desplegada y apuntando sola a Render | `voitos.vercel.app` |
 | Base de datos | En uso | Supabase |
 | Firmware polling | **Probado en hardware** | rama `naiderman/hardware` |
-| Mails | Funcionando por API HTTPS | Resend |
+| Mails | **Falta la clave de Brevo** (ver arriba) | Brevo → Resend → SMTP |
+| Panel de admin | Funcionando | `/admin` en la app |
 
 **Probado el 21/08 de punta a punta:** se agendó una dosis desde el celular, la
 placa la detectó consultando sola, sonó, se apretó el botón, dispensó 3
@@ -184,6 +213,51 @@ resuelve ni por DNS en la conexión que usamos. Alternativas que sí funcionan:
 
 ---
 
+## 4b. Cómo salen los mails
+
+El backend elige el transporte solo, en este orden:
+
+| | Cuándo se usa | Limitación |
+| --- | --- | --- |
+| **Brevo** | Si hay `BREVO_API_KEY` | El remitente debe estar verificado en su panel |
+| **Resend** | Si hay `RESEND_API_KEY` | Sin dominio propio, **solo entrega al titular** |
+| **SMTP** | Si hay `MAIL_USER` y `MAIL_PASS` | Bloqueado en casi todos los hosting |
+| Consola | Si no hay nada | Escribe el mail por consola, no falla |
+
+Se eligió Brevo porque es el único que entrega a **cualquier destinatario** sin
+tener un dominio propio: alcanza con verificar una casilla como remitente. Ese
+es exactamente el caso del proyecto, que le manda mails a cada cuidador que se
+registra.
+
+### El logo
+
+Por SMTP viaja adjunto y se referencia con `cid:`, que es lo más confiable. Las
+APIs no manejan bien los adjuntos en línea, así que para ese camino el backend
+sirve el logo en `GET /api/logo.png` y reemplaza la referencia por esa URL.
+
+Es una ruta pública porque la abre el cliente de correo de quien recibe el mail,
+que no tiene sesión. Gmail bloquea las imágenes en `data:` URI pero sí carga las
+de una URL.
+
+Si no hay `API_URL` configurada no se reemplaza nada: es preferible un logo que
+no carga a una URL apuntando a localhost, que además delataría la dirección
+interna a quien reciba el mail.
+
+### La regla que salió de todo esto
+
+**Los avisos nunca se esperan con `await` cuando lo que importa ya se guardó.**
+
+Costó encontrarla. El registro se colgaba dos minutos, y la confirmación del
+pastillero devolvía `HTTP -11` a la ESP32 sobre dispensaciones que se habían
+guardado bien: el endpoint esperaba dos mails de 8 segundos cada uno, contra el
+timeout de 10 de la placa.
+
+La excepción es el reenvío de verificación, que **sí** espera y **sí** mira el
+resultado: ahí el mail *es* lo único que se pidió, así que responder "te lo
+mandamos" sin haberlo mandado deja a alguien esperando algo que no va a llegar.
+
+---
+
 ## 5. Auditoría de seguridad
 
 Se revisó el proyecto contra una lista de 20 prácticas habituales. El detalle
@@ -290,17 +364,15 @@ confundirse creyendo que RLS está protegiendo algo que en realidad no protege.
 
 ## 6. Qué hacer en la próxima sesión
 
-Lo grande ya está hecho. Lo que queda:
-
-1. **Verificar un dominio en Resend** si se quiere que los mails lleguen a
-   alguien que no sea el titular de la cuenta. Hoy solo entrega a
-   `timoczerwiak@gmail.com`.
+1. **Cargar `BREVO_API_KEY` en Render** (ver sección 0). Es lo único que
+   bloquea algo hoy.
 2. **Pantalla de historial**: las dispensaciones se registran desde el primer
-   día y ninguna vista las muestra.
+   día, ahora con el usuario incluido, y ninguna vista las muestra.
 3. Pantallas de configuración, emergencia y detalle del día, que siguen vacías.
-4. Sensor que confirme cuántas pastillas salieron de verdad. Hoy se asume que
+4. Un dominio propio, si se quiere sacar las advertencias de DKIM y DMARC y
+   mejorar la entregabilidad.
+5. Sensor que confirme cuántas pastillas salieron de verdad. Hoy se asume que
    salieron las que se pidieron.
-5. Un segundo módulo físico. La base ya lo soporta.
 
 ---
 
