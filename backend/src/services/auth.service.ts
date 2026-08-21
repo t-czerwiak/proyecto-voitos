@@ -191,12 +191,25 @@ export const reenviarVerificacion = async (id: string) => {
 
   if (errorUpdate) throw new Error(errorUpdate.message);
 
-  await avisarVerificacion({
+  // Aca SI se espera y SI se mira el resultado, al reves que en el registro.
+  //
+  // La diferencia es el proposito: en el registro el mail es un extra y lo que
+  // importa es que la cuenta quede creada. Aca el mail ES lo unico que se pidio,
+  // asi que responder "te lo mandamos" sin haberlo mandado es mentirle a quien
+  // lo esta esperando. Y despues no entiende por que nunca llega.
+  const salio = await avisarVerificacion({
     cuidadorMail: usuario.mail,
     cuidadorNombre: usuario.nombre,
     enlace: `${API_URL}/api/auth/verificar/${token}`,
     horasParaVencer: HORAS_VERIFICACION,
   });
+
+  if (!salio) {
+    throw new ErrorHttp(
+      502,
+      "No se pudo enviar el mail. Pedile a un administrador que verifique tu cuenta a mano."
+    );
+  }
 
   return { mail: usuario.mail };
 };
