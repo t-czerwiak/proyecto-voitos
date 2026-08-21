@@ -50,6 +50,18 @@ const getTransporter = (): Transporter | null => {
       port: MAIL_PORT,
       secure: MAIL_PORT === 465, // 465 es SSL directo, 587 usa STARTTLS
       auth: { user: MAIL_USER, pass: MAIL_PASS },
+
+      // Sin estos tres, un SMTP que no responde deja el envio colgado para
+      // siempre en vez de fallar.
+      //
+      // Pasa de verdad: muchos hosting bloquean el trafico SMTP saliente para
+      // no ser usados como plataforma de spam, y Render en plan free es uno de
+      // ellos. La conexion no se rechaza, simplemente nunca completa. El
+      // sintoma es peor que un error: el registro se colgaba dos minutos y el
+      // usuario veia "no se pudo conectar" aunque su cuenta ya estuviera creada.
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
     });
   }
   return transporter;
