@@ -50,6 +50,23 @@ const MAIL_FROM = process.env.MAIL_FROM ?? `Voitos <${MAIL_USER ?? "sin-configur
 const RESEND_API_KEY = process.env.RESEND_API_KEY?.trim();
 const usaResend = Boolean(RESEND_API_KEY);
 
+// Remitente para la API.
+//
+// NO se puede reusar MAIL_FROM, que apunta a la casilla de Gmail del proyecto:
+// Resend solo deja enviar desde un dominio verificado por vos, y gmail.com no
+// lo es. Rechaza el envio con 403 diciendo que el dominio no esta verificado.
+//
+// onboarding@resend.dev es la direccion que Resend habilita para probar sin
+// tener dominio propio. Cuando el proyecto tenga uno, se verifica en
+// resend.com/domains y se cambia esta variable.
+const RESEND_FROM = process.env.RESEND_FROM ?? "Voitos <onboarding@resend.dev>";
+
+// Ultimo error del proveedor, para poder verlo desde el panel de admin. Los
+// mails salen sin await, asi que si algo falla no hay a quien devolverselo: el
+// error solo quedaba en un log del servidor que nadie mira.
+let ultimoError: string | null = null;
+export const ultimoErrorDeMail = () => ultimoError;
+
 const configurado = Boolean(usaResend || (MAIL_USER && MAIL_PASS));
 
 let transporter: Transporter | null = null;
@@ -109,7 +126,7 @@ const TIMEOUT_MS = 10000;
 
 const enviarPorResend = async ({ para, asunto, texto, html }: Mail): Promise<boolean> => {
   const cuerpo: Record<string, unknown> = {
-    from: MAIL_FROM,
+    from: RESEND_FROM,
     to: [para],
     subject: asunto,
     html,
@@ -145,18 +162,18 @@ const enviarPorResend = async ({ para, asunto, texto, html }: Mail): Promise<boo
 
     if (!r.ok) {
       const detalle = await r.text();
-      console.error(`Resend rechazo el mail a ${para}: ${r.status} ${detalle}`);
+      ultimoError = `${r.status} ${detalle}`;
+      console.error(`Resend rechazo el mail a ${para}: ${ultimoError}`);
       return false;
     }
 
+    ultimoError = null;
     console.log(`Mail enviado a ${para}: ${asunto}`);
     return true;
   } catch (error: any) {
     const porTimeout = error?.name === "AbortError";
-    console.error(
-      `No se pudo enviar el mail a ${para}:`,
-      porTimeout ? `la API no respondio en ${TIMEOUT_MS / 1000}s` : error.message
-    );
+    ultimoError = porTimeout ? `la API no respondio en ${TIMEOUT_MS / 1000}s` : error.message;
+    console.error(`No se pudo enviar el mail a ${para}:`, ultimoError);
     return false;
   } finally {
     clearTimeout(temporizador);
