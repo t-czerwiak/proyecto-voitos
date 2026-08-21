@@ -137,3 +137,47 @@ export const mailDe = async (id: string): Promise<string | null> => {
   if (error) throw new Error(error.message);
   return data?.mail ?? null;
 };
+
+// Borra una cuenta entera: el perfil y la cuenta de Supabase Auth.
+//
+// El perfil arrastra por FK en cascada las pastillas, y con ellas los horarios y
+// las dispensaciones, mas los contactos de emergencia y las actividades. Los
+// modulos NO se borran: la FK hacia pastillas es SET NULL, que es lo correcto
+// porque el modulo es una pieza fisica del pastillero y sigue existiendo aunque
+// la persona se vaya. Queda vacio y listo para reasignar.
+//
+// Se borran los dos lados. Si quedara solo la cuenta de Auth, esa persona
+// podria seguir logueandose y la app no encontraria su perfil.
+export const borrarUsuario = async (id: string) => {
+  const { data: usuario, error: errorLectura } = await supabase
+    .from("usuarios")
+    .select("id, nombre, apellido, mail")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (errorLectura) throw new Error(errorLectura.message);
+  if (!usuario) return null;
+
+  // Cuanto se esta por borrar, para poder informarlo
+  const [pastillas, dispensaciones] = await Promise.all([
+    supabase.from("pastillas").select("id", { count: "exact", head: true }).eq("usuario_id", id),
+    supabase.from("dispensaciones").select("id", { count: "exact", head: true }).eq("usuario_id", id),
+  ]);
+
+  const { error } = await supabase.from("usuarios").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+
+  // Si esto falla, el perfil ya no existe y la cuenta de Auth queda huerfana:
+  // puede loguearse pero no tiene datos. Se loguea para poder limpiarla a mano.
+  const { error: errorAuth } = await supabase.auth.admin.deleteUser(id);
+  if (errorAuth) {
+    console.error(`Se borro el perfil de ${usuario.mail} pero no su cuenta de Auth:`, errorAuth.message);
+  }
+
+  return {
+    ...usuario,
+    pastillas: pastillas.count ?? 0,
+    dispensaciones: dispensaciones.count ?? 0,
+    authBorrada: !errorAuth,
+  };
+};
