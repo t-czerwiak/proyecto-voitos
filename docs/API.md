@@ -270,6 +270,31 @@ sola apretada del botón.
 | ------ | ---- | ----------- |
 | GET | `/api/dispensaciones` | Historial de dispensaciones con info de pastilla. Filtro opcional `?usuario_id=uuid` |
 
+### Módulos (protegido)
+
+| Método | Ruta | Descripción |
+| ------ | ---- | ----------- |
+| GET | `/api/modulos` | Lista todos, con la pastilla cargada. Filtro opcional `?dispositivo_id=` |
+| GET | `/api/modulos/:id` | Uno por id |
+| PUT | `/api/modulos/:id` | Cambiar la pastilla cargada o registrar cuántas hay |
+
+**Body de `PUT /api/modulos/:id`** (al menos uno de los dos):
+```json
+{ "pastilla_id": "uuid-o-null", "cantidad_actual": 30 }
+```
+
+`cantidad_actual` es el stock de pastillas que hay en el módulo. **Lo registra
+el cuidador** cuando lo recarga, y el backend lo va descontando solo en cada
+dispensación confirmada.
+
+Si al pedir una dispensación el módulo no tiene suficientes,
+`POST /api/sensor/dispensar` responde **409** y no se manda la señal, para que
+la persona no vaya hasta el pastillero al pedo:
+
+```json
+{ "success": false, "error": "Cantidad insuficiente: el modulo 1 tiene 2 pastilla(s) y la dosis necesita 5. Hay que recargarlo." }
+```
+
 ### Alertas (protegido)
 
 | Método | Ruta | Descripción |
@@ -287,15 +312,40 @@ hoy, o es hoy pero la hora ya quedó atrás) y sigue con `dispensado = false`.
 | ----- | ----------- |
 | `usuarios` | Adultos mayores que usan el pastillero |
 | `pastillas` | Medicamentos de cada usuario |
-| `horarios` | Cuándo tomar cada pastilla y cuántas (`cantidad`). `dispensado` marca si ya se cumplió |
+| `horarios` | Cuándo tomar cada pastilla y cuántas (`cantidad`). `dispensado` marca si ya se cumplió; `notificado`, si ya se avisó por mail |
 | `contactos_emergencia` | A quién avisar por usuario |
 | `dispensaciones` | Registro de cada dispensación confirmada por la ESP32, con la `cantidad` que salió realmente |
-| `modulos` | Módulo físico (tolva + filtro + servo). `numero` identifica el módulo; `pastilla_id` es la pastilla que tiene cargada |
+| `modulos` | Módulo físico (tolva + filtro + servo). `numero` identifica el módulo, `pastilla_id` es la pastilla cargada y `cantidad_actual` cuántas quedan |
 
 **RLS (Row Level Security):** activado en **todas** las tablas. El backend usa
 la service_role key, que saltea RLS por diseño (es la clave de servidor de
 confianza). Como ningún cliente accede directo a Supabase, no hay tablas
 expuestas a la anon key pública.
+
+## Mails al cuidador
+
+El backend le manda un mail a `usuarios.mail` (la cuenta que se loguea en la
+web) en dos situaciones:
+
+| Cuándo | Qué dice |
+| ------ | -------- |
+| Se confirmó una dispensación | Medicamento, cantidad, horario, dispositivo y cuánto queda en el módulo. Avisa si quedó vacío o con menos de 4 |
+| Pasaron 15 min del horario y la dosis sigue sin dispensarse | Qué dosis se perdió, hace cuánto, y los contactos de emergencia cargados |
+
+El aviso de dosis no tomada lo dispara un scheduler que corre cada minuto
+(`src/schedulers/dosis-no-tomadas.ts`). Cuando manda el mail marca
+`horarios.notificado = true`, para no repetirlo en cada revisión.
+
+**El re-sonado de la alarma no lo maneja el backend sino el firmware.** La ESP32
+vuelve a sonar cada 5 minutos hasta 3 veces (a los 5, 10 y 15 del horario) y
+después deja de insistir. Se hace ahí porque la placa ya sabe que está esperando
+el botón y sigue funcionando aunque se corte el WiFi.
+
+**Si no hay SMTP configurado en el `.env`, no falla**: escribe los mails por
+consola en vez de enviarlos. Así se puede probar toda la lógica sin mandar
+correos, y una dispensación válida nunca se cae porque el mail no salió. Ver
+`.env.example` para las variables y cómo generar la contraseña de aplicación de
+Gmail.
 
 ## Correr el proyecto
 

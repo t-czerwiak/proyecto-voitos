@@ -20,6 +20,7 @@ import {
   verificarUsuario,
   desverificarUsuario,
   vaciarCalendarioDe,
+  borrarUsuario,
   soyAdmin,
   UsuarioAdmin,
 } from "../lib/voitos";
@@ -31,11 +32,13 @@ export default function Admin() {
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState("");
   const [aviso, setAviso] = useState("");
+  const [yo, setYo] = useState("");
 
   const cargar = useCallback(async () => {
     setError("");
     try {
-      const { admin } = await soyAdmin();
+      const { admin, id } = await soyAdmin();
+      setYo(id);
       if (!admin) {
         setError("Esta pantalla es solo para administradores.");
         setCargando(false);
@@ -66,6 +69,35 @@ export default function Admin() {
         await verificarUsuario(u.id);
         setAviso(`${u.mail} quedó verificada`);
       }
+      await cargar();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setOcupado("");
+    }
+  };
+
+  const borrarCuenta = async (u: UsuarioAdmin) => {
+    const seguir = await confirmar(
+      `Eliminar la cuenta de ${u.nombre}`,
+      `Se borra ${u.mail} con TODO lo suyo: ${u.pastillas} ` +
+        `${u.pastillas === 1 ? "pastilla" : "pastillas"}, sus dosis, su historial ` +
+        `de dispensaciones, sus contactos y sus actividades.
+
+` +
+        `Los módulos del pastillero quedan, vacíos.
+
+` +
+        `Esto no se puede deshacer. ¿Seguro?`,
+      "Eliminar cuenta"
+    );
+    if (!seguir) return;
+
+    setAviso("");
+    setOcupado(u.id);
+    try {
+      const r = await borrarUsuario(u.id);
+      setAviso(`Se eliminó ${r.mail} y todo lo suyo`);
       await cargar();
     } catch (e: any) {
       setError(e.message);
@@ -169,6 +201,19 @@ export default function Admin() {
               >
                 <Text style={styles.botonTexto}>VACIAR CALENDARIO</Text>
               </Pressable>
+
+              {/* El admin no puede borrarse a si mismo: quedaria sin cuenta y
+                  sin panel, sin forma de deshacerlo desde la aplicacion. El
+                  backend tambien lo rechaza, esto es solo para no ofrecerlo. */}
+              {u.id !== yo && (
+                <Pressable
+                  style={[styles.boton, styles.botonPeligro]}
+                  onPress={() => borrarCuenta(u)}
+                  disabled={ocupado === u.id}
+                >
+                  <Text style={styles.botonTexto}>ELIMINAR CUENTA</Text>
+                </Pressable>
+              )}
             </View>
           </View>
         ))}
