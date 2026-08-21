@@ -1,23 +1,37 @@
 // Plantillas HTML de los mails al cuidador.
 //
-// Los clientes de mail son muy limitados: Gmail borra las hojas de estilo, no
-// soporta flexbox ni grid, y varios ignoran los estilos que no van en linea.
-// Por eso todo se arma con tablas y con style="" en cada elemento, que es lo
-// unico que se renderiza igual en todos lados.
+// Los clientes de mail son muy limitados: varios borran las hojas de estilo, no
+// soportan flexbox ni grid, y muchos ignoran lo que no va en linea. Por eso
+// todo se arma con tablas y con style="" en cada elemento, que es lo unico que
+// se renderiza igual en todos lados. El bloque <style> del <head> se usa SOLO
+// para mejoras que pueden perderse sin que el mail se rompa: el ajuste a
+// pantalla chica y el modo oscuro.
 //
 // El ancho maximo de 600px es el estandar de facto: entra en la vista de
 // lectura de escritorio sin cortarse y se ve bien en celular.
+//
+// La idea visual: hoja blanca, mucho aire, jerarquia por tipografia y no por
+// color. El color aparece en tres lugares nada mas, y siempre es el mismo
+// dentro de un mismo mail: la linea bajo la cabecera, la etiqueta de estado y
+// el filete que la acompana. Asi el mail se lee como una pieza y no como un
+// formulario.
 
-const VERDE_OSCURO = "#02200F";
-const VERDE_ACENTO = "#0B7A38";
-const AMBAR_ACENTO = "#B26A00";
-const TITULO = "#16221C";   // casi negro: maximo contraste sobre blanco
-const GRIS_TEXTO = "#3C4A42";
-const GRIS_SUAVE = "#78877E";
-const LINEA = "#E4EAE6";
+const VERDE_OSCURO = "#02200F"; // banda de la cabecera; el logo es blanco sobre esto
+const VERDE = "#0B7A38";        // acento positivo
+const AMBAR = "#A15E00";        // acento de atencion, oscurecido para que contraste sobre blanco
+const TINTA = "#0B1A11";        // titulares
+const TEXTO = "#46554C";        // cuerpo
+const SUAVE = "#7B8B81";        // secundario, etiquetas
+const LINEA = "#E5EBE7";        // filetes
+const BORDE = "#DFE7E2";        // borde de la hoja
+const PANEL = "#F6F9F7";        // fondo de los avisos y del pie
+const FONDO = "#EDF1EE";        // fondo de la pagina
 
 // Identificador del logo adjunto. email.service lo adjunta con este mismo cid.
 export const LOGO_CID = "voitos-logo";
+
+const FUENTE =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 // Escapa el texto que viene de afuera antes de meterlo en el HTML del mail.
 //
@@ -76,99 +90,154 @@ export const formatearFecha = (fecha: string): string => {
   return `${nombreDia} ${Number(partes[2])} de ${nombreMes}`;
 };
 
+// ---------------------------------------------------------------------------
+// Piezas
+// ---------------------------------------------------------------------------
+
 // Encabezado de estado.
 //
-// Antes esto era una caja con el fondo tintado y el texto del mismo tono, que
-// ademas de leerse peor es el recurso mas trillado de las plantillas
-// automaticas. Ahora el color aparece solo en una etiqueta chica y en una
-// linea fina, y el titular va en negro sobre blanco, que es donde mejor se lee.
-const encabezadoEstado = (etiqueta: string, color: string, titular: string, detalle?: string) => `
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:26px;">
+// Es lo primero que se lee, asi que carga toda la jerarquia: una etiqueta
+// chica en el color del estado, el titular grande en negro (que es donde mejor
+// se lee) y un detalle opcional. El filete vertical del color ata las tres
+// lineas y repite el acento que ya aparece bajo la cabecera.
+const encabezadoEstado = (
+  etiqueta: string,
+  color: string,
+  titular: string,
+  detalle?: string
+) => `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 30px;">
     <tr>
-      <td style="border-left:3px solid ${color};padding:2px 0 2px 16px;">
-        <p style="margin:0 0 7px;color:${color};font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;">${etiqueta}</p>
-        <p style="margin:0;color:${TITULO};font-size:22px;line-height:29px;font-weight:700;">${titular}</p>
-        ${detalle ? `<p style="margin:8px 0 0;color:${GRIS_SUAVE};font-size:15px;line-height:21px;">${detalle}</p>` : ""}
+      <td style="border-left:2px solid ${color};padding:1px 0 1px 18px;">
+        <p style="margin:0 0 9px;color:${color};font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;">${etiqueta}</p>
+        <p class="titular tinta" style="margin:0;color:${TINTA};font-size:25px;line-height:33px;font-weight:700;letter-spacing:-0.2px;">${titular}</p>
+        ${detalle ? `<p class="suave" style="margin:10px 0 0;color:${SUAVE};font-size:15px;line-height:22px;">${detalle}</p>` : ""}
       </td>
     </tr>
+  </table>`;
+
+// Rotulo de seccion: separa bloques sin gritar
+const rotulo = (texto: string) => `
+  <p class="suave" style="margin:30px 0 12px;color:${SUAVE};font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;">${texto}</p>`;
+
+// Una fila de dato: etiqueta a la izquierda, valor a la derecha.
+// Se lee como una ficha tecnica, que es exactamente lo que es.
+const fila = (etiqueta: string, valor: string) => `
+  <tr>
+    <td class="linea suave" style="padding:13px 0;border-bottom:1px solid ${LINEA};color:${SUAVE};font-size:14px;line-height:20px;">${etiqueta}</td>
+    <td class="linea tinta" style="padding:13px 0;border-bottom:1px solid ${LINEA};color:${TINTA};font-size:15px;line-height:20px;font-weight:600;text-align:right;">${valor}</td>
+  </tr>`;
+
+// Envuelve filas con un filete arriba, para que la ficha cierre por los cuatro lados
+const ficha = (filas: string) => `
+  <table role="presentation" class="linea" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${LINEA};">
+    ${filas}
   </table>`;
 
 // Boton de accion. En mail se hace con una tabla y padding, no con un <a>
 // estilado, porque Outlook ignora el padding de los enlaces.
-const boton = (texto: string, url: string, color = VERDE_ACENTO) => `
-  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 4px;">
+const boton = (texto: string, url: string, color = VERDE) => `
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:30px 0 4px;">
     <tr>
-      <td style="background-color:${color};border-radius:8px;">
-        <a href="${url}" style="display:inline-block;padding:14px 30px;color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;">${texto}</a>
+      <td style="background-color:${color};border-radius:10px;">
+        <a href="${url}" style="display:inline-block;padding:15px 32px;color:#FFFFFF;font-size:15px;font-weight:600;letter-spacing:0.1px;text-decoration:none;">${texto}</a>
       </td>
     </tr>
   </table>`;
 
-// Aviso secundario: linea fina de color y texto oscuro, sin fondo tintado
+// Aviso secundario. Panel apenas tintado con un filete de color a la izquierda:
+// se distingue del cuerpo sin robarle protagonismo al encabezado de estado.
 const aviso = (titulo: string, detalle: string, color: string) => `
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;">
     <tr>
-      <td style="border:1px solid ${LINEA};border-left:3px solid ${color};border-radius:6px;padding:14px 18px;">
-        <p style="margin:0;color:${TITULO};font-size:14px;font-weight:600;">${titulo}</p>
-        <p style="margin:5px 0 0;color:${GRIS_TEXTO};font-size:14px;line-height:20px;">${detalle}</p>
+      <td class="panel" style="background-color:${PANEL};border:1px solid ${LINEA};border-left:3px solid ${color};border-radius:8px;padding:16px 20px;">
+        <p class="tinta" style="margin:0;color:${TINTA};font-size:14px;line-height:20px;font-weight:600;">${titulo}</p>
+        <p class="texto" style="margin:6px 0 0;color:${TEXTO};font-size:14px;line-height:21px;">${detalle}</p>
       </td>
     </tr>
   </table>`;
 
-// Una fila de dato: etiqueta a la izquierda, valor a la derecha
-const fila = (etiqueta: string, valor: string) => `
-  <tr>
-    <td style="padding:10px 0;border-bottom:1px solid ${LINEA};color:${GRIS_SUAVE};font-size:14px;">${etiqueta}</td>
-    <td style="padding:10px 0;border-bottom:1px solid ${LINEA};color:${GRIS_TEXTO};font-size:15px;font-weight:600;text-align:right;">${valor}</td>
-  </tr>`;
+// Parrafo del cuerpo
+const p = (texto: string, margenArriba = 20) => `
+  <p class="texto" style="margin:${margenArriba}px 0 0;color:${TEXTO};font-size:15px;line-height:24px;">${texto}</p>`;
 
 interface Layout {
   preheader: string; // el resumen que Gmail muestra al lado del asunto
   titulo: string;
   saludo: string;
   cuerpo: string;
+  acento: string; // color del estado: tine la linea bajo la cabecera
 }
 
-const envolver = ({ preheader, titulo, saludo, cuerpo }: Layout) => `<!DOCTYPE html>
+const envolver = ({ preheader, titulo, saludo, cuerpo, acento }: Layout) => `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
 <title>${titulo}</title>
+<style>
+  /* Mejoras que pueden perderse sin romper nada: si el cliente borra este
+     bloque, queda el estilo en linea, que es el que manda. */
+  @media only screen and (max-width:620px) {
+    .marco   { padding:16px 0 !important; }
+    .hoja    { border-radius:0 !important; border-left:0 !important; border-right:0 !important; }
+    .relleno { padding-left:24px !important; padding-right:24px !important; }
+    .titular { font-size:22px !important; line-height:29px !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .fondo { background-color:#0D1512 !important; }
+    .hoja  { background-color:#141D19 !important; border-color:#243029 !important; }
+    .tinta { color:#EEF3F0 !important; }
+    .texto { color:#BFCCC5 !important; }
+    .suave { color:#8C9C93 !important; }
+    .panel { background-color:#1A2520 !important; border-color:#2A3831 !important; }
+    .linea { border-color:#26332C !important; }
+    .pie   { background-color:#101915 !important; border-color:#243029 !important; }
+  }
+</style>
 </head>
-<body style="margin:0;padding:0;background-color:#F2F5F3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<body style="margin:0;padding:0;background-color:${FONDO};font-family:${FUENTE};-webkit-font-smoothing:antialiased;">
 
   <!-- Texto oculto: es lo que se lee en la bandeja antes de abrir el mail -->
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${preheader}</div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F2F5F3;padding:24px 12px;">
+  <table role="presentation" class="fondo" width="100%" cellpadding="0" cellspacing="0" style="background-color:${FONDO};">
     <tr>
-      <td align="center">
+      <td class="marco" align="center" style="padding:32px 12px;">
 
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <table role="presentation" class="hoja" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#FFFFFF;border:1px solid ${BORDE};border-radius:16px;overflow:hidden;">
 
-          <!-- Encabezado. El logo va como adjunto embebido (cid) porque Gmail
+          <!-- Cabecera. El logo va como adjunto embebido (cid) porque Gmail
                bloquea las imagenes en data: URI y no queremos depender de que
                el archivo este publicado en algun servidor. -->
           <tr>
-            <td style="background-color:${VERDE_OSCURO};padding:24px 32px;">
-              <img src="cid:${LOGO_CID}" width="132" alt="Voitos" style="display:block;border:0;height:auto;">
+            <td style="background-color:${VERDE_OSCURO};padding:26px 36px;">
+              <img src="cid:${LOGO_CID}" width="112" alt="Voitos" style="display:block;border:0;width:112px;height:auto;">
             </td>
+          </tr>
+
+          <!-- Linea de acento: el color del estado, desde arriba de todo -->
+          <tr>
+            <td style="background-color:${acento};font-size:0;line-height:0;height:3px;">&nbsp;</td>
           </tr>
 
           <!-- Contenido -->
           <tr>
-            <td style="padding:32px;">
-              <p style="margin:0 0 18px;color:${GRIS_TEXTO};font-size:16px;">${saludo}</p>
+            <td class="relleno" style="padding:36px;">
+              <p class="texto" style="margin:0 0 22px;color:${TEXTO};font-size:16px;line-height:24px;">${saludo}</p>
               ${cuerpo}
             </td>
           </tr>
 
           <!-- Pie -->
           <tr>
-            <td style="background-color:#F7FAF8;padding:20px 32px;border-top:1px solid #E4EAE6;">
-              <p style="margin:0;color:${GRIS_SUAVE};font-size:12px;line-height:18px;">
-                Voitos · aviso automático del pastillero
+            <td class="relleno pie linea" style="background-color:${PANEL};padding:24px 36px;border-top:1px solid ${LINEA};">
+              <p class="tinta" style="margin:0 0 6px;color:${TINTA};font-size:12px;font-weight:700;letter-spacing:2px;">VOITOS</p>
+              <p class="suave" style="margin:0;color:${SUAVE};font-size:12px;line-height:19px;">
+                Aviso automático del pastillero.<br>
+                Recibís este correo porque tu cuenta tiene los avisos activados.
               </p>
             </td>
           </tr>
@@ -181,6 +250,10 @@ const envolver = ({ preheader, titulo, saludo, cuerpo }: Layout) => `<!DOCTYPE h
 
 </body>
 </html>`;
+
+// ---------------------------------------------------------------------------
+// Dosis retirada
+// ---------------------------------------------------------------------------
 
 export interface DatosOk {
   cuidadorNombre: string;
@@ -202,16 +275,16 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
     stock = aviso(
       "El pastillero quedó vacío",
       "Conviene recargarlo antes de la próxima dosis.",
-      AMBAR_ACENTO
+      AMBAR
     );
   } else if (d.quedanEnModulo !== null && d.quedanEnModulo <= 3) {
     stock = aviso(
       `Quedan ${d.quedanEnModulo} pastillas`,
       "Es buen momento para recargar el pastillero.",
-      AMBAR_ACENTO
+      AMBAR
     );
   } else if (d.quedanEnModulo !== null) {
-    stock = `<p style="margin:22px 0 0;color:${GRIS_SUAVE};font-size:14px;">
+    stock = `<p class="suave" style="margin:26px 0 0;color:${SUAVE};font-size:14px;line-height:21px;">
       Quedan ${d.quedanEnModulo} pastillas cargadas en el pastillero.
     </p>`;
   }
@@ -219,19 +292,20 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
   const cuerpo = `
     ${encabezadoEstado(
       "Dosis retirada",
-      VERDE_ACENTO,
+      VERDE,
       `Se retiró la ${esc(d.pastilla)} de las ${hhmm}`
     )}
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    ${rotulo("Detalle")}
+    ${ficha(`
       ${fila("Medicamento", esc(d.pastilla))}
       ${fila("Cantidad", pastillas)}
       ${fila("Día", formatearFecha(d.dia))}
       ${fila("Hora", hhmm)}
       ${fila("Dispositivo", esc(d.dispositivo))}
-    </table>
+    `)}
 
-    <p style="margin:18px 0 0;color:${GRIS_SUAVE};font-size:13px;line-height:19px;">
+    <p class="suave" style="margin:20px 0 0;color:${SUAVE};font-size:13px;line-height:20px;">
       El pastillero registra cuándo se retira la medicación. Que haya salido no
       confirma por sí solo que se haya tomado.
     </p>
@@ -267,10 +341,15 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
       titulo: "Dosis tomada",
       saludo: `Hola ${esc(d.cuidadorNombre)},`,
       cuerpo,
+      acento: VERDE,
     }),
     texto,
   };
 };
+
+// ---------------------------------------------------------------------------
+// Dosis sin retirar
+// ---------------------------------------------------------------------------
 
 export interface DatosNoTomada {
   cuidadorNombre: string;
@@ -287,41 +366,42 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
   const hhmm = formatearHora(d.hora, d.minuto);
   const pastillas = d.cantidad === 1 ? "1 pastilla" : `${d.cantidad} pastillas`;
 
+  // El numero va como enlace tel: para que desde el celular se llame de una.
+  // Es el gesto que este mail quiere provocar, asi que tiene que estar a un
+  // toque de distancia.
   const contactos = d.contactos.length
     ? `
-      <p style="margin:26px 0 10px;color:${GRIS_TEXTO};font-size:15px;font-weight:600;">
-        Contactos de emergencia
-      </p>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-        ${d.contactos
-          .map((c) => fila(`${c.nombre} ${c.apellido}`, `<a href="tel:${c.numero}" style="color:${VERDE_ACENTO};text-decoration:none;">${c.numero}</a>`))
-          .join("")}
-      </table>`
+      ${rotulo("Contactos de emergencia")}
+      ${ficha(
+        d.contactos
+          .map((c) =>
+            fila(
+              esc(`${c.nombre} ${c.apellido}`),
+              `<a href="tel:${esc(c.numero)}" style="color:${VERDE};font-weight:600;text-decoration:none;">${esc(c.numero)}</a>`
+            )
+          )
+          .join("")
+      )}`
     : "";
 
   const cuerpo = `
     ${encabezadoEstado(
       "Sin retirar",
-      AMBAR_ACENTO,
+      AMBAR,
       `No se retiró la ${esc(d.pastilla)} de las ${hhmm}`,
       `Hace ${d.minutosDeRetraso} minutos que la dosis espera en el pastillero.`
     )}
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    ${rotulo("Detalle")}
+    ${ficha(`
       ${fila("Medicamento", esc(d.pastilla))}
       ${fila("Cantidad", pastillas)}
       ${fila("Día", formatearFecha(d.dia))}
       ${fila("Hora", hhmm)}
-    </table>
+    `)}
 
-    <p style="margin:24px 0 0;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
-      La alarma sonó cuatro veces y el botón nunca se apretó. Puede que no se haya
-      escuchado, o que no haya nadie en casa.
-    </p>
-
-    <p style="margin:14px 0 0;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
-      Conviene que llames para chequear.
-    </p>
+    ${p("La alarma sonó cuatro veces y el botón nunca se apretó. Puede que no se haya escuchado, o que no haya nadie en casa.", 24)}
+    ${p("Conviene que llames para chequear.", 14)}
 
     ${contactos}`;
 
@@ -351,11 +431,11 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
       titulo: "Dosis sin retirar",
       saludo: `Hola ${esc(d.cuidadorNombre)},`,
       cuerpo,
+      acento: AMBAR,
     }),
     texto,
   };
 };
-
 
 // ---------------------------------------------------------------------------
 // Verificacion de la casilla
@@ -371,25 +451,24 @@ export const plantillaVerificacion = (d: DatosVerificacion) => {
   const cuerpo = `
     ${encabezadoEstado(
       "Falta un paso",
-      VERDE_ACENTO,
+      VERDE,
       "Confirmá tu correo para activar los avisos"
     )}
 
-    <p style="margin:0;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
-      Voitos te va a escribir a esta casilla cada vez que se retire una dosis, y
-      sobre todo cuando <strong>no</strong> se retire. Confirmala para asegurarnos
-      de que esos avisos te lleguen.
-    </p>
+    ${p(
+      `Voitos te va a escribir a esta casilla cada vez que se retire una dosis, y sobre todo cuando <strong class="tinta" style="color:${TINTA};">no</strong> se retire. Confirmala para asegurarnos de que esos avisos te lleguen.`,
+      0
+    )}
 
     ${boton("Confirmar mi correo", d.enlace)}
 
-    <p style="margin:18px 0 0;color:${GRIS_SUAVE};font-size:13px;line-height:19px;">
+    <p class="suave" style="margin:20px 0 0;color:${SUAVE};font-size:13px;line-height:20px;">
       El enlace vence en ${d.horasParaVencer} horas. Si el botón no funciona, copiá
       y pegá esta dirección en el navegador:<br>
-      <span style="color:${GRIS_TEXTO};word-break:break-all;">${d.enlace}</span>
+      <span class="texto" style="color:${TEXTO};word-break:break-all;">${d.enlace}</span>
     </p>
 
-    <p style="margin:18px 0 0;color:${GRIS_SUAVE};font-size:13px;line-height:19px;">
+    <p class="suave" style="margin:18px 0 0;color:${SUAVE};font-size:13px;line-height:20px;">
       Si no creaste ninguna cuenta en Voitos, ignorá este mensaje.
     </p>`;
 
@@ -416,6 +495,7 @@ export const plantillaVerificacion = (d: DatosVerificacion) => {
       titulo: "Confirmá tu correo",
       saludo: `Hola ${esc(d.cuidadorNombre)},`,
       cuerpo,
+      acento: VERDE,
     }),
     texto,
   };
@@ -431,28 +511,29 @@ export interface DatosBienvenida {
 }
 
 export const plantillaBienvenida = (d: DatosBienvenida) => {
-  const paso = (numero: number, titulo: string, detalle: string) => `
+  const paso = (numero: number, titulo: string, detalle: string, ultimo = false) => `
     <tr>
-      <td width="34" valign="top" style="padding:0 0 18px;">
-        <span style="display:inline-block;width:24px;height:24px;background-color:${VERDE_ACENTO};border-radius:12px;color:#FFFFFF;font-size:13px;font-weight:700;text-align:center;line-height:24px;">${numero}</span>
+      <td width="38" valign="top" style="padding:0 0 ${ultimo ? 0 : 20}px;">
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td width="26" height="26" align="center" valign="middle" style="width:26px;height:26px;background-color:${VERDE};border-radius:13px;color:#FFFFFF;font-size:13px;font-weight:700;line-height:26px;text-align:center;">${numero}</td>
+        </tr></table>
       </td>
-      <td valign="top" style="padding:0 0 18px;">
-        <p style="margin:0;color:${TITULO};font-size:15px;font-weight:600;">${titulo}</p>
-        <p style="margin:3px 0 0;color:${GRIS_TEXTO};font-size:14px;line-height:20px;">${detalle}</p>
+      <td valign="top" style="padding:0 0 ${ultimo ? 0 : 20}px;">
+        <p class="tinta" style="margin:2px 0 0;color:${TINTA};font-size:15px;line-height:21px;font-weight:600;">${titulo}</p>
+        <p class="texto" style="margin:4px 0 0;color:${TEXTO};font-size:14px;line-height:21px;">${detalle}</p>
       </td>
     </tr>`;
 
   const cuerpo = `
-    ${encabezadoEstado("Cuenta activa", VERDE_ACENTO, "Tu correo quedó confirmado")}
+    ${encabezadoEstado("Cuenta activa", VERDE, "Tu correo quedó confirmado")}
 
-    <p style="margin:0 0 22px;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
-      Ya vas a recibir los avisos del pastillero. Para empezar a usarlo:
-    </p>
+    ${p("Ya vas a recibir los avisos del pastillero. Para empezar a usarlo:", 0)}
 
+    ${rotulo("Tres pasos")}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       ${paso(1, "Cargá los medicamentos", "Desde Pastillas, agregá cada uno con su nombre.")}
       ${paso(2, "Agendá los horarios", "Elegí a qué hora, qué días y cuántas pastillas por dosis.")}
-      ${paso(3, "Cargá el pastillero", "Poné las pastillas en el módulo y anotá cuántas cargaste.")}
+      ${paso(3, "Cargá el pastillero", "Poné las pastillas en el módulo y anotá cuántas cargaste.", true)}
     </table>
 
     ${boton("Abrir Voitos", d.enlaceApp)}`;
@@ -479,6 +560,7 @@ export const plantillaBienvenida = (d: DatosBienvenida) => {
       titulo: "Cuenta activa",
       saludo: `Hola ${esc(d.cuidadorNombre)},`,
       cuerpo,
+      acento: VERDE,
     }),
     texto,
   };
@@ -500,25 +582,22 @@ export const plantillaPastilleroVacio = (d: DatosVacio) => {
   const cuerpo = `
     ${encabezadoEstado(
       "Sin stock",
-      AMBAR_ACENTO,
+      AMBAR,
       `El módulo ${d.modulo} se quedó sin ${esc(d.pastilla)}`,
       d.proximaDosis
         ? `La próxima dosis está agendada para ${d.proximaDosis}.`
         : undefined
     )}
 
-    <p style="margin:0;color:${GRIS_TEXTO};font-size:15px;line-height:23px;">
-      Si el módulo sigue vacío cuando llegue el horario, el pastillero no va a poder
-      entregar la medicación.
-    </p>
+    ${p("Si el módulo sigue vacío cuando llegue el horario, el pastillero no va a poder entregar la medicación.", 0)}
 
     ${aviso(
       "Qué hacer",
       "Cargá las pastillas en el módulo y actualizá la cantidad desde la app, así el conteo queda al día.",
-      AMBAR_ACENTO
+      AMBAR
     )}
 
-    ${boton("Actualizar el pastillero", d.enlaceApp, AMBAR_ACENTO)}`;
+    ${boton("Actualizar el pastillero", d.enlaceApp, AMBAR)}`;
 
   const texto = [
     `Hola ${d.cuidadorNombre},`,
@@ -541,6 +620,84 @@ export const plantillaPastilleroVacio = (d: DatosVacio) => {
       titulo: "Pastillero vacío",
       saludo: `Hola ${esc(d.cuidadorNombre)},`,
       cuerpo,
+      acento: AMBAR,
+    }),
+    texto,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Recuperar contrasena
+// ---------------------------------------------------------------------------
+
+export interface DatosRecuperacion {
+  cuidadorNombre: string;
+  enlace: string;
+  horasParaVencer: number;
+  // Las cuentas creadas con Google no tienen contrasena. Para ellas esto no es
+  // "recuperar" sino "poner una por primera vez", y el mail tiene que decir eso
+  // o la persona cree que le mandaron algo que no pidio.
+  tienePassword: boolean;
+}
+
+export const plantillaRecuperacion = (d: DatosRecuperacion) => {
+  const titular = d.tienePassword
+    ? "Elegí una contraseña nueva"
+    : "Poné una contraseña para tu cuenta";
+
+  const explicacion = d.tienePassword
+    ? `Pediste recuperar el acceso a tu cuenta de Voitos. El botón te lleva a
+       elegir una contraseña nueva. Hasta que la cambies, la anterior sigue
+       funcionando.`
+    : `Tu cuenta entra con Google y todavía no tiene contraseña. Si querés
+       agregarle una, para poder entrar también sin Google, elegila desde acá.`;
+
+  const cuerpo = `
+    ${encabezadoEstado("Recuperar acceso", VERDE, titular)}
+
+    ${p(explicacion, 0)}
+
+    ${boton(d.tienePassword ? "Elegir contraseña nueva" : "Poner una contraseña", d.enlace)}
+
+    <p class="suave" style="margin:20px 0 0;color:${SUAVE};font-size:13px;line-height:20px;">
+      El enlace vence en ${d.horasParaVencer === 1 ? "una hora" : `${d.horasParaVencer} horas`} y
+      se puede usar una sola vez. Si el botón no funciona, copiá y pegá esta
+      dirección en el navegador:<br>
+      <span class="texto" style="color:${TEXTO};word-break:break-all;">${d.enlace}</span>
+    </p>
+
+    ${aviso(
+      "Si no lo pediste vos",
+      "Ignorá este mensaje. Tu contraseña no cambia sola: solo cambia si alguien abre este enlace y elige una nueva.",
+      AMBAR
+    )}`;
+
+  const texto = [
+    `Hola ${d.cuidadorNombre},`,
+    ``,
+    d.tienePassword
+      ? `Pediste recuperar el acceso a tu cuenta de Voitos. Abri este enlace para elegir una contrasena nueva.`
+      : `Tu cuenta entra con Google y todavia no tiene contrasena. Abri este enlace si querés agregarle una.`,
+    ``,
+    d.enlace,
+    ``,
+    `El enlace vence en ${d.horasParaVencer === 1 ? "una hora" : `${d.horasParaVencer} horas`} y se puede usar una sola vez.`,
+    ``,
+    `Si no lo pediste vos, ignora este mensaje: tu contrasena no cambia sola.`,
+    ``,
+    `Voitos · aviso automático del pastillero`,
+  ].join("\n");
+
+  return {
+    asunto: d.tienePassword
+      ? "Recuperá el acceso a tu cuenta de Voitos"
+      : "Poné una contraseña para tu cuenta de Voitos",
+    html: envolver({
+      preheader: "El enlace vence en una hora y sirve una sola vez.",
+      titulo: "Recuperar acceso",
+      saludo: `Hola ${esc(d.cuidadorNombre)},`,
+      cuerpo,
+      acento: VERDE,
     }),
     texto,
   };
