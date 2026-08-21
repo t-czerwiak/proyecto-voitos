@@ -1,6 +1,6 @@
 # Estado del proyecto y próximos pasos
 
-Última actualización: **19 de agosto de 2026**
+Última actualización: **21 de agosto de 2026**
 
 Este documento existe para que cualquiera —incluido el equipo dentro de un mes—
 pueda retomar el proyecto sin reconstruir el contexto desde cero.
@@ -9,24 +9,27 @@ pueda retomar el proyecto sin reconstruir el contexto desde cero.
 
 ## 1. Dónde estamos
 
-El sistema completo funcionó de punta a punta el 19 de agosto. Se agendó una
-dosis desde el celular, el pastillero sonó solo a la hora, alguien apretó el
-botón, el servo liberó la pastilla, la placa confirmó al backend, y quedó todo
-registrado: dosis marcada, fila en `dispensaciones`, stock descontado y mail al
-cuidador.
+**El sistema funciona entero, y ya no depende de ninguna computadora.**
 
-Se probaron tres dosis seguidas, incluida una de cantidad 2.
+El 19 de agosto se probó el circuito completo con el modelo push. El 21 se
+completó el cambio a polling y se desplegó todo: ahora el pastillero le pregunta
+al backend en internet, así que puede estar en cualquier casa.
 
 | Componente | Estado | Dónde vive |
 | --- | --- | --- |
-| Backend | Desplegado y funcionando | Render, `voitos-backend.onrender.com` |
-| App | Desplegada | Vercel, `voitos.vercel.app` |
+| Backend | Desplegado y verificado | Render, `voitos-backend.onrender.com` |
+| App | Desplegada y apuntando sola a Render | `voitos.vercel.app` |
 | Base de datos | En uso | Supabase |
-| Firmware | Funcionando (modelo push) | `docs/interno/sketch-final/` |
-| Firmware polling | Escrito, **sin probar en hardware** | `docs/interno/sketch-polling/` |
+| Firmware polling | **Probado en hardware** | rama `naiderman/hardware` |
+| Mails | Funcionando por API HTTPS | Resend |
 
-**Punto de retorno:** el tag `demo-push-funcionando` en git apunta al estado
-exacto que funcionó. Si algo se rompe, `git checkout demo-push-funcionando`.
+**Probado el 21/08 de punta a punta:** se agendó una dosis desde el celular, la
+placa la detectó consultando sola, sonó, se apretó el botón, dispensó 3
+pastillas, confirmó al backend y quedó todo registrado. El mail al cuidador
+llega.
+
+**Punto de retorno:** el tag `demo-push-funcionando` tiene el estado del 19 con
+el modelo push, por si hiciera falta volver.
 
 ---
 
@@ -63,14 +66,14 @@ router.
 y si no, asume polling y no arranca ese scheduler. `render.yaml` no define esa
 variable, así que el servicio desplegado ya está en modo polling.
 
-### Lo que falta para completar el cambio
+### El cambio ya está completo
 
-1. Flashear `docs/interno/sketch-polling/sketch-polling.ino` en la ESP32
-2. Instalar la librería **ArduinoJson** desde el Library Manager del IDE
-3. Completar `ssid` y `password` en el sketch (el `BACKEND` ya está fijo)
-4. Probar el ciclo completo
-5. **La prueba definitiva:** apagar la computadora. El pastillero tiene que
-   seguir funcionando, porque ya no depende de ella.
+Se hizo el 21 de agosto. El firmware está en la rama `naiderman/hardware`, en
+`firmware/voitos-polling/`, y requiere la librería **ArduinoJson**.
+
+Lo único que hay que completar al flashear son `ssid` y `password`. El `BACKEND`
+apunta a Render y **no cambia nunca más**, que era justamente el punto: antes
+había que actualizar la IP de la computadora y reflashear con cada red nueva.
 
 ---
 
@@ -148,6 +151,32 @@ variable en `﻿EXPO_PUBLIC_API_URL`, que Expo ignora en silencio. Usar
 sketch, o el upload falla con `No serial data received`. Si aun así falla,
 desconectar el servo: sus picos de corriente pueden impedir que la placa entre
 en modo de programación.
+
+**Los hosting bloquean el SMTP saliente.** Render en plan free es uno. La
+conexión no se rechaza: queda colgada hasta el timeout. El síntoma es peor que
+un error, porque todo *parece* funcionar y los mails simplemente nunca llegan.
+
+Eso rompía dos cosas a la vez. El registro se colgaba dos minutos, y la
+confirmación del pastillero devolvía `HTTP -11` a la ESP32 sobre dispensaciones
+que en realidad se habían guardado bien: el endpoint esperaba dos mails de 8
+segundos cada uno, contra el timeout de 10 de la placa.
+
+La solución es mandar por **API HTTPS** en vez de SMTP. Está resuelto con Resend.
+Y como regla: **los avisos nunca se esperan con `await`** cuando lo que importa
+ya se guardó. Un mail lento no puede hacerle creer al pastillero que falló algo
+que funcionó.
+
+**Un error que nadie puede ver es un error que no se arregla.** Los mails salen
+sin `await`, así que cuando fallaban el error quedaba en un log del servidor
+inaccesible. Desde afuera, "no me llegó el mail" era indistinguible de "salió y
+se perdió". Por eso existe `POST /api/admin/probar-mail`, que manda uno de
+prueba y devuelve textual lo que contestó el proveedor. El diagnóstico pasó de
+horas a un solo pedido.
+
+**Resend sin dominio propio solo entrega a la casilla del titular.** Y el
+remitente no puede ser un Gmail: solo un dominio verificado, o
+`onboarding@resend.dev`. Las dos cosas devuelven 403 con mensajes claros, pero
+solo si alguien los está mirando.
 
 **Cloudflare Tunnel está bloqueado en algunas redes.** `trycloudflare.com` no
 resuelve ni por DNS en la conexión que usamos. Alternativas que sí funcionan:
@@ -261,16 +290,17 @@ confundirse creyendo que RLS está protegiendo algo que en realidad no protege.
 
 ## 6. Qué hacer en la próxima sesión
 
-En orden de prioridad:
+Lo grande ya está hecho. Lo que queda:
 
-1. **Probar el firmware de polling** en la ESP32. Es lo único que falta para
-   completar el cambio de arquitectura, y necesita la placa.
-2. **Redesplegar el backend** en Render para que tome los arreglos de seguridad
-   (Manual sync desde el blueprint, o esperar el deploy automático).
-3. Pantalla de historial: las dispensaciones se registran pero no se ven.
-4. Borrar la cuenta huérfana `test@voitos.com` de Auth.
-
-Los arreglos de seguridad de la auditoría **ya están hechos y verificados**.
+1. **Verificar un dominio en Resend** si se quiere que los mails lleguen a
+   alguien que no sea el titular de la cuenta. Hoy solo entrega a
+   `timoczerwiak@gmail.com`.
+2. **Pantalla de historial**: las dispensaciones se registran desde el primer
+   día y ninguna vista las muestra.
+3. Pantallas de configuración, emergencia y detalle del día, que siguen vacías.
+4. Sensor que confirme cuántas pastillas salieron de verdad. Hoy se asume que
+   salieron las que se pidieron.
+5. Un segundo módulo físico. La base ya lo soporta.
 
 ---
 
