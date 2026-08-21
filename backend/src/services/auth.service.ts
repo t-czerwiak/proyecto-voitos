@@ -81,7 +81,12 @@ export const registro = async (body: Registro) => {
 
   // El mail de verificacion no bloquea el registro: si el envio falla, la
   // cuenta ya existe y el cuidador puede pedir el reenvio despues.
-  await avisarVerificacion({
+  //
+  // Sin await a proposito. Con await, un SMTP que no responde dejaba el
+  // registro colgado hasta el timeout: la cuenta quedaba creada pero el usuario
+  // veia un error de conexion y volvia a intentar. Ahora la respuesta sale
+  // enseguida y el mail viaja por su cuenta.
+  void avisarVerificacion({
     cuidadorMail: body.mail,
     cuidadorNombre: body.nombre,
     enlace: `${API_URL}/api/auth/verificar/${token}`,
