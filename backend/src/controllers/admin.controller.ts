@@ -127,3 +127,30 @@ export const probarMail = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
+
+// Borra una cuenta entera, con todo lo que cuelga de ella.
+export const borrarUsuario = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    await exigirAdmin(req);
+
+    // Un admin que se borra a si mismo se queda sin panel y sin cuenta, y no
+    // hay forma de deshacerlo desde la aplicacion. Se corta antes.
+    if (req.params.id === idDelUsuario(req)) {
+      res.status(409).json({
+        success: false,
+        error: "No podes borrar tu propia cuenta desde el panel",
+      });
+      return;
+    }
+
+    const data = await adminService.borrarUsuario(req.params.id);
+    if (!data) {
+      res.status(404).json({ success: false, error: "Usuario no encontrado" });
+      return;
+    }
+
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};

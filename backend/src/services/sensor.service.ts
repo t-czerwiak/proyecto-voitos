@@ -169,7 +169,7 @@ export const createConfirmacion = async (body: Confirmacion) => {
     .from("horarios")
     .select(
       `cantidad, dia, hora, minuto, pastilla_id,
-       pastillas ( id, nombre, usuarios ( nombre, apellido, mail ) )`
+       pastillas ( id, nombre, usuario_id, usuarios ( nombre, apellido, mail ) )`
     )
     .eq("id", body.horario_id)
     .maybeSingle();
@@ -195,6 +195,10 @@ export const createConfirmacion = async (body: Confirmacion) => {
       dispositivo_id: body.dispositivo_id,
       bateria: body.bateria,
       cantidad,
+      // De quien era la dosis. Se guarda aca y no se deduce despues para que el
+      // historial no dependa de que la cadena horarios -> pastillas -> usuarios
+      // siga entera.
+      usuario_id: (horario as any)?.pastillas?.usuario_id ?? null,
     })
     .select()
     .single();

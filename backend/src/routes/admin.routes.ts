@@ -24,6 +24,10 @@ router.get("/usuarios/:id/horarios", adminController.horariosDe);
 router.post("/usuarios/:id/verificar", adminController.verificar);
 router.post("/usuarios/:id/desverificar", adminController.desverificar);
 
+// Borra una cuenta entera. Por FK en cascada se lleva pastillas, horarios,
+// dispensaciones, contactos y actividades. Los modulos quedan, vacios.
+router.delete("/usuarios/:id", adminController.borrarUsuario);
+
 // Borra las dosis pendientes de un usuario. Las ya dispensadas quedan: son el
 // historial de lo que salio del pastillero.
 router.delete("/usuarios/:id/calendario", adminController.vaciarCalendario);

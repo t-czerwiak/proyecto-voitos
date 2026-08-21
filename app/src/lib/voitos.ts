@@ -78,6 +78,20 @@ export const getPastillasDe = (id: string) =>
 export const vaciarCalendarioDe = (id: string) =>
   api.delete<{ borradas: number }>(`/api/admin/usuarios/${id}/calendario`);
 
+// Borra una cuenta entera. Por cascada se lleva sus pastillas, horarios,
+// dispensaciones, contactos y actividades. Los modulos quedan vacios, porque
+// son piezas fisicas del pastillero y siguen existiendo.
+export interface CuentaBorrada {
+  nombre: string;
+  apellido: string;
+  mail: string;
+  pastillas: number;
+  dispensaciones: number;
+}
+
+export const borrarUsuario = (id: string) =>
+  api.delete<CuentaBorrada>(`/api/admin/usuarios/${id}`);
+
 // El modulo fisico donde esta cargada la pastilla. Es de donde sale el stock:
 // pastillas no tiene cantidad, la tiene el modulo.
 export interface Modulo {
