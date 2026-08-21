@@ -6,7 +6,7 @@ import {
 } from "../schemas/pastillas.schema";
 import * as pastillasService from "../services/pastillas.service";
 import { ajustarStockDePastilla } from "../services/modulos.service";
-import { idDelUsuario } from "../utils/sesion";
+import { idDelUsuario, puedeOperar } from "../utils/sesion";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -61,7 +61,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     // Sin esto, cualquiera con sesion podria operar sobre una pastilla ajena
     // solo poniendo su id en la URL. Se responde 404 y no 403 para no revelar
     // que ese id existe.
-    if (!(await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Pastilla no encontrada" });
       return;
     }
@@ -82,7 +82,7 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
     // Sin esto, cualquiera con sesion podria operar sobre una pastilla ajena
     // solo poniendo su id en la URL. Se responde 404 y no 403 para no revelar
     // que ese id existe.
-    if (!(await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Pastilla no encontrada" });
       return;
     }
@@ -99,7 +99,7 @@ export const getHorarios = async (req: Request, res: Response, next: NextFunctio
     // Sin esto, cualquiera con sesion podria operar sobre una pastilla ajena
     // solo poniendo su id en la URL. Se responde 404 y no 403 para no revelar
     // que ese id existe.
-    if (!(await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Pastilla no encontrada" });
       return;
     }
@@ -124,7 +124,7 @@ export const ajustarStock = async (req: Request, res: Response, next: NextFuncti
     // Sin esto, cualquiera con sesion podria operar sobre una pastilla ajena
     // solo poniendo su id en la URL. Se responde 404 y no 403 para no revelar
     // que ese id existe.
-    if (!(await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Pastilla no encontrada" });
       return;
     }
@@ -146,7 +146,7 @@ export const cancelarRutina = async (req: Request, res: Response, next: NextFunc
     // Sin esto, cualquiera con sesion podria operar sobre una pastilla ajena
     // solo poniendo su id en la URL. Se responde 404 y no 403 para no revelar
     // que ese id existe.
-    if (!(await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Pastilla no encontrada" });
       return;
     }

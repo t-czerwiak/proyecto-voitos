@@ -15,4 +15,7 @@ router.get("/verificar/:token", verificacionController.verificar);
 // Protegida: devuelve el perfil del dueno del token.
 router.get("/yo", authMiddleware, authController.yo);
 
+// Reenvia el mail de verificacion. Protegida: solo para la propia cuenta.
+router.post("/reenviar-verificacion", authMiddleware, authController.reenviarVerificacion);
+
 export default router;

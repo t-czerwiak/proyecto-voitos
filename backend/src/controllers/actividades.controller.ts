@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { ActividadCreateSchema, ActividadUpdateSchema } from "../schemas/actividades.schema";
 import * as actividadesService from "../services/actividades.service";
-import { idDelUsuario } from "../utils/sesion";
+import { idDelUsuario, puedeOperar } from "../utils/sesion";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -18,7 +18,7 @@ export const getAll = async (req: Request, res: Response, next: NextFunction): P
 export const getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Se responde 404 y no 403 para no revelar que ese id existe.
-    if (!(await actividadesService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await actividadesService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Actividad no encontrada" });
       return;
     }
@@ -61,7 +61,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
   }
   try {
     // Se responde 404 y no 403 para no revelar que ese id existe.
-    if (!(await actividadesService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await actividadesService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Actividad no encontrada" });
       return;
     }
@@ -80,7 +80,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
 export const remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Se responde 404 y no 403 para no revelar que ese id existe.
-    if (!(await actividadesService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await actividadesService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Actividad no encontrada" });
       return;
     }

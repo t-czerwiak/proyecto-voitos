@@ -28,6 +28,56 @@ export const iniciarSesion = async (mail: string, password: string): Promise<Usu
 
 export const cerrarSesion = () => sesion.cerrar();
 
+// Vuelve a pedir el perfil al backend y actualiza el guardado.
+//
+// Hace falta porque el objeto de la sesion se escribe al iniciar sesion y no se
+// entera de nada despues. Si la cuenta se verifica desde el mail, la app seguia
+// mostrando el aviso hasta que alguien cerrara sesion y volviera a entrar.
+export const refrescarUsuario = async (): Promise<Usuario | null> => {
+  const usuario = await api.get<Usuario>("/api/auth/yo");
+  const token = sesion.getToken();
+  if (token) sesion.guardar(token, usuario);
+  return usuario;
+};
+
+export const getUsuarioActual = (): Usuario | null => sesion.getUsuario();
+
+// Reenvia el mail de verificacion a la propia cuenta. No recibe parametros a
+// proposito: el backend usa el dueño del token.
+export const reenviarVerificacion = () =>
+  api.post<{ mail: string }>("/api/auth/reenviar-verificacion");
+
+// --- Panel de administracion ---------------------------------------------
+//
+// Todas estas rutas responden 404 si el que llama no es admin, asi que un
+// usuario normal ni se entera de que existen. La app las usa solo para decidir
+// que mostrar: la seguridad la pone el backend, no estas funciones.
+
+export interface UsuarioAdmin extends Usuario {
+  rol: "cuidador" | "admin";
+  verificado: boolean;
+  pastillas: number;
+  horarios: number;
+  created_at: string;
+}
+
+export const soyAdmin = () =>
+  api.get<{ admin: boolean; id: string }>("/api/admin/soy-admin");
+
+export const getUsuariosAdmin = () => api.get<UsuarioAdmin[]>("/api/admin/usuarios");
+
+export const verificarUsuario = (id: string) =>
+  api.post<Usuario>(`/api/admin/usuarios/${id}/verificar`);
+
+export const desverificarUsuario = (id: string) =>
+  api.post<Usuario>(`/api/admin/usuarios/${id}/desverificar`);
+
+export const getPastillasDe = (id: string) =>
+  api.get<Pastilla[]>(`/api/admin/usuarios/${id}/pastillas`);
+
+export const vaciarCalendarioDe = (id: string) =>
+  api.delete<{ borradas: number }>(`/api/admin/usuarios/${id}/calendario`);
+
 // El modulo fisico donde esta cargada la pastilla. Es de donde sale el stock:
 // pastillas no tiene cantidad, la tiene el modulo.
 export interface Modulo {

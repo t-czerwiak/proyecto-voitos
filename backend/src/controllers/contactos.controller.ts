@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { ContactoCreateSchema, ContactoUpdateSchema } from "../schemas/contactos.schema";
 import * as contactosService from "../services/contactos.service";
-import { idDelUsuario } from "../utils/sesion";
+import { idDelUsuario, puedeOperar } from "../utils/sesion";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -17,7 +17,7 @@ export const getAll = async (req: Request, res: Response, next: NextFunction): P
 export const getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Se responde 404 y no 403 para no revelar que ese id existe.
-    if (!(await contactosService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await contactosService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Contacto no encontrado" });
       return;
     }
@@ -60,7 +60,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
   }
   try {
     // Se responde 404 y no 403 para no revelar que ese id existe.
-    if (!(await contactosService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await contactosService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Contacto no encontrado" });
       return;
     }
@@ -79,7 +79,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
 export const remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Se responde 404 y no 403 para no revelar que ese id existe.
-    if (!(await contactosService.esDelUsuario(req.params.id, idDelUsuario(req)))) {
+    if (!(await puedeOperar(req, await contactosService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Contacto no encontrado" });
       return;
     }

@@ -154,3 +154,44 @@ export const yo = async (id: string) => {
   }
   return perfil;
 };
+
+// Genera un enlace de verificacion nuevo y lo manda de nuevo.
+//
+// Hace falta porque el enlace vence a las 24 horas, y porque el mail puede
+// no haber llegado o haber caido en spam. Sin esto, una cuenta que perdio su
+// enlace no tenia forma de verificarse sola.
+//
+// El token viejo se pisa: solo el ultimo enlace enviado funciona.
+export const reenviarVerificacion = async (id: string) => {
+  const { data: usuario, error } = await supabase
+    .from("usuarios")
+    .select("id, nombre, mail, verificado")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!usuario) throw new ErrorHttp(404, "Usuario no encontrado");
+
+  if (usuario.verificado) {
+    throw new ErrorHttp(409, "Esta cuenta ya esta verificada");
+  }
+
+  const token = randomBytes(32).toString("hex");
+  const expira = new Date(Date.now() + HORAS_VERIFICACION * 60 * 60 * 1000);
+
+  const { error: errorUpdate } = await supabase
+    .from("usuarios")
+    .update({ token_verificacion: token, token_expira: expira.toISOString() })
+    .eq("id", id);
+
+  if (errorUpdate) throw new Error(errorUpdate.message);
+
+  await avisarVerificacion({
+    cuidadorMail: usuario.mail,
+    cuidadorNombre: usuario.nombre,
+    enlace: `${API_URL}/api/auth/verificar/${token}`,
+    horasParaVencer: HORAS_VERIFICACION,
+  });
+
+  return { mail: usuario.mail };
+};
