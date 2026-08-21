@@ -38,7 +38,19 @@ const MAIL_USER = process.env.MAIL_USER?.trim();
 const MAIL_PASS = process.env.MAIL_PASS?.replace(/\s/g, "");
 const MAIL_FROM = process.env.MAIL_FROM ?? `Voitos <${MAIL_USER ?? "sin-configurar"}>`;
 
-const configurado = Boolean(MAIL_USER && MAIL_PASS);
+// Envio por API HTTPS, para produccion.
+//
+// Hace falta porque muchos hosting bloquean el trafico SMTP saliente para no
+// ser usados como plataforma de spam, y Render en plan free es uno de ellos.
+// La conexion no se rechaza: queda colgada hasta el timeout. El sintoma es
+// peor que un error, porque todo "parece" funcionar y los mails simplemente
+// nunca llegan.
+//
+// Resend manda por HTTPS comun, que ningun hosting bloquea.
+const RESEND_API_KEY = process.env.RESEND_API_KEY?.trim();
+const usaResend = Boolean(RESEND_API_KEY);
+
+const configurado = Boolean(usaResend || (MAIL_USER && MAIL_PASS));
 
 let transporter: Transporter | null = null;
 
@@ -91,7 +103,72 @@ interface Mail {
   html: string;
 }
 
+// Cuanto se espera a la API antes de darla por caida. fetch no tiene timeout
+// propio, asi que sin esto un envio lento cuelga a quien lo llamo.
+const TIMEOUT_MS = 10000;
+
+const enviarPorResend = async ({ para, asunto, texto, html }: Mail): Promise<boolean> => {
+  const cuerpo: Record<string, unknown> = {
+    from: MAIL_FROM,
+    to: [para],
+    subject: asunto,
+    html,
+    text: texto,
+  };
+
+  // El logo va en base64 y no por ruta: la API no tiene acceso al disco de
+  // este servidor. content_id es lo que lo hace referenciable desde el HTML
+  // con cid:, igual que el adjunto de SMTP.
+  if (hayLogo) {
+    cuerpo.attachments = [
+      {
+        filename: "voitos.png",
+        content: fs.readFileSync(RUTA_LOGO).toString("base64"),
+        content_id: LOGO_CID,
+      },
+    ];
+  }
+
+  const corte = new AbortController();
+  const temporizador = setTimeout(() => corte.abort(), TIMEOUT_MS);
+
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(cuerpo),
+      signal: corte.signal,
+    });
+
+    if (!r.ok) {
+      const detalle = await r.text();
+      console.error(`Resend rechazo el mail a ${para}: ${r.status} ${detalle}`);
+      return false;
+    }
+
+    console.log(`Mail enviado a ${para}: ${asunto}`);
+    return true;
+  } catch (error: any) {
+    const porTimeout = error?.name === "AbortError";
+    console.error(
+      `No se pudo enviar el mail a ${para}:`,
+      porTimeout ? `la API no respondio en ${TIMEOUT_MS / 1000}s` : error.message
+    );
+    return false;
+  } finally {
+    clearTimeout(temporizador);
+  }
+};
+
 const enviar = async ({ para, asunto, texto, html }: Mail): Promise<boolean> => {
+  // Resend primero: si esta configurado, es el camino de produccion.
+  if (usaResend) {
+    return enviarPorResend({ para, asunto, texto, html });
+  }
+
   const t = getTransporter();
 
   if (!t) {
