@@ -13,6 +13,9 @@ router.use(authMiddleware);
 // usa para decidir si muestra el acceso al panel.
 router.get("/soy-admin", adminController.soyAdmin);
 
+// Diagnostico: manda un mail de prueba y devuelve la respuesta del proveedor
+router.post("/probar-mail", adminController.probarMail);
+
 router.get("/usuarios", adminController.getUsuarios);
 router.get("/usuarios/:id/pastillas", adminController.pastillasDe);
 router.get("/usuarios/:id/horarios", adminController.horariosDe);
