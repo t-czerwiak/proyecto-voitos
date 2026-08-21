@@ -12,6 +12,7 @@
     "dosis": "ts-node src/scripts/dosis-ahora.ts",
     "test": "node tests/integracion.mjs",
     "test:seguridad": "node tests/seguridad.mjs",
+    "test:auth": "node tests/auth.mjs",
     "simulador": "node tests/simulador-esp32.mjs"
   },
   "dependencies": {

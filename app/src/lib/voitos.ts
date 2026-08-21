@@ -26,6 +26,33 @@ export const iniciarSesion = async (mail: string, password: string): Promise<Usu
   return r.usuario;
 };
 
+// Entra (o se registra, es el mismo paso) con el ID token que devolvio el boton
+// de Google. La app no valida el token: eso lo hace el backend contra Google.
+export const iniciarSesionConGoogle = async (idToken: string): Promise<Usuario | null> => {
+  const r = await api.postPublico<Sesion>("/api/auth/google", { id_token: idToken });
+  sesion.guardar(r.token, r.usuario);
+  return r.usuario;
+};
+
+// Pide el mail con el enlace para cambiar la contrasena.
+//
+// La respuesta es la misma exista o no la cuenta, a proposito: si cambiara,
+// cualquiera podria averiguar que casillas estan registradas probandolas de a
+// una. La pantalla muestra ese mensaje tal cual.
+export const pedirRecuperacion = (mail: string) =>
+  api.postPublico<{ mensaje: string }>("/api/auth/recuperar", { mail });
+
+// Cierra la recuperacion con el token del mail. Devuelve la sesion ya iniciada,
+// asi no hay que escribir la contrasena de nuevo en la pantalla siguiente.
+export const confirmarRecuperacion = async (
+  token: string,
+  password: string
+): Promise<Usuario | null> => {
+  const r = await api.postPublico<Sesion>("/api/auth/recuperar/confirmar", { token, password });
+  sesion.guardar(r.token, r.usuario);
+  return r.usuario;
+};
+
 export const cerrarSesion = () => sesion.cerrar();
 
 // Vuelve a pedir el perfil al backend y actualiza el guardado.

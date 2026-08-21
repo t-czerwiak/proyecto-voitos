@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { iniciarSesion } from "../../lib/voitos";
 import Mensaje from "../../components/Mensaje";
+import BotonGoogle from "../../components/BotonGoogle";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -174,6 +175,12 @@ export default function Login() {
            {cargando ? "INGRESANDO..." : "INICIAR SESIÓN"}
          </Text>
         </TouchableOpacity>
+
+        <Pressable onPress={() => router.push("/recuperar")}>
+          <Text style={styles.olvide}>¿Olvidaste tu contraseña?</Text>
+        </Pressable>
+
+        <BotonGoogle />
       </View>
     </LinearGradient>
   );
@@ -237,7 +244,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 15,
     elevation: 12,
-    marginBottom: 30,
+  },
+
+  olvide: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
+    textDecorationLine: "underline",
   },
 
   buttonText: {
