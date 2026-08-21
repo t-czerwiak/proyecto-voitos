@@ -36,6 +36,13 @@ services:
         value: https://pshejdspqqhuhyjbzslx.supabase.co
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # Envio de mails por API HTTPS. Render bloquea el SMTP saliente en el
+      # plan free, asi que sin esto NINGUN mail sale: ni el de verificacion, ni
+      # el de dispensacion, ni el de dosis no tomada. La clave se saca de
+      # resend.com y se carga a mano en el panel.
+      - key: RESEND_API_KEY
+        sync: false
+      # Las MAIL_* quedan para desarrollo local, donde el SMTP si funciona.
       - key: MAIL_HOST
         value: smtp.gmail.com
       - key: MAIL_PORT
