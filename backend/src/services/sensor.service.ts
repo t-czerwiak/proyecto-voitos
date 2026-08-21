@@ -221,8 +221,17 @@ export const createConfirmacion = async (body: Confirmacion) => {
     }
   }
 
-  // Avisarle al cuidador. El mail no puede tumbar la dispensacion, que ya
-  // quedo registrada: si falla, email.service lo loguea y sigue.
+  // Avisarle al cuidador. Sin await: los mails salen por su cuenta.
+  //
+  // Esperarlos rompia el hardware. La ESP32 corta a los 10 segundos, y cuando
+  // el modulo queda vacio se disparan DOS mails; con un SMTP que no responde,
+  // eso son 8 segundos cada uno y la placa nunca recibia la respuesta. Reportaba
+  // "Fallo la confirmacion. HTTP -11" (read timeout) sobre una dispensacion que
+  // en realidad se habia guardado perfecto.
+  //
+  // Un aviso que tarda no puede hacerle creer al pastillero que fallo algo que
+  // funciono. La dispensacion ya quedo registrada arriba; los mails son
+  // consecuencia, no requisito.
   const pastilla = (horario as any)?.pastillas;
   const cuidador = pastilla?.usuarios;
 
@@ -242,7 +251,7 @@ export const createConfirmacion = async (body: Confirmacion) => {
 
     const moduloVacio = await getModuloDePastilla(horario!.pastilla_id);
 
-    await avisarPastilleroVacio({
+    void avisarPastilleroVacio({
       cuidadorMail: cuidador.mail,
       cuidadorNombre: cuidador.nombre,
       pastilla: pastilla.nombre,
@@ -255,7 +264,7 @@ export const createConfirmacion = async (body: Confirmacion) => {
   }
 
   if (cuidador?.mail) {
-    await avisarDispensacionOk({
+    void avisarDispensacionOk({
       cuidadorMail: cuidador.mail,
       cuidadorNombre: cuidador.nombre,
       pastilla: pastilla.nombre,
