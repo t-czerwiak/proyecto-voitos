@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import * as adminService from "../services/admin.service";
+import { avisarVerificacion, ultimoErrorDeMail } from "../services/email.service";
 import { esAdmin, exigirAdmin, idDelUsuario } from "../utils/sesion";
 
 // Todas las rutas de este controlador exigen rol admin. La verificacion se hace
@@ -86,6 +87,42 @@ export const vaciarCalendario = async (req: Request, res: Response, next: NextFu
 export const soyAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     res.json({ success: true, data: { admin: await esAdmin(req), id: idDelUsuario(req) } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Manda un mail de prueba a la casilla del propio admin y devuelve lo que
+// contesto el proveedor.
+//
+// Existe porque los mails salen sin await: si fallan, el error no vuelve a
+// nadie y solo queda en un log del servidor. Sin esto, "no me llego el mail" es
+// imposible de diagnosticar desde afuera.
+export const probarMail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    await exigirAdmin(req);
+
+    const destino = await adminService.mailDe(idDelUsuario(req));
+    if (!destino) {
+      res.status(404).json({ success: false, error: "No se encontro tu casilla" });
+      return;
+    }
+
+    const salio = await avisarVerificacion({
+      cuidadorMail: destino,
+      cuidadorNombre: "Prueba",
+      enlace: "https://voitos.vercel.app",
+      horasParaVencer: 24,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        enviado: salio,
+        destino,
+        error: salio ? null : ultimoErrorDeMail(),
+      },
+    });
   } catch (error) {
     next(error);
   }

@@ -125,3 +125,15 @@ export const vaciarCalendarioDe = async (usuario_id: string) => {
   if (error) throw new Error(error.message);
   return { borradas: data?.length ?? 0 };
 };
+
+// La casilla de un usuario, para el envio de prueba.
+export const mailDe = async (id: string): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("mail")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data?.mail ?? null;
+};
