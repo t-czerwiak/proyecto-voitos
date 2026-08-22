@@ -112,6 +112,81 @@ Errores propios de estos endpoints:
 Todavía **no hay verificación por mail**: las cuentas se crean confirmadas
 (`email_confirm: true`).
 
+
+### Entrar con Google
+
+| Método | Ruta | Auth | Descripción |
+| ------ | ---- | ---- | ----------- |
+| POST | `/api/auth/google` | No | Entra o crea la cuenta con un ID token de Google |
+
+**Body:**
+```json
+{ "id_token": "eyJhbGciOiJSUzI1NiIsIm..." }
+```
+
+Devuelve exactamente lo mismo que `/api/auth/login`, así que para la app es el
+mismo inicio de sesión con otra puerta de entrada. Si la cuenta no existía se
+crea: `nombre` y `apellido` salen del token, `edad` queda vacía y `verificado`
+nace en `true`, porque Google ya probó que la casilla es de esa persona.
+
+El `id_token` lo consigue el navegador con el botón de Google. El backend no
+confía en él: se lo pasa a Supabase, que verifica la firma contra Google.
+
+**Responde 409 si ese mail ya tiene una cuenta con contraseña que nunca
+confirmó su casilla.** No es un capricho. Supabase vincula sola una identidad
+nueva de Google a la cuenta que ya tenga ese mail, y su única protección es
+exigir que el mail esté confirmado, pero acá todas las cuentas se crean con
+`email_confirm: true`, así que para Supabase todas lo están. Sin este corte,
+cualquiera podría registrar la casilla de otro con una contraseña propia y
+esperar a que esa persona entre con Google para quedar adentro de una cuenta
+ajena. La salida para quien quede trabado es confirmar la casilla, o usar
+"olvidé mi contraseña", que también deja la cuenta verificada.
+
+### Recuperar la contraseña
+
+| Método | Ruta | Auth | Descripción |
+| ------ | ---- | ---- | ----------- |
+| POST | `/api/auth/recuperar` | No | Manda el mail con el enlace |
+| POST | `/api/auth/recuperar/confirmar` | No | Cambia la contraseña con el token del mail |
+
+**Body de `POST /api/auth/recuperar`:**
+```json
+{ "mail": "ana@ejemplo.com" }
+```
+
+**Responde siempre 200 y siempre lo mismo**, exista o no la cuenta:
+```json
+{ "success": true, "data": { "mensaje": "Si esa casilla tiene una cuenta, te mandamos el enlace para cambiar la contraseña." } }
+```
+
+Es a propósito: si la respuesta cambiara, este endpoint sería un buscador de
+casillas registradas. Por el mismo motivo tampoco delata cuándo actuó el freno
+que evita mandar más de un mail cada 5 minutos a la misma dirección.
+
+El enlace apunta a `APP_URL/recuperar?token=...`, **vence en una hora** (contra
+las 24 del de verificación, porque una contraseña es más sensible) y sirve una
+sola vez.
+
+**Body de `POST /api/auth/recuperar/confirmar`:**
+```json
+{ "token": "el del enlace", "password": "minimo6" }
+```
+
+Devuelve la sesión ya iniciada, igual que el login. Al usarlo, la cuenta queda
+**verificada**: abrir ese mail prueba lo mismo que probaba el enlace de
+verificación.
+
+Las cuentas creadas con Google no tienen contraseña, y aun así pueden usar este
+flujo para ponerse una. El mail lo dice con otras palabras en ese caso, porque
+"recuperar" algo que nunca existió confunde.
+
+| Código | Cuándo |
+| ------ | ------ |
+| 404 | El token no existe, o ya se usó |
+| 410 | El token venció |
+| 400 | La contraseña tiene menos de 6 caracteres |
+
+
 ### Sensor / ESP32 (público)
 
 | Método | Ruta | Descripción |

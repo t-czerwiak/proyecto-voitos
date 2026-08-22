@@ -14,6 +14,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { registrarse } from "../../lib/voitos";
 import Mensaje from "../../components/Mensaje";
+import BotonGoogle from "../../components/BotonGoogle";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -210,6 +211,8 @@ export default function CrearCuenta() {
             {cargando ? "CREANDO..." : "CREAR CUENTA"}
           </Text>
         </TouchableOpacity>
+
+        <BotonGoogle />
       </View>
     </LinearGradient>
   );

@@ -14,6 +14,8 @@ import {
   DatosVerificacion,
   DatosBienvenida,
   DatosVacio,
+  plantillaRecuperacion,
+  DatosRecuperacion,
 } from "./plantillas-mail";
 
 // Este modulo lee las variables al cargarse, y los imports se ejecutan antes
@@ -337,6 +339,15 @@ export interface DatosVacioMail extends DatosVacio {
 
 export const avisarPastilleroVacio = async (d: DatosVacioMail) => {
   const { asunto, html, texto } = plantillaPastilleroVacio(d);
+  return enviar({ para: d.cuidadorMail, asunto, html, texto });
+};
+
+export interface DatosRecuperacionMail extends DatosRecuperacion {
+  cuidadorMail: string;
+}
+
+export const avisarRecuperacion = async (d: DatosRecuperacionMail) => {
+  const { asunto, html, texto } = plantillaRecuperacion(d);
   return enviar({ para: d.cuidadorMail, asunto, html, texto });
 };
 
