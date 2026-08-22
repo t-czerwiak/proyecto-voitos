@@ -180,6 +180,58 @@ const correr = async () => {
     esperar(data.verificado === true, "la cuenta quedo sin verificar");
   });
 
+  console.log(`\n=== LOS TOKENS NO SALEN POR LA API ===`);
+
+  await prueba("la respuesta del registro no trae ningun token", async () => {
+    const mail = `auth-test-fuga-${Date.now()}@voitos.test`;
+    const alta = await pedir("/api/auth/registro", {
+      cuerpo: { nombre: "Fuga", apellido: "Prueba", mail, password: "claveLarga123" },
+    });
+    esperar(alta.status === 201, `no se pudo registrar: ${alta.status}`);
+    creados.push(alta.json.data.usuario.id);
+
+    const filtrados = Object.keys(alta.json.data.usuario).filter((c) => c.includes("token"));
+    esperar(filtrados.length === 0, `se filtraron: ${filtrados.join(", ")}`);
+  });
+
+  // La prueba de arriba mira los nombres de los campos. Esta mira la
+  // consecuencia, que es lo que de verdad importa: con el token de verificacion
+  // en la mano, cualquiera daba por confirmada una casilla que nunca leyo. Eso
+  // alcanza para abrir una cuenta con el mail de otra persona, verificarla, y
+  // quedarse esperando a que esa persona entre con Google.
+  await prueba("no se puede verificar una cuenta sin haber abierto el mail", async () => {
+    const mail = `auth-test-autover-${Date.now()}@voitos.test`;
+    const alta = await pedir("/api/auth/registro", {
+      cuerpo: { nombre: "Auto", apellido: "Prueba", mail, password: "claveLarga123" },
+    });
+    const id = alta.json.data.usuario.id;
+    creados.push(id);
+
+    // Se prueba con cualquier cosa que parezca un token de los nuestros
+    const posibles = Object.values(alta.json.data.usuario).filter(
+      (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v)
+    );
+
+    for (const token of posibles) {
+      await fetch(`${API}/api/auth/verificar/${token}`);
+    }
+
+    const { data } = await supabase.from("usuarios").select("verificado").eq("id", id).single();
+    esperar(data.verificado === false, "la cuenta quedo verificada sin abrir el mail");
+  });
+
+  await prueba("el login tampoco devuelve tokens", async () => {
+    const mail = `auth-test-login-${Date.now()}@voitos.test`;
+    const alta = await pedir("/api/auth/registro", {
+      cuerpo: { nombre: "Login", apellido: "Prueba", mail, password: "claveLarga123" },
+    });
+    creados.push(alta.json.data.usuario.id);
+
+    const login = await pedir("/api/auth/login", { cuerpo: { mail, password: "claveLarga123" } });
+    const filtrados = Object.keys(login.json.data.usuario).filter((c) => c.includes("token"));
+    esperar(filtrados.length === 0, `se filtraron: ${filtrados.join(", ")}`);
+  });
+
   console.log(`\n=== CANDADO DE GOOGLE ===`);
 
   const sinVerificar = await registrar("sinverificar", false);
