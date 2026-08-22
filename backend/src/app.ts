@@ -64,6 +64,40 @@ const limiteAuth = rateLimit({
 app.use("/api/auth/login", limiteAuth);
 app.use("/api/auth/registro", limiteAuth);
 
+// Las rutas de recuperacion y de Google tambien son publicas, pero se les pone
+// un limite propio y mas holgado, porque lo que las protege es otra cosa.
+//
+// En /login lo unico que separa a un atacante de la cuenta es la contrasena,
+// que una persona elige y suele ser adivinable: ahi 10 intentos es lo correcto.
+//
+// En /recuperar/confirmar lo que hay que adivinar es un token de 32 bytes al
+// azar. Con 10 intentos o con 30 da exactamente lo mismo: lo que lo hace
+// inviable es la entropia, no el limite. Y /recuperar ya tiene su propio freno
+// de 5 minutos POR CUENTA, que es el que evita inundar una casilla ajena; este
+// otro es por IP y solo evita que alguien use el endpoint de generador de
+// trafico. Frenan cosas distintas y hacen falta los dos.
+//
+// El numero sale de un caso concreto: tests/auth.mjs provoca unos ocho fallos a
+// proposito por corrida. Con el limite de 10 la suite se volvia inestable al
+// correrla dos veces en la misma ventana, que es justo lo que se hace mientras
+// se desarrolla.
+const limiteRecuperacion = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  skipSuccessfulRequests: true,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Demasiados intentos. Espera 15 minutos y volve a probar.",
+  },
+});
+
+// El prefijo /api/auth/recuperar cubre tambien /recuperar/confirmar, porque
+// app.use hace match por prefijo.
+app.use("/api/auth/recuperar", limiteRecuperacion);
+app.use("/api/auth/google", limiteRecuperacion);
+
 app.use("/api/auth", authRoutes);
 
 // Rutas protegidas (requieren JWT de Supabase)

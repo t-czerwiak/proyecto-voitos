@@ -8,6 +8,11 @@
 // justamente la propiedad que hace segura esa decision. Por eso esta prueba
 // necesita la SUPABASE_SERVICE_ROLE_KEY: es la unica forma de crear un admin.
 //
+// Esa misma clave sirve para la otra cosa que hace falta: borrar las cuentas
+// descartables al terminar, aunque la corrida se corte a la mitad. Estas
+// pruebas van contra la base de produccion, y una cuenta que sobrevive es
+// basura que despues hay que limpiar a mano.
+//
 //   node tests/admin.mjs
 //   API=https://voitos-backend.onrender.com node tests/admin.mjs
 
@@ -55,6 +60,9 @@ const esperar = (cond, msg) => {
   if (!cond) throw new Error(msg);
 };
 
+// Los ids de las cuentas descartables, para poder borrarlas despues.
+const creados = [];
+
 const registrar = async (etiqueta) => {
   const mail = `admin-test-${etiqueta}-${Date.now()}@voitos.test`;
   const password = "unaClaveLarga123";
@@ -65,10 +73,29 @@ const registrar = async (etiqueta) => {
   });
   esperar(alta.status === 201, `no se pudo registrar ${etiqueta}: ${alta.status}`);
 
+  // Se anota apenas la cuenta existe, antes del login: si el login falla la
+  // cuenta ya esta creada igual, y sin este id no habria como borrarla.
+  const id = alta.json.data.usuario.id;
+  creados.push(id);
+
   const login = await pedir("/api/auth/login", { metodo: "POST", cuerpo: { mail, password } });
   esperar(login.status === 200, `no se pudo loguear ${etiqueta}`);
 
-  return { mail, token: login.json.data.token, id: login.json.data.usuario.id };
+  return { mail, token: login.json.data.token, id };
+};
+
+// Borra las cuentas descartables de las dos tablas: la fila de public.usuarios y
+// la cuenta de auth.users. Si alguna no se pudo borrar lo dice, para que no se
+// acumule basura en silencio.
+const limpiar = async () => {
+  for (const id of creados) {
+    const { error } = await supabase.from("usuarios").delete().eq("id", id);
+    if (error) console.log(`  quedo la fila ${id} en usuarios: ${error.message}`);
+
+    const { error: errorAuth } = await supabase.auth.admin.deleteUser(id);
+    if (errorAuth) console.log(`  quedo la cuenta ${id} en auth.users: ${errorAuth.message}`);
+  }
+  console.log(`  ${creados.length} cuentas descartables borradas`);
 };
 
 const correr = async () => {
@@ -183,12 +210,7 @@ const correr = async () => {
 
   console.log("\n=== LIMPIEZA ===");
 
-  await prueba("borrar los usuarios de prueba", async () => {
-    for (const id of [admin.id, normal.id]) {
-      await supabase.from("usuarios").delete().eq("id", id);
-      await supabase.auth.admin.deleteUser(id).catch(() => {});
-    }
-  });
+  await limpiar();
 
   console.log("\n=====================================");
   console.log(`  OK: ${ok}   FALLOS: ${fallos}`);
@@ -197,7 +219,10 @@ const correr = async () => {
   process.exit(fallos > 0 ? 1 : 0);
 };
 
-correr().catch((e) => {
+// Tambien se limpia cuando la corrida se corta: si no, cada error dejaria
+// cuentas vivas en la base de produccion.
+correr().catch(async (e) => {
   console.error("La corrida se corto:", e.message);
+  await limpiar();
   process.exit(1);
 });
