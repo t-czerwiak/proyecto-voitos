@@ -9,29 +9,23 @@ pueda retomar el proyecto sin reconstruir el contexto desde cero.
 
 ## 0. Lo primero al retomar
 
-**Hay un solo paso pendiente y bloquea los mails a terceros.**
+**No queda ningún paso bloqueante.** Lo que figuraba acá era cargar
+`BREVO_API_KEY` en Render, y ya está hecho: los mails salen a cualquier
+destinatario.
 
-Falta cargar `BREVO_API_KEY` en Render. Sin esa clave el backend cae a Resend,
-que sin dominio propio **solo entrega a `timoczerwiak@gmail.com`**. Hoy ya hay
-seis cuentas registradas y a las otras cinco no puede llegarles la verificación.
+Lo que sí conviene saber antes de tocar nada:
 
-En Brevo ya está todo listo: los dos remitentes verificados,
-`voitos.pastillero@gmail.com` (el que usa `render.yaml`) y
-`timoczerwiak@gmail.com`. Solo falta generar la clave en *SMTP y API → API Keys*
-y cargarla en Render, en el servicio `voitos-backend` → Environment.
-
-Para comprobar que quedó bien, con una cuenta admin:
-
-```
-POST /api/admin/probar-mail
-```
-
-Devuelve textual lo que contestó el proveedor. Y después conviene mandar uno a
-la casilla de otra persona, que es justamente lo que con Resend era imposible.
-
-Las advertencias de DKIM y DMARC que muestra Brevo son esperables: `gmail.com`
-no es un dominio propio y no se puede firmar. No bloquean el envío, pero algunos
-mails pueden caer en spam. Se arreglan solo con un dominio propio.
+- **Google está en modo de prueba.** Solo pueden entrar las cuentas cargadas a
+  mano como usuarios de prueba en Google Cloud. Si alguien nuevo tiene que
+  probar el login, hay que agregarlo ahí primero, o va a fallar de una forma que
+  no dice por qué.
+- **La lista blanca de IPs de Brevo.** Están autorizados los dos rangos de
+  Render (`74.220.48.0/24` y `74.220.56.0/24`). Si algún día Render cambia sus
+  IPs salientes, los mails dejan de salir con un `401 unrecognised IP address`
+  que no se parece en nada a un problema de red.
+- **Las suites corren contra la base de producción.** Se limpian solas, pero si
+  una corrida queda a medias conviene chequear que no haya filas `@voitos.test`
+  ni en `public.usuarios` ni en `auth.users`.
 
 ---
 
@@ -325,6 +319,44 @@ otro quede a nombre propio, y que el login no devuelva el token de verificación
 
 **15 pruebas de seguridad y 16 de integración, todas pasando.**
 
+### Lo que se arregló (21/08): el registro devolvía su propio token
+
+El insert de `registro()` usaba `.select()` pelado, así que la respuesta del alta
+traía la fila entera de `usuarios`, con el `token_verificacion` adentro. Ese
+token es lo único que prueba que la casilla es de quien dice serlo, y se lo
+estábamos entregando a quien se registraba.
+
+La cadena completa, reproducida contra el backend antes de arreglarlo:
+
+1. Registrar una cuenta con el mail de otra persona.
+2. Tomar el `token_verificacion` de la respuesta.
+3. Abrir `/api/auth/verificar/<token>`.
+4. La cuenta queda `verificado: true` sin que ningún mail se haya abierto.
+
+Y arrastraba algo peor. El login con Google confía en `usuarios.verificado` para
+decidir si puede vincular una identidad nueva a una cuenta existente. Con esta
+fuga, el atacante se auto-verificaba, y cuando la víctima entraba con Google,
+Supabase la metía adentro de esa cuenta.
+
+**El arreglo fue una línea:** `.select(CAMPOS_PUBLICOS)`, la constante que ya
+existía para exactamente esto.
+
+**La lección vale más que el bug.** La protección ya estaba escrita, y aplicada
+en dos de los tres lugares que tocan esa tabla: en `getPerfil()` y en
+`usuarios.service.ts`, donde el comentario dice textual que filtrar ese token
+*"permite verificar una cuenta ajena"*. Las pruebas repetían la misma omisión:
+`seguridad.mjs` verificaba que el login no filtrara el token, y que la lista de
+usuarios tampoco, pero nadie miraba el registro. Cuando una constante existe
+para tapar algo, hay que buscar **todos** los lugares que tocan esa tabla, no
+los que uno recuerda.
+
+Por eso el caso nuevo en `tests/auth.mjs` no pregunta *"¿hay un campo que se
+llame token?"* sino *"¿puedo verificar una cuenta sin abrir el mail?"*. Mide la
+consecuencia, que es lo que no cambia aunque cambien los nombres de las
+columnas.
+
+---
+
 ### Lo que queda pendiente
 
 | # | Práctica | Estado |
@@ -332,9 +364,10 @@ otro quede a nombre propio, y que el login no devuelva el token de verificación
 | 5 | Cifrar datos sensibles | No se hizo, y no se recomienda: Supabase ya cifra en reposo, y cifrar por campo rompería las búsquedas |
 | 12 | Protección anti-bots | No se hizo. Un captcha tiene sentido si el sistema es público y alguien tiene motivo para abusarlo |
 
-**Una cuenta huérfana en Auth:** existe `test@voitos.com` en `auth.users` sin
-perfil en `usuarios`. Puede iniciar sesión pero no tiene datos. Es de alguna
-prueba vieja y conviene borrarla.
+**La cuenta huérfana que figuraba acá ya no existe.** Al 21/08 `auth.users` y
+`public.usuarios` tienen exactamente las mismas tres filas, sin huérfanas de
+ningún lado. Desde que las cuatro suites se limpian solas, esa deriva no
+debería volver a acumularse.
 
 ### Lo que no aplica
 
