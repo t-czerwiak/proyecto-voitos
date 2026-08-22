@@ -19,6 +19,11 @@ const API_URL = (process.env.API_URL ?? "http://localhost:3000").replace(/\/$/, 
 // login, y la app guarda ese objeto en localStorage. Con el asterisco, el
 // token_verificacion viajaba en cada inicio de sesion y quedaba escrito en el
 // navegador: cualquiera con acceso a esa maquina podia verificar la cuenta.
+//
+// Desde que existe la recuperacion de contrasena la lista protege dos tokens
+// mas, y el de reset es peor todavia: con el se elige una contrasena nueva, o
+// sea que se toma la cuenta entera. Cualquier consulta a usuarios que vaya a
+// salir por la API tiene que usar esta constante.
 const CAMPOS_PUBLICOS = "id, nombre, apellido, mail, edad, verificado, created_at";
 
 const getPerfil = async (id: string) => {
@@ -69,7 +74,12 @@ export const registro = async (body: Registro) => {
       token_verificacion: token,
       token_expira: expira.toISOString(),
     })
-    .select()
+    // CAMPOS_PUBLICOS y no select() pelado. Con el pelado, la respuesta del
+    // registro incluia el token_verificacion recien creado, asi que quien se
+    // registraba recibia de vuelta el token que se supone que solo llega por
+    // mail. Con eso podia verificar la cuenta sin abrir nada, incluida una
+    // cuenta abierta con la casilla de otra persona.
+    .select(CAMPOS_PUBLICOS)
     .single();
 
   // Si falla el perfil hay que borrar la cuenta de Auth, si no queda una cuenta
