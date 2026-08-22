@@ -65,7 +65,8 @@ intervención manual en ningún paso.
 | 🔌 **Backend** | Desplegado en Render. API REST, mails y schedulers |
 | 📱 **App** | Todas las pantallas de la demo conectadas |
 | 🤖 **Hardware** | Dispensó tres dosis agendadas seguidas |
-| 📧 **Mails** | Enviando desde la cuenta del proyecto |
+| 📧 **Mails** | Enviando a cualquier destinatario, por la API de Brevo |
+| 🔐 **Cuentas** | Con contraseña o con Google, y recuperación por mail |
 | 🗄️ **Base** | Supabase, con el registro completo de cada dispensación |
 
 **El recorrido que se probó:** se agenda una dosis desde el celular, llega la
@@ -75,6 +76,42 @@ marcada, la fila en `dispensaciones`, el stock del módulo descontado y el mail
 al cuidador.
 
 Quedó guardado en el tag `demo-push-funcionando` por si hay que volver.
+
+---
+
+## Entrar a la aplicación
+
+Hay dos puertas, y las dos terminan en el mismo lugar: un token que emite
+Supabase y que el backend devuelve igual en los dos casos. Para la app es el
+mismo inicio de sesión.
+
+| Puerta | Cómo |
+| --- | --- |
+| Mail y contraseña | `POST /api/auth/registro` y `/login` |
+| Google | El botón oficial devuelve un ID token, y el backend lo valida |
+| Olvidé la contraseña | Enlace por mail, vence en una hora y sirve una vez |
+
+**La app nunca habla con Supabase.** Ni siquiera para Google: el navegador
+consigue el ID token y se lo manda al backend, que es el único que valida. Por
+eso la app no necesita ninguna clave de Supabase, solo la URL del backend.
+
+### El candado que no se ve
+
+Supabase **vincula sola** una identidad nueva de Google a la cuenta que ya tenga
+ese mail, y su única protección es exigir que el mail esté confirmado. El
+problema es que acá las cuentas se crean con `email_confirm: true`, así que para
+Supabase todas están confirmadas, incluidas las de gente que nunca abrió el
+mail. La confirmación de verdad la lleva `usuarios.verificado`, que Supabase no
+mira.
+
+Sin un corte propio, esto se podía hacer: registrar una cuenta con la casilla de
+otra persona, esperar, y cuando esa persona entrara con Google, Supabase la
+metía adentro de la cuenta del atacante.
+
+Por eso `/api/auth/google` mira `usuarios.verificado` y responde **409 antes** de
+hablar con Supabase. Quien quede trabado se destraba confirmando la casilla, o
+usando "olvidé mi contraseña", que también deja la cuenta verificada porque
+abrir ese mail prueba exactamente lo mismo.
 
 ---
 
@@ -164,8 +201,23 @@ npm run web
 ```bash
 cd backend
 npm run dosis -- 5      # crea una dosis de 5 pastillas para ahora mismo
-npm test                # 16 casos de integración contra la API
 ```
+
+**Las cuatro suites**, todas contra la API real, con el backend levantado:
+
+```bash
+npm test                 # 16 casos de integración
+npm run test:seguridad   # 15 ataques que tienen que fallar
+npm run test:auth        # 19 casos de Google y recuperación
+node tests/admin.mjs     # 12 casos del panel de administración
+```
+
+Las cuatro **borran sus cuentas descartables al terminar**, también cuando la
+corrida se corta a la mitad. Es importante porque corren contra la base de
+producción: una cuenta que sobrevive es basura que después hay que buscar a
+mano. Las tres últimas necesitan la `SUPABASE_SERVICE_ROLE_KEY` en el `.env`,
+porque hay cosas que solo se pueden hacer desde la base: dar el rol de admin,
+leer los tokens que a propósito nunca salen por la API, y borrar cuentas.
 
 ---
 
@@ -193,15 +245,26 @@ más cerradas de la base, no las menos.
 
 ## Lo que falta
 
-**Antes de que esto salga de una demo**, hay tres deudas de seguridad que
-conviene saldar. Están documentadas con detalle en
-[`docs/ESTADO-Y-PROXIMOS-PASOS.md`](docs/ESTADO-Y-PROXIMOS-PASOS.md):
+Las tres deudas de seguridad que figuraban acá **ya están saldadas**: la
+identidad sale del token y no de la URL, `GET /api/usuarios` devuelve una lista
+de columnas explícita en vez de la fila entera, y hay límite de intentos en las
+rutas que emiten credenciales.
 
-- El `usuario_id` viaja como parámetro de la URL en vez de salir del token, así
-  que un usuario autenticado puede pedir los datos de otro
-- `GET /api/usuarios` devuelve todas las columnas, incluido el token de
-  verificación de cuenta
-- No hay límite de intentos en el login
+La cuarta apareció el 21 de agosto y también quedó tapada: el registro devolvía
+el `token_verificacion` en su respuesta, así que cualquiera podía abrir una
+cuenta con la casilla de otra persona y darla por confirmada sin leer ningún
+mail. Está contada en detalle en
+[`docs/ESTADO-Y-PROXIMOS-PASOS.md`](docs/ESTADO-Y-PROXIMOS-PASOS.md), porque la
+lección vale más que el bug: la constante que lo evita ya existía y estaba
+aplicada en dos de los tres lugares que tocan esa tabla.
+
+**Lo que sí queda pendiente:**
+
+- Cerrar sesión borra la sesión del dispositivo, pero el token de Supabase sigue
+  siendo válido hasta que vence. Falta revocarlo del lado del servidor
+- La app está en modo de prueba en Google: solo entran las cuentas cargadas a
+  mano como usuarios de prueba
+- Activar Leaked Password Protection en el panel de Supabase
 
 **Funcionalidad pendiente:**
 
