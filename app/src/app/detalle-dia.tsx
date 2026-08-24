@@ -1,11 +1,26 @@
 // Pantalla "detalle-dia": todavia sin implementar.
 //
-// No forma parte del alcance de la demo, queda para una etapa posterior del
-// proyecto. El archivo se deja vacio a proposito para no romper las rutas de
-// expo-router, que arma la navegacion a partir de los archivos de esta carpeta.
-//
-// Cuando se implemente, los datos salen del backend via src/lib/voitos.ts.
+// El detalle de un dia hoy se ve en el propio calendario, tocando el dia. Este
+// archivo existe para no romper las rutas de expo-router.
 
-export default function detalledia() {
-  return null;
+import React from "react";
+import { Pantalla, Encabezado, Vacio } from "../ui";
+import { router } from "expo-router";
+
+export default function DetalleDia() {
+  return (
+    <Pantalla>
+      <Encabezado titulo="Todavía no está" volverA="/home" />
+
+      <Vacio
+        icono="construct-outline"
+        titulo="Esta pantalla todavía no está hecha"
+        detalle="Lo que hay agendado cada día se ve en el calendario, tocando el día."
+        accion={{
+          titulo: "Ir al calendario",
+          onPress: () => router.push("/calendario"),
+        }}
+      />
+    </Pantalla>
+  );
 }

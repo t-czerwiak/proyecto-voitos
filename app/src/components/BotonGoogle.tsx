@@ -3,6 +3,8 @@ import { View, Text, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { dibujarBotonGoogle, googleDisponible } from "../lib/google";
 import { iniciarSesionConGoogle } from "../lib/voitos";
+import { Aviso } from "../ui";
+import { colores, espacio, texto } from "../tema";
 
 // Boton de "Continuar con Google".
 //
@@ -60,9 +62,12 @@ export default function BotonGoogle({ ancho = 280 }: { ancho?: number }) {
         <View style={styles.linea} />
       </View>
 
-      <View ref={contenedor} style={{ minHeight: 44 }} />
+      {/* El boton lo dibuja Google adentro de este hueco. La altura minima
+          es la del boton de Google, para que la pantalla no pegue un salto
+          cuando termina de cargar. */}
+      <View ref={contenedor} style={styles.hueco} />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Aviso texto={error} />
     </View>
   );
 }
@@ -71,29 +76,29 @@ const styles = StyleSheet.create({
   caja: {
     alignItems: "center",
     width: "100%",
-    gap: 14,
+    gap: espacio.lg,
+    marginTop: espacio.lg,
   },
+
   separador: {
     flexDirection: "row",
     alignItems: "center",
-    width: 280,
-    gap: 12,
+    width: "100%",
+    gap: espacio.md,
   },
+
   linea: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.25)",
+    backgroundColor: colores.borde,
   },
+
   oTexto: {
-    color: "rgba(255,255,255,0.65)",
-    fontSize: 13,
-    letterSpacing: 1,
+    ...texto.dato,
+    color: colores.textoSuave,
   },
-  error: {
-    color: "#FFB4A2",
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
-    maxWidth: 320,
+
+  hueco: {
+    minHeight: 44,
   },
 });

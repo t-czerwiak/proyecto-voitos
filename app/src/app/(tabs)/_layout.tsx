@@ -1,18 +1,22 @@
-import { Tabs } from "expo-router";
+import { Stack } from "expo-router";
+import { colores } from "../../tema";
 
-export default function TabsLayout() {
+// Este grupo era un Tabs con la barra escondida (`tabBarStyle: display none`).
+// Escondida para el ojo, pero no para el resto: en el navegador seguia
+// existiendo un `tablist` con siete pestañas —incluidas "emergencia" y
+// "configuracion", que no estan implementadas—, asi que un lector de pantalla
+// anunciaba una navegacion por pestañas que no existe.
+//
+// La aplicacion nunca uso pestañas: se mueve con router.push. Un Stack es lo
+// que siempre fue, y las rutas no cambian: el nombre del grupo entre
+// parentesis no forma parte de la URL.
+export default function GrupoPrincipal() {
   return (
-    <Tabs
+    <Stack
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { display: "none" }, 
+        contentStyle: { backgroundColor: colores.fondo },
       }}
-    >
-      <Tabs.Screen name="home" />
-      <Tabs.Screen name="medicacion" />
-      <Tabs.Screen name="calendario" />
-      <Tabs.Screen name="emergencia" />
-      <Tabs.Screen name="configuracion" />
-    </Tabs>
+    />
   );
 }

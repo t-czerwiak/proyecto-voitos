@@ -1,15 +1,20 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { router, useFocusEffect } from "expo-router";
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  ActivityIndicator,
-  StyleSheet,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 import { getCalendarioCompleto, DosisDeTodos } from "../lib/voitos";
-import { COLORES_RUTINA } from "../lib/rutinas";
+import { COLORES_RUTINA, DIAS_SEMANA } from "../lib/rutinas";
+import { comoHora, fechaLarga, horaHablada, MESES_LARGOS } from "../lib/fechas";
+import {
+  Pantalla,
+  Encabezado,
+  Tarjeta,
+  Estado,
+  Aviso,
+  Cargando,
+  Vacio,
+} from "../ui";
+import { colores, espacio, radio, texto, toque } from "../tema";
 
 // El calendario de todos, en una sola grilla.
 //
@@ -20,14 +25,9 @@ import { COLORES_RUTINA } from "../lib/rutinas";
 // significado un monton de condicionales sobre casi mil lineas.
 //
 // El color identifica a la PERSONA, no al medicamento, porque el sentido de
-// esta pantalla es distinguir de quien es cada dosis de un vistazo.
-
-const MESES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
-
-const DIAS_SEMANA = ["L", "M", "M", "J", "V", "S", "D"];
+// esta pantalla es distinguir de quien es cada dosis de un vistazo. Y como el
+// color solo no alcanza, cada dia dice en su etiqueta de quienes son las dosis
+// que tiene, y abajo esta la referencia escrita.
 
 const dosDigitos = (n: number) => String(n).padStart(2, "0");
 
@@ -57,10 +57,7 @@ export default function AdminCalendario() {
     setCargando(true);
     setError("");
 
-    getCalendarioCompleto(
-      aFecha(anio, mes, 1),
-      aFecha(anio, mes, cantidadDias)
-    )
+    getCalendarioCompleto(aFecha(anio, mes, 1), aFecha(anio, mes, cantidadDias))
       .then((d) => setDosis(d ?? []))
       .catch((e: any) => setError(e?.message ?? "No se pudo cargar el calendario"))
       .finally(() => setCargando(false));
@@ -89,7 +86,13 @@ export default function AdminCalendario() {
   }, [dosis]);
 
   const colorDe = useCallback(
-    (usuarioId?: string) => personas.find((p) => p.id === usuarioId)?.color ?? "#78877E",
+    (usuarioId?: string) =>
+      personas.find((p) => p.id === usuarioId)?.color ?? colores.textoTenue,
+    [personas]
+  );
+
+  const nombreDe = useCallback(
+    (usuarioId?: string) => personas.find((p) => p.id === usuarioId)?.nombre ?? "sin dueño",
     [personas]
   );
 
@@ -130,225 +133,426 @@ export default function AdminCalendario() {
   };
 
   const hoy = hoyEnArgentina();
-  const delDiaAbierto = diaAbierto ? porDia.get(diaAbierto) ?? [] : [];
+  const delDiaAbierto = diaAbierto
+    ? [...(porDia.get(diaAbierto) ?? [])].sort(
+        (a, b) => a.hora - b.hora || a.minuto - b.minuto
+      )
+    : [];
 
   return (
-    <ScrollView style={styles.fondo} contentContainerStyle={styles.contenido}>
-      <Pressable onPress={() => router.push("/admin")}>
-        <Text style={styles.volver}>← Volver al panel</Text>
-      </Pressable>
+    <Pantalla>
+      <Encabezado
+        titulo="Calendario general"
+        bajada="Todas las dosis agendadas, de todas las cuentas. Solo lectura."
+        volverA="/admin"
+      />
 
-      <Text style={styles.titulo}>CALENDARIO GENERAL</Text>
-      <Text style={styles.bajada}>
-        Todas las dosis agendadas, de todas las cuentas. Solo lectura.
-      </Text>
+      <Aviso texto={error} />
 
-      <View style={styles.barraMes}>
-        <Pressable onPress={() => mover(-1)} style={styles.flecha}>
-          <Text style={styles.flechaTexto}>‹</Text>
+      {/* MES */}
+      <View style={styles.navegacion}>
+        <Pressable
+          onPress={() => mover(-1)}
+          style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
+          accessibilityRole="button"
+          accessibilityLabel="Mes anterior"
+        >
+          <Ionicons name="chevron-back" size={24} color={colores.acento} />
         </Pressable>
-        <Text style={styles.mes}>
-          {MESES[mes]} {anio}
+
+        <Text style={styles.mes} accessibilityRole="header">
+          {MESES_LARGOS[mes]} {anio}
         </Text>
-        <Pressable onPress={() => mover(1)} style={styles.flecha}>
-          <Text style={styles.flechaTexto}>›</Text>
+
+        <Pressable
+          onPress={() => mover(1)}
+          style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
+          accessibilityRole="button"
+          accessibilityLabel="Mes siguiente"
+        >
+          <Ionicons name="chevron-forward" size={24} color={colores.acento} />
         </Pressable>
       </View>
 
       {cargando ? (
-        <ActivityIndicator color="#0B7A38" style={{ marginVertical: 40 }} />
-      ) : error ? (
-        <Text style={styles.error}>{error}</Text>
+        <Cargando texto="Buscando las dosis del mes..." />
       ) : (
-        <>
-          <View style={styles.semana}>
-            {DIAS_SEMANA.map((d, i) => (
-              <Text key={i} style={styles.diaSemana}>
-                {d}
-              </Text>
-            ))}
-          </View>
+        !error && (
+          <>
+            {/* GRILLA */}
+            <View style={styles.grilla}>
+              <View style={styles.semana}>
+                {DIAS_SEMANA.map((d) => (
+                  <Text key={d} style={styles.diaSemana} accessibilityElementsHidden>
+                    {d}
+                  </Text>
+                ))}
+              </View>
 
-          <View style={styles.grilla}>
-            {celdas.map((dia, i) => {
-              if (dia === null) return <View key={`v-${i}`} style={styles.celda} />;
+              <View style={styles.dias}>
+                {celdas.map((dia, i) => {
+                  if (dia === null) return <View key={`vacio-${i}`} style={styles.celda} />;
 
-              const fecha = aFecha(anio, mes, dia);
-              const delDia = porDia.get(fecha) ?? [];
-              const esHoy = fecha === hoy;
-              const abierto = fecha === diaAbierto;
+                  const fecha = aFecha(anio, mes, dia);
+                  const delDia = porDia.get(fecha) ?? [];
+                  const esHoy = fecha === hoy;
+                  const abierto = fecha === diaAbierto;
 
-              // Un punto por persona, no por dosis: si alguien tiene cuatro
-              // tomas en el dia, cuatro puntos del mismo color no dicen nada.
-              const colores = [...new Set(delDia.map((d) => colorDe(d.usuario?.id)))];
+                  // Un punto por persona, no por dosis: si alguien tiene cuatro
+                  // tomas en el dia, cuatro puntos del mismo color no dicen nada.
+                  const deQuienes = [...new Set(delDia.map((d) => d.usuario?.id))];
 
-              return (
-                <Pressable
-                  key={dia}
-                  style={[styles.celda, esHoy && styles.celdaHoy, abierto && styles.celdaAbierta]}
-                  onPress={() => setDiaAbierto(abierto ? null : fecha)}
-                >
-                  <Text style={[styles.numero, esHoy && styles.numeroHoy]}>{dia}</Text>
+                  // Lo que el ojo saca de los colores, dicho en palabras.
+                  const partes = [fechaLarga(fecha)];
+                  if (esHoy) partes.push("hoy");
+                  if (delDia.length === 0) partes.push("sin dosis");
+                  else {
+                    partes.push(
+                      delDia.length === 1 ? "1 dosis" : `${delDia.length} dosis`
+                    );
+                    partes.push(`de ${deQuienes.map((id) => nombreDe(id)).join(", ")}`);
+                  }
 
-                  <View style={styles.puntos}>
-                    {colores.slice(0, 4).map((c, j) => (
-                      <View key={j} style={[styles.punto, { backgroundColor: c }]} />
-                    ))}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
+                  return (
+                    <Pressable
+                      key={dia}
+                      onPress={() => setDiaAbierto(abierto ? null : fecha)}
+                      style={({ pressed }) => [
+                        styles.celda,
+                        styles.celdaTocable,
+                        esHoy && styles.celdaHoy,
+                        abierto && styles.celdaAbierta,
+                        pressed && styles.celdaActiva,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={partes.join(", ")}
+                      accessibilityState={{ selected: abierto }}
+                      aria-selected={abierto}
+                    >
+                      <Text
+                        style={[
+                          styles.numero,
+                          esHoy && styles.numeroHoy,
+                          abierto && styles.numeroAbierto,
+                        ]}
+                      >
+                        {dia}
+                      </Text>
 
-          {personas.length > 0 && (
-            <View style={styles.referencias}>
-              {personas.map((p) => (
-                <View key={p.id} style={styles.referencia}>
-                  <View style={[styles.punto, { backgroundColor: p.color }]} />
-                  <Text style={styles.referenciaTexto}>{p.nombre}</Text>
-                </View>
-              ))}
+                      <View style={styles.puntos}>
+                        {deQuienes.slice(0, 4).map((id, j) => (
+                          <View
+                            key={j}
+                            style={[styles.punto, { backgroundColor: colorDe(id) }]}
+                          />
+                        ))}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
-          )}
 
-          {diaAbierto && (
-            <View style={styles.detalle}>
-              <Text style={styles.detalleTitulo}>{diaAbierto}</Text>
+            {/* QUIÉN ES CADA COLOR */}
+            {personas.length > 0 && (
+              <View style={styles.referencia}>
+                <Text style={styles.tituloReferencia}>Quién es cada color</Text>
 
-              {delDiaAbierto.length === 0 ? (
-                <Text style={styles.vacio}>Sin dosis agendadas este día.</Text>
-              ) : (
-                delDiaAbierto.map((d) => (
-                  <View key={d.id} style={styles.fila}>
-                    <View style={[styles.barra, { backgroundColor: colorDe(d.usuario?.id) }]} />
+                {personas.map((p) => (
+                  <View
+                    key={p.id}
+                    style={styles.filaReferencia}
+                    accessible
+                    accessibilityLabel={`${p.nombre}, ${p.mail}`}
+                  >
+                    <View style={[styles.muestra, { backgroundColor: p.color }]} />
 
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.hora}>
-                        {dosDigitos(d.hora)}:{dosDigitos(d.minuto)} · {d.pastilla?.nombre ?? "sin pastilla"}
-                        {d.cantidad > 1 ? ` (${d.cantidad})` : ""}
-                      </Text>
-                      <Text style={styles.duenio}>
-                        {d.usuario ? `${d.usuario.nombre} ${d.usuario.apellido}` : "sin dueño"}
-                      </Text>
+                    <View style={styles.datosPersona}>
+                      <Text style={styles.nombrePersona}>{p.nombre}</Text>
+                      <Text style={styles.mailPersona}>{p.mail}</Text>
                     </View>
-
-                    <Text style={[styles.estado, d.dispensado && styles.estadoOk]}>
-                      {d.dispensado ? "retirada" : "pendiente"}
-                    </Text>
                   </View>
-                ))
-              )}
-            </View>
-          )}
+                ))}
+              </View>
+            )}
 
-          <Text style={styles.total}>
-            {dosis.length === 0
-              ? "No hay dosis agendadas este mes."
-              : `${dosis.length} ${dosis.length === 1 ? "dosis" : "dosis"} en el mes, de ${personas.length} ${personas.length === 1 ? "cuenta" : "cuentas"}.`}
-          </Text>
-        </>
+            {/* EL DÍA ABIERTO */}
+            {diaAbierto && (
+              <View style={styles.seccion}>
+                <Text style={styles.tituloSeccion} accessibilityRole="header">
+                  {fechaLarga(diaAbierto)}
+                </Text>
+
+                {delDiaAbierto.length === 0 ? (
+                  <Vacio
+                    icono="medkit-outline"
+                    titulo="Sin dosis agendadas este día"
+                    detalle="Ninguna cuenta tiene medicación para esta fecha."
+                  />
+                ) : (
+                  delDiaAbierto.map((d) => {
+                    const nombre = d.pastilla?.nombre ?? "Sin pastilla";
+                    const cantidad =
+                      d.cantidad === 1 ? "1 pastilla" : `${d.cantidad} pastillas`;
+                    const duenio = d.usuario
+                      ? `${d.usuario.nombre} ${d.usuario.apellido}`
+                      : "sin dueño";
+
+                    return (
+                      <Tarjeta key={d.id} franja={colorDe(d.usuario?.id)}>
+                        <View
+                          style={styles.fila}
+                          accessible
+                          accessibilityLabel={`A ${horaHablada(d.hora, d.minuto)}, ${nombre}, ${cantidad}, de ${duenio}. ${
+                            d.dispensado ? "Salió del pastillero" : "Todavía no salió"
+                          }.`}
+                        >
+                          <Text style={styles.hora} accessibilityElementsHidden>
+                            {comoHora(d.hora, d.minuto)}
+                          </Text>
+
+                          <View style={styles.datos}>
+                            <Text style={styles.nombre}>{nombre}</Text>
+                            <Text style={styles.cantidad}>{cantidad}</Text>
+                            <Text style={styles.duenio}>{duenio}</Text>
+
+                            <View style={styles.estado}>
+                              {/* Icono y palabra ademas del color: antes esto
+                                  era la palabra "retirada" o "pendiente" en
+                                  12px, y la unica diferencia visible entre las
+                                  dos era el tono de verde. */}
+                              <Estado
+                                texto={d.dispensado ? "Salió del pastillero" : "Todavía no"}
+                                tono={d.dispensado ? "ok" : "neutro"}
+                                icono={d.dispensado ? "checkmark-circle" : "time-outline"}
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      </Tarjeta>
+                    );
+                  })
+                )}
+              </View>
+            )}
+
+            <Text style={styles.total}>
+              {dosis.length === 0
+                ? "No hay dosis agendadas este mes."
+                : `${dosis.length} ${dosis.length === 1 ? "dosis" : "dosis"} en el mes, de ${personas.length} ${
+                    personas.length === 1 ? "cuenta" : "cuentas"
+                  }.`}
+            </Text>
+          </>
+        )
       )}
-    </ScrollView>
+    </Pantalla>
   );
 }
 
 const styles = StyleSheet.create({
-  fondo: { flex: 1, backgroundColor: "#02200F" },
-  contenido: { padding: 20, paddingBottom: 60 },
-
-  volver: { color: "#78877E", fontSize: 14, marginBottom: 18 },
-
-  titulo: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  bajada: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 6,
-    marginBottom: 22,
-  },
-
-  barraMes: {
+  navegacion: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  flecha: { paddingHorizontal: 18, paddingVertical: 6 },
-  flechaTexto: { color: "#FFFFFF", fontSize: 26, lineHeight: 28 },
-  mes: { color: "#FFFFFF", fontSize: 17, fontWeight: "700" },
-
-  semana: { flexDirection: "row" },
-  diaSemana: {
-    flex: 1,
-    textAlign: "center",
-    color: "#78877E",
-    fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 6,
+    backgroundColor: colores.superficie,
+    borderWidth: 2,
+    borderColor: colores.borde,
+    borderRadius: radio.lg,
+    padding: espacio.xs,
+    marginBottom: espacio.lg,
   },
 
-  grilla: { flexDirection: "row", flexWrap: "wrap" },
-  celda: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
+  flecha: {
+    width: toque.comodo,
+    height: toque.comodo,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 10,
+    borderRadius: radio.md,
+    backgroundColor: colores.superficieAlta,
   },
-  celdaHoy: { borderWidth: 1, borderColor: "#0B7A38" },
-  celdaAbierta: { backgroundColor: "rgba(11,122,56,0.25)" },
 
-  numero: { color: "#FFFFFF", fontSize: 15 },
-  numeroHoy: { fontWeight: "900", color: "#7BE8A4" },
+  flechaActiva: {
+    backgroundColor: colores.borde,
+  },
 
-  puntos: { flexDirection: "row", gap: 3, marginTop: 4, minHeight: 6 },
-  punto: { width: 6, height: 6, borderRadius: 3 },
+  mes: {
+    ...texto.seccion,
+    color: colores.texto,
+    flex: 1,
+    textAlign: "center",
+    textTransform: "capitalize",
+  },
 
-  referencias: {
+  grilla: {
+    backgroundColor: colores.superficie,
+    borderWidth: 2,
+    borderColor: colores.borde,
+    borderRadius: radio.lg,
+    padding: espacio.sm,
+  },
+
+  semana: {
+    flexDirection: "row",
+    marginBottom: espacio.xs,
+  },
+
+  diaSemana: {
+    ...texto.etiqueta,
+    color: colores.acentoSuave,
+    width: `${100 / 7}%`,
+    textAlign: "center",
+  },
+
+  dias: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 14,
-    marginTop: 18,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.12)",
   },
-  referencia: { flexDirection: "row", alignItems: "center", gap: 7 },
-  referenciaTexto: { color: "rgba(255,255,255,0.75)", fontSize: 13 },
 
-  detalle: {
-    marginTop: 22,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 12,
-    padding: 16,
+  celda: {
+    width: `${100 / 7}%`,
+    minHeight: toque.minimo,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: espacio.xs,
   },
-  detalleTitulo: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 12,
+
+  celdaTocable: {
+    borderRadius: radio.md,
+    borderWidth: 2,
+    borderColor: "transparent",
   },
-  vacio: { color: "rgba(255,255,255,0.55)", fontSize: 14 },
 
-  fila: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9 },
-  barra: { width: 3, height: 34, borderRadius: 2 },
-  hora: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
-  duenio: { color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 2 },
+  celdaHoy: {
+    borderColor: colores.bordeFuerte,
+  },
 
-  estado: { color: "#B98A3A", fontSize: 12, fontWeight: "700" },
-  estadoOk: { color: "#7BE8A4" },
+  celdaAbierta: {
+    backgroundColor: colores.acento,
+    borderColor: colores.acento,
+  },
+
+  celdaActiva: {
+    borderColor: colores.texto,
+  },
+
+  numero: {
+    ...texto.cuerpoFuerte,
+    color: colores.texto,
+  },
+
+  numeroHoy: {
+    color: colores.acento,
+  },
+
+  numeroAbierto: {
+    color: colores.sobreAcento,
+  },
+
+  puntos: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 3,
+    marginTop: 3,
+    minHeight: 6,
+  },
+
+  punto: {
+    width: 8,
+    height: 5,
+    borderRadius: 3,
+  },
+
+  referencia: {
+    backgroundColor: colores.superficie,
+    borderWidth: 2,
+    borderColor: colores.borde,
+    borderRadius: radio.lg,
+    padding: espacio.lg,
+    marginTop: espacio.lg,
+    gap: espacio.md,
+  },
+
+  tituloReferencia: {
+    ...texto.etiqueta,
+    color: colores.textoSuave,
+  },
+
+  filaReferencia: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.md,
+  },
+
+  muestra: {
+    width: 20,
+    height: 8,
+    borderRadius: 4,
+  },
+
+  datosPersona: {
+    flex: 1,
+  },
+
+  nombrePersona: {
+    ...texto.cuerpoFuerte,
+    color: colores.texto,
+  },
+
+  mailPersona: {
+    ...texto.dato,
+    color: colores.textoTenue,
+  },
+
+  seccion: {
+    marginTop: espacio.xxl,
+  },
+
+  tituloSeccion: {
+    ...texto.seccion,
+    color: colores.texto,
+    textTransform: "capitalize",
+    marginBottom: espacio.lg,
+  },
+
+  fila: {
+    flexDirection: "row",
+    gap: espacio.lg,
+  },
+
+  hora: {
+    ...texto.hora,
+    color: colores.acento,
+    minWidth: 78,
+  },
+
+  datos: {
+    flex: 1,
+    gap: espacio.xs,
+  },
+
+  nombre: {
+    ...texto.item,
+    color: colores.texto,
+  },
+
+  cantidad: {
+    ...texto.cuerpo,
+    color: colores.textoSuave,
+  },
+
+  duenio: {
+    ...texto.dato,
+    color: colores.textoTenue,
+  },
+
+  estado: {
+    marginTop: espacio.xs,
+  },
 
   total: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: 24,
+    ...texto.cuerpo,
+    color: colores.textoSuave,
+    marginTop: espacio.xl,
   },
-
-  error: { color: "#FFB4A2", fontSize: 15, lineHeight: 22, marginVertical: 30 },
 });

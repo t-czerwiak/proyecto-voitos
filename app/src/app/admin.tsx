@@ -1,19 +1,13 @@
 // Panel de administracion.
 //
-// No hay link visible salvo para los administradores: el menu lo muestra solo
-// si el backend confirma el rol. Igual, entrar escribiendo /admin a mano no
-// sirve de nada, porque todas las rutas del backend responden 404 a quien no
-// es admin. La app decide que mostrar; la seguridad la pone el servidor.
+// No hay link visible salvo para los administradores: el inicio lo muestra
+// solo si el backend confirma el rol. Igual, entrar escribiendo /admin a mano
+// no sirve de nada, porque todas las rutas del backend responden 404 a quien
+// no es admin. La app decide que mostrar; la seguridad la pone el servidor.
 
 import React, { useCallback, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import {
   getUsuariosAdmin,
@@ -25,6 +19,16 @@ import {
   UsuarioAdmin,
 } from "../lib/voitos";
 import { confirmar } from "../lib/avisos";
+import {
+  Pantalla,
+  Encabezado,
+  Tarjeta,
+  Boton,
+  Estado,
+  Aviso,
+  Cargando,
+} from "../ui";
+import { colores, espacio, texto } from "../tema";
 
 export default function Admin() {
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
@@ -82,12 +86,8 @@ export default function Admin() {
       `Eliminar la cuenta de ${u.nombre}`,
       `Se borra ${u.mail} con TODO lo suyo: ${u.pastillas} ` +
         `${u.pastillas === 1 ? "pastilla" : "pastillas"}, sus dosis, su historial ` +
-        `de dispensaciones, sus contactos y sus actividades.
-
-` +
-        `Los módulos del pastillero quedan, vacíos.
-
-` +
+        `de dispensaciones, sus contactos y sus actividades.\n\n` +
+        `Los módulos del pastillero quedan, vacíos.\n\n` +
         `Esto no se puede deshacer. ¿Seguro?`,
       "Eliminar cuenta"
     );
@@ -133,258 +133,180 @@ export default function Admin() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.contenido}>
-        <Pressable onPress={() => router.push("/home")}>
-          <Text style={styles.titulo}>ADMINISTRACIÓN</Text>
-        </Pressable>
+    <Pantalla>
+      <Encabezado
+        titulo="Administración"
+        bajada="Las cuentas del sistema. Herramienta interna."
+        volverA="/home"
+      />
 
-        {cargando && <ActivityIndicator color="#00FF7F" style={{ marginTop: 30 }} />}
+      <Aviso texto={error} />
+      <Aviso texto={aviso} tipo="ok" titulo="Hecho" />
 
-        {error !== "" && <Text style={styles.error}>{error}</Text>}
-        {aviso !== "" && <Text style={styles.aviso}>{aviso}</Text>}
+      {cargando ? (
+        <Cargando texto="Buscando las cuentas..." />
+      ) : (
+        !error && (
+          <>
+            {/* El calendario de todas las cuentas juntas. Venia de main como
+                un recuadro con letra de 14px; ahora es una tarjeta como los
+                accesos del inicio, con el area de toque entera. */}
+            <Tarjeta
+              onPress={() => router.push("/admin-calendario")}
+              etiqueta="Ver el calendario general"
+              ayuda="Las dosis de todas las cuentas en una sola grilla"
+            >
+              <View style={styles.acceso}>
+                <Ionicons name="calendar" size={26} color={colores.acento} />
 
-        {!cargando && !error && (
-          <Text style={styles.resumen}>
-            {usuarios.length} {usuarios.length === 1 ? "cuenta" : "cuentas"}
-          </Text>
-        )}
-        <Pressable
-          style={styles.calendarioGeneral}
-          onPress={() => router.push("/admin-calendario")}
-        >
-          <Text style={styles.calendarioGeneralTexto}>VER CALENDARIO GENERAL</Text>
-          <Text style={styles.calendarioGeneralBajada}>
-            Las dosis de todas las cuentas en una sola grilla
-          </Text>
-        </Pressable>
-
-
-        {usuarios.map((u) => (
-          <View key={u.id} style={styles.tarjeta}>
-            <View style={styles.filaTitulo}>
-              <Text style={styles.nombre}>
-                {u.nombre} {u.apellido}
-              </Text>
-
-              {u.rol === "admin" && (
-                <View style={styles.etiquetaAdmin}>
-                  <Text style={styles.etiquetaAdminTexto}>ADMIN</Text>
+                <View style={styles.accesoTextos}>
+                  <Text style={styles.accesoTitulo}>Calendario general</Text>
+                  <Text style={styles.accesoDetalle}>
+                    Las dosis de todas las cuentas en una sola grilla
+                  </Text>
                 </View>
-              )}
-            </View>
 
-            <Text style={styles.mail}>{u.mail}</Text>
+                <Ionicons name="chevron-forward" size={22} color={colores.textoTenue} />
+              </View>
+            </Tarjeta>
 
-            <View style={styles.estado}>
-              <View
-                style={[
-                  styles.punto,
-                  { backgroundColor: u.verificado ? "#00FF7F" : "#E0A82E" },
-                ]}
-              />
-              <Text style={styles.estadoTexto}>
-                {u.verificado ? "Cuenta verificada" : "Sin verificar"}
-              </Text>
-            </View>
-
-            <Text style={styles.datos}>
-              {u.pastillas} {u.pastillas === 1 ? "pastilla" : "pastillas"} ·{" "}
-              {u.horarios} {u.horarios === 1 ? "dosis" : "dosis"}
+            <Text style={styles.resumen}>
+              {usuarios.length} {usuarios.length === 1 ? "cuenta" : "cuentas"}
             </Text>
 
-            <View style={styles.acciones}>
-              <Pressable
-                style={[styles.boton, u.verificado && styles.botonSuave]}
-                onPress={() => cambiarVerificacion(u)}
-                disabled={ocupado === u.id}
-              >
-                <Text style={styles.botonTexto}>
-                  {u.verificado ? "DESVERIFICAR" : "VERIFICAR"}
-                </Text>
-              </Pressable>
+            {usuarios.map((u) => (
+              <Tarjeta key={u.id}>
+                <View style={styles.titulo}>
+                  <Text style={styles.nombre}>
+                    {u.nombre} {u.apellido}
+                  </Text>
 
-              <Pressable
-                style={[styles.boton, styles.botonPeligro]}
-                onPress={() => borrarCalendario(u)}
-                disabled={ocupado === u.id || u.horarios === 0}
-              >
-                <Text style={styles.botonTexto}>VACIAR CALENDARIO</Text>
-              </Pressable>
+                  {u.rol === "admin" && (
+                    <Estado texto="Admin" tono="ok" icono="shield-checkmark" />
+                  )}
+                </View>
 
-              {/* El admin no puede borrarse a si mismo: quedaria sin cuenta y
-                  sin panel, sin forma de deshacerlo desde la aplicacion. El
-                  backend tambien lo rechaza, esto es solo para no ofrecerlo. */}
-              {u.id !== yo && (
-                <Pressable
-                  style={[styles.boton, styles.botonPeligro]}
-                  onPress={() => borrarCuenta(u)}
-                  disabled={ocupado === u.id}
-                >
-                  <Text style={styles.botonTexto}>ELIMINAR CUENTA</Text>
-                </Pressable>
-              )}
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-    </View>
+                <Text style={styles.mail}>{u.mail}</Text>
+
+                <View style={styles.estados}>
+                  {/* Icono, palabra y color juntos. Antes era un punto de
+                      color al lado del texto: para quien no distingue el
+                      verde del ámbar, dos cuentas idénticas. */}
+                  <Estado
+                    texto={u.verificado ? "Verificada" : "Sin verificar"}
+                    tono={u.verificado ? "ok" : "atencion"}
+                  />
+
+                  <Estado
+                    texto={`${u.pastillas} ${u.pastillas === 1 ? "pastilla" : "pastillas"}`}
+                    tono="neutro"
+                    icono="medkit-outline"
+                  />
+
+                  <Estado
+                    texto={`${u.horarios} ${u.horarios === 1 ? "dosis" : "dosis"}`}
+                    tono="neutro"
+                    icono="time-outline"
+                  />
+                </View>
+
+                <View style={styles.acciones}>
+                  <Boton
+                    titulo={u.verificado ? "Quitar la verificación" : "Verificar la cuenta"}
+                    variante="secundario"
+                    onPress={() => cambiarVerificacion(u)}
+                    deshabilitado={ocupado === u.id}
+                  />
+
+                  <Boton
+                    titulo="Vaciar el calendario"
+                    variante="peligro"
+                    icono="calendar-clear-outline"
+                    onPress={() => borrarCalendario(u)}
+                    deshabilitado={ocupado === u.id || u.horarios === 0}
+                    ayuda="Borra las dosis que todavía no salieron"
+                  />
+
+                  {/* El admin no puede borrarse a si mismo: quedaria sin cuenta
+                      y sin panel, sin forma de deshacerlo desde la aplicacion.
+                      El backend tambien lo rechaza, esto es solo para no
+                      ofrecerlo. */}
+                  {u.id !== yo && (
+                    <Boton
+                      titulo="Eliminar la cuenta"
+                      variante="peligro"
+                      icono="trash-outline"
+                      onPress={() => borrarCuenta(u)}
+                      deshabilitado={ocupado === u.id}
+                      ayuda="Borra la cuenta y todo lo suyo. No se puede deshacer"
+                    />
+                  )}
+                </View>
+              </Tarjeta>
+            ))}
+          </>
+        )
+      )}
+    </Pantalla>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
-
-  contenido: {
-    padding: 22,
-    paddingBottom: 60,
-  },
-
-  titulo: {
-    color: "#FFF",
-    fontSize: 26,
-    fontWeight: "900",
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-
-  resumen: {
-    color: "#78877E",
-    fontSize: 13,
-    marginBottom: 18,
-  },
-
-  error: {
-    color: "#FF8080",
-    fontSize: 14,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-
-  aviso: {
-    color: "#00FF7F",
-    fontSize: 14,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-
-  tarjeta: {
-    backgroundColor: "#01250E",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#105A2C",
-    padding: 16,
-    marginBottom: 14,
-  },
-
-  filaTitulo: {
+  acceso: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: espacio.lg,
   },
 
-  nombre: {
-    color: "#FFF",
-    fontSize: 17,
-    fontWeight: "800",
+  accesoTextos: {
+    flex: 1,
   },
 
-  etiquetaAdmin: {
-    backgroundColor: "#0B5A19",
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+  accesoTitulo: {
+    ...texto.item,
+    color: colores.texto,
   },
 
-  etiquetaAdminTexto: {
-    color: "#9FFFC4",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-  },
-
-  mail: {
-    color: "#78877E",
-    fontSize: 13,
+  accesoDetalle: {
+    ...texto.dato,
+    color: colores.textoSuave,
     marginTop: 2,
   },
 
-  estado: {
+  resumen: {
+    ...texto.cuerpo,
+    color: colores.textoSuave,
+    marginBottom: espacio.lg,
+    marginTop: espacio.lg,
+  },
+
+  titulo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    marginTop: 10,
+    flexWrap: "wrap",
+    gap: espacio.md,
   },
 
-  punto: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  nombre: {
+    ...texto.item,
+    color: colores.texto,
   },
 
-  estadoTexto: {
-    color: "#C8D6CD",
-    fontSize: 13,
+  mail: {
+    ...texto.cuerpo,
+    color: colores.textoSuave,
+    marginTop: espacio.xs,
   },
 
-  datos: {
-    color: "#78877E",
-    fontSize: 12,
-    marginTop: 6,
+  estados: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: espacio.sm,
+    marginTop: espacio.md,
   },
 
   acciones: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 14,
-  },
-
-  calendarioGeneral: {
-    borderWidth: 1,
-    borderColor: "#105A2C",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    marginBottom: 22,
-  },
-
-  calendarioGeneralTexto: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-
-  calendarioGeneralBajada: {
-    color: "#78877E",
-    fontSize: 13,
-    marginTop: 4,
-  },
-
-  boton: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#0B5A19",
-    borderWidth: 1,
-    borderColor: "#00FF7F",
-  },
-
-  botonSuave: {
-    backgroundColor: "#01250E",
-    borderColor: "#105A2C",
-  },
-
-  botonPeligro: {
-    backgroundColor: "#2a0d0d",
-    borderColor: "#7a1f1f",
-  },
-
-  botonTexto: {
-    color: "#FFF",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 0.5,
+    gap: espacio.sm,
+    marginTop: espacio.lg,
   },
 });

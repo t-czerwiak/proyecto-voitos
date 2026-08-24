@@ -1,84 +1,73 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import LavaBackground from "../components/LavaBackground";
 import { crearActividad } from "../lib/voitos";
-import Mensaje from "../components/Mensaje";
+import { dosDigitos, fechaLarga } from "../lib/fechas";
+import {
+  Pantalla,
+  Encabezado,
+  Campo,
+  Selector,
+  Opciones,
+  SelectorDias,
+  Boton,
+  Aviso,
+} from "../ui";
+import { colores, espacio, radio, texto } from "../tema";
 
+const HORAS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTOS = Array.from({ length: 60 }, (_, i) => i);
+
+// Agregar una actividad al calendario.
+//
+// Las actividades son lo que el pastillero no hace: la caminata, el
+// kinesiólogo, la visita del médico. Sirven para que el calendario sea el
+// calendario del día de la persona y no sólo el de sus pastillas.
+//
+// El cambio más importante es la hora: antes era un campo de texto libre con
+// el ejemplo "08:30" adentro. Escrita a mano, la hora se equivoca —"8:30",
+// "830", "8.30"— y el error recién aparecía al guardar. Ahora son dos
+// desplegables y no hay forma de escribir una hora que no exista.
 export default function AgregarActividad() {
-  const { fecha: fechaParametro } = useLocalSearchParams<{
-    fecha?: string;
-  }>();
+  const { fecha: fechaParametro } = useLocalSearchParams<{ fecha?: string }>();
 
   const [nombre, setNombre] = useState("");
-  const [hora, setHora] = useState("");
+  const [hora, setHora] = useState(9);
+  const [minuto, setMinuto] = useState(0);
   const [tipo, setTipo] = useState<"rutina" | "una-vez">("una-vez");
+  const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([]);
 
-  // La fecha viene automáticamente desde el calendario
+  // La fecha viene del calendario, del día que estaba elegido.
   const [fecha] = useState(fechaParametro || "");
 
-  const diasSemana = ["L", "M", "X", "J", "V", "S", "D"];
-
-  const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [errorNombre, setErrorNombre] = useState("");
+  const [guardando, setGuardando] = useState(false);
 
-  function seleccionarDia(dia: string) {
-    if (diasSeleccionados.includes(dia)) {
-      setDiasSeleccionados(
-        diasSeleccionados.filter((d) => d !== dia)
-      );
-    } else {
-      setDiasSeleccionados([
-        ...diasSeleccionados,
-        dia,
-      ]);
-    }
-  }
-
-  function formatearFecha(fecha: string) {
-    if (!fecha) return "Sin fecha";
-
-    const partes = fecha.split("-");
-
-    if (partes.length !== 3) {
-      return fecha;
-    }
-
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  }
-
-  async function guardarActividad() {
+  const guardarActividad = async () => {
     setError("");
+    setErrorNombre("");
 
-    if (!nombre || !hora) {
-      setError("Completá el nombre y la hora");
+    if (!nombre.trim()) {
+      setErrorNombre("Escribí qué actividad es");
       return;
     }
 
     if (tipo === "una-vez" && !fecha) {
-      setError("Elegí la fecha de la actividad");
+      setError("Volvé al calendario y tocá el día de la actividad");
       return;
     }
 
-    if (
-      tipo === "rutina" &&
-      diasSeleccionados.length === 0
-    ) {
+    if (tipo === "rutina" && diasSeleccionados.length === 0) {
       setError("Elegí al menos un día de la semana");
       return;
     }
 
+    setGuardando(true);
     try {
       await crearActividad({
         nombre,
-        hora,
+        hora: `${dosDigitos(hora)}:${dosDigitos(minuto)}`,
         tipo,
         // Una actividad de rutina se repite por dia de semana, asi que no
         // tiene una fecha puntual. La base igual pide el campo.
@@ -89,357 +78,125 @@ export default function AgregarActividad() {
       router.back();
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setGuardando(false);
     }
-  }
+  };
 
   return (
-    <View style={styles.container}>
-      <LavaBackground />
+    <Pantalla>
+      <Encabezado
+        titulo="Agregar una actividad"
+        bajada="Para lo que no dispensa el pastillero: una caminata, el kinesiólogo, una visita."
+      />
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.title}>
-          AGREGAR ACTIVIDAD
-        </Text>
+      <Aviso texto={error} />
 
-        {/* NOMBRE */}
+      <Campo
+        etiqueta="Qué actividad es"
+        valor={nombre}
+        alCambiar={setNombre}
+        ayuda="Por ejemplo: gimnasia, control con el cardiólogo."
+        error={errorNombre}
+      />
 
-        <Text style={styles.label}>
-          Nombre de la actividad
-        </Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Ej: Gimnasia"
-          placeholderTextColor="#999"
-          value={nombre}
-          onChangeText={setNombre}
-        />
-
-        {/* HORA */}
-
-        <Text style={styles.label}>
-          Hora
-        </Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Ej: 08:30"
-          placeholderTextColor="#999"
-          value={hora}
-          onChangeText={setHora}
-          keyboardType="numbers-and-punctuation"
-        />
-
-        {/* TIPO */}
-
-        <Text style={styles.label}>
-          Tipo de actividad
-        </Text>
-
-        <View style={styles.typeContainer}>
-          <TouchableOpacity
-            style={[
-              styles.typeButton,
-              tipo === "una-vez" &&
-                styles.typeButtonSelected,
-            ]}
-            onPress={() =>
-              setTipo("una-vez")
-            }
-          >
-            <Text
-              style={[
-                styles.typeText,
-                tipo === "una-vez" &&
-                  styles.typeTextSelected,
-              ]}
-            >
-              UNA VEZ
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.typeButton,
-              tipo === "rutina" &&
-                styles.typeButtonSelected,
-            ]}
-            onPress={() =>
-              setTipo("rutina")
-            }
-          >
-            <Text
-              style={[
-                styles.typeText,
-                tipo === "rutina" &&
-                  styles.typeTextSelected,
-              ]}
-            >
-              RUTINA
-            </Text>
-          </TouchableOpacity>
+      <View style={styles.hora}>
+        <View style={styles.horaCampo}>
+          <Selector
+            etiqueta="Hora"
+            valor={String(hora)}
+            alCambiar={(v) => setHora(Number(v))}
+            opciones={HORAS.map((h) => ({ valor: String(h), etiqueta: dosDigitos(h) }))}
+          />
         </View>
 
-        {/* ACTIVIDAD UNA VEZ */}
+        <View style={styles.horaCampo}>
+          <Selector
+            etiqueta="Minutos"
+            valor={String(minuto)}
+            alCambiar={(v) => setMinuto(Number(v))}
+            opciones={MINUTOS.map((m) => ({ valor: String(m), etiqueta: dosDigitos(m) }))}
+          />
+        </View>
+      </View>
 
-        {tipo === "una-vez" && (
-          <>
-            <Text style={styles.label}>
-              Fecha seleccionada
-            </Text>
+      <Opciones
+        etiqueta="Cada cuánto"
+        valor={tipo}
+        alCambiar={(v) => setTipo(v as "rutina" | "una-vez")}
+        opciones={[
+          {
+            valor: "una-vez",
+            etiqueta: "Una sola vez",
+            detalle: fecha ? `El ${fechaLarga(fecha)}` : "En el día elegido en el calendario",
+          },
+          {
+            valor: "rutina",
+            etiqueta: "Todas las semanas",
+            detalle: "Se repite los días que elijas, sin fecha de fin",
+          },
+        ]}
+      />
 
-            <View style={styles.dateBox}>
-              <Text style={styles.dateText}>
-                {formatearFecha(fecha)}
-              </Text>
-            </View>
-          </>
-        )}
-
-        {/* RUTINA */}
-
-        {tipo === "rutina" && (
-          <>
-            <Text style={styles.label}>
-              Repetir los días
-            </Text>
-
-            <View style={styles.daysContainer}>
-              {diasSemana.map((dia) => {
-                const seleccionado =
-                  diasSeleccionados.includes(dia);
-
-                return (
-                  <TouchableOpacity
-                    key={dia}
-                    style={[
-                      styles.dayButton,
-                      seleccionado &&
-                        styles.dayButtonSelected,
-                    ]}
-                    onPress={() =>
-                      seleccionarDia(dia)
-                    }
-                  >
-                    <Text
-                      style={[
-                        styles.dayText,
-                        seleccionado &&
-                          styles.dayTextSelected,
-                      ]}
-                    >
-                      {dia}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </>
-        )}
-
-        {/* GUARDAR */}
-
-        <Mensaje texto={error} />
-
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={guardarActividad}
-        >
-          <Text style={styles.saveButtonText}>
-            AGREGAR ACTIVIDAD
+      {tipo === "una-vez" ? (
+        <View style={styles.fecha}>
+          <Text style={styles.fechaEtiqueta}>Día</Text>
+          <Text style={styles.fechaValor}>
+            {fecha ? fechaLarga(fecha) : "Ninguno: volvé al calendario y tocá un día"}
           </Text>
-        </TouchableOpacity>
+        </View>
+      ) : (
+        <SelectorDias
+          etiqueta="Qué días se repite"
+          seleccionados={diasSeleccionados}
+          alCambiar={setDiasSeleccionados}
+        />
+      )}
 
-        {/* CANCELAR */}
+      <Boton
+        titulo={guardando ? "Guardando..." : "Agregar la actividad"}
+        onPress={guardarActividad}
+        cargando={guardando}
+      />
 
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.cancelButtonText}>
-            CANCELAR
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+      <Boton
+        titulo="Cancelar"
+        variante="enlace"
+        onPress={() => router.back()}
+        estilo={{ marginTop: espacio.sm }}
+      />
+    </Pantalla>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  hora: {
+    flexDirection: "row",
+    gap: espacio.md,
+  },
+
+  horaCampo: {
     flex: 1,
-    backgroundColor: "#000000",
   },
 
-  content: {
-    flexGrow: 1,
-    alignItems: "center",
-    paddingHorizontal: 25,
-    paddingTop: 60,
-    paddingBottom: 50,
-  },
-
-  title: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "bold",
-    letterSpacing: 1,
-    marginBottom: 30,
-  },
-
-  label: {
-    width: "90%",
-    maxWidth: 420,
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "bold",
-    marginBottom: 8,
-    marginTop: 12,
-  },
-
-  input: {
-    width: "90%",
-    maxWidth: 420,
-    height: 55,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    fontSize: 17,
-    color: "#000000",
-  },
-
-  // FECHA
-
-  dateBox: {
-    width: "90%",
-    maxWidth: 420,
-    height: 55,
-    backgroundColor: "#01250E",
-    borderRadius: 14,
+  fecha: {
+    backgroundColor: colores.superficieAlta,
     borderWidth: 2,
-    borderColor: "#00FF7F",
-    justifyContent: "center",
-    paddingHorizontal: 18,
+    borderColor: colores.bordeFuerte,
+    borderRadius: radio.md,
+    padding: espacio.lg,
+    marginBottom: espacio.lg,
   },
 
-  dateText: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "bold",
+  fechaEtiqueta: {
+    ...texto.etiqueta,
+    color: colores.acentoSuave,
+    marginBottom: espacio.xs,
   },
 
-  // TIPO
-
-  typeContainer: {
-    width: "90%",
-    maxWidth: 420,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 5,
-  },
-
-  typeButton: {
-    width: "48%",
-    height: 55,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: "#00FF7F",
-    backgroundColor: "#01250E",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  typeButtonSelected: {
-    backgroundColor: "#00FF7F",
-  },
-
-  typeText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  typeTextSelected: {
-    color: "#000000",
-  },
-
-  // DÍAS
-
-  daysContainer: {
-    width: "90%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    marginTop: 5,
-  },
-
-  dayButton: {
-    width: 43,
-    height: 43,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: "#00FF7F",
-    backgroundColor: "#01250E",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  dayButtonSelected: {
-    backgroundColor: "#00FF7F",
-  },
-
-  dayText: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-  },
-
-  dayTextSelected: {
-    color: "#000000",
-  },
-
-  // BOTÓN GUARDAR
-
-  saveButton: {
-    width: 280,
-    height: 60,
-    borderRadius: 15,
-    backgroundColor: "#004E1E",
-    borderWidth: 2,
-    borderColor: "#00FF7F",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 35,
-
-    shadowColor: "#00FF7F",
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.7,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-
-  saveButtonText: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "bold",
-    letterSpacing: 1,
-  },
-
-  // CANCELAR
-
-  cancelButton: {
-   marginTop: 15,
-    paddingVertical: 10,
-  },
-
-  cancelButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
+  fechaValor: {
+    ...texto.item,
+    color: colores.texto,
+    textTransform: "capitalize",
   },
 });
-

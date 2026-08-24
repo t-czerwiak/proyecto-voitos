@@ -1,94 +1,194 @@
-import { View, Text, StyleSheet, Pressable } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router"; // 👈 Added missing import
-import LavaBackground from "../../components/LavaBackground";
+import React, { useCallback, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { getPastillas, Pastilla } from "../../lib/voitos";
+import {
+  Pantalla,
+  Encabezado,
+  Boton,
+  Tarjeta,
+  Estado,
+  Aviso,
+  Vacio,
+  Cargando,
+} from "../../ui";
+import { colores, espacio, texto } from "../../tema";
 
-export default function Medicacion() {
+// Cuando quedan menos que esto en un modulo, conviene recargar antes de que
+// una dosis quede sin salir. Cinco es aproximadamente dos dias de una rutina
+// de dos pastillas por dia: alcanza para reaccionar sin alarmar todo el
+// tiempo.
+const STOCK_BAJO = 5;
+
+// La pantalla de las pastillas.
+//
+// Antes eran tres botones —AGREGAR, AGENDAR, RECARGAR— sobre un fondo vacio,
+// sin ninguna informacion. Para saber cuantas pastillas quedaban en un modulo
+// habia que entrar a RECARGAR y abrir el desplegable.
+//
+// El dato de cuanto queda es justamente el que evita el problema que la
+// aplicacion existe para evitar: que llegue la hora y el modulo este vacio.
+// Asi que ahora esta a la vista, y con aviso cuando esta por acabarse.
+export default function Pastillas() {
+  const [pastillas, setPastillas] = useState<Pastilla[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      let vigente = true;
+
+      getPastillas()
+        .then((lista) => {
+          if (!vigente) return;
+          setPastillas(lista);
+          setError("");
+        })
+        .catch((e: any) => {
+          if (!vigente) return;
+          setPastillas([]);
+          setError(e?.message ?? "No se pudieron cargar las pastillas");
+        })
+        .finally(() => {
+          if (vigente) setCargando(false);
+        });
+
+      return () => {
+        vigente = false;
+      };
+    }, [])
+  );
+
+  const faltantes = pastillas.filter(
+    (p) => p.modulo && p.modulo.cantidad_actual <= STOCK_BAJO
+  );
+
   return (
-    <View style={styles.container}>
-      <LavaBackground />
-      
-      <View style={styles.content} >
-        <Pressable onPress={() => router.push("/home")} >
-        <Text style={styles.title} >
-          PAST<Text style={styles.i}>I</Text>LLAS
-        </Text>
-        </Pressable>
-        
-        <Pressable 
-          style={styles.button} 
+    <Pantalla>
+      <Encabezado
+        titulo="Pastillas"
+        bajada="Lo que hay cargado en el pastillero y lo que se puede hacer con eso."
+        volverA="/home"
+      />
+
+      <Aviso texto={error} />
+
+      {faltantes.length > 0 && (
+        <Aviso
+          tipo="atencion"
+          titulo="Se están por acabar"
+          texto={
+            faltantes.length === 1
+              ? `Queda poco de ${faltantes[0].nombre}. Recargá el módulo antes de que una dosis quede sin salir.`
+              : `Queda poco de ${faltantes.length} pastillas. Recargá los módulos antes de que una dosis quede sin salir.`
+          }
+        />
+      )}
+
+      <View style={styles.acciones}>
+        <Boton
+          titulo="Agendar una dosis"
+          icono="calendar-outline"
+          onPress={() => router.push("/agendar-medicacion")}
+          ayuda="Elegís la pastilla, la hora y los días de la semana"
+        />
+
+        <Boton
+          titulo="Cargar una pastilla nueva"
+          variante="secundario"
+          icono="add-circle-outline"
           onPress={() => router.push("/agregar-medicacion")}
-        >
-          <Text style={styles.buttonText}>AGREGAR</Text>
-          <Ionicons name="add" size={38} color="white" />
-        </Pressable>
+          ayuda="Para una pastilla que todavía no está en el pastillero"
+        />
 
-        <Pressable style={styles.button}
-        onPress={() => router.push("/agendar-medicacion")}>
-          <Text style={styles.buttonText}>AGENDAR</Text>
-          <Ionicons name="calendar-outline" size={34} color="white" />
-        </Pressable>
-
-        <Pressable style={styles.button}
-        onPress={() => router.push("/recargar-medicacion")}>
-          <Text style={styles.buttonText}>RECARGAR</Text>
-          <Ionicons name="refresh-outline" size={34} color="white" />
-        </Pressable>
+        <Boton
+          titulo="Recargar o borrar"
+          variante="secundario"
+          icono="refresh-outline"
+          onPress={() => router.push("/recargar-medicacion")}
+          ayuda="Sumar pastillas a un módulo, o eliminar una que ya no se usa"
+        />
       </View>
-    </View>
+
+      <Text style={styles.tituloSeccion} accessibilityRole="header">
+        Lo que hay cargado
+      </Text>
+
+      {cargando ? (
+        <Cargando texto="Buscando las pastillas..." />
+      ) : pastillas.length === 0 ? (
+        <Vacio
+          icono="medkit-outline"
+          titulo="Todavía no cargaste ninguna pastilla"
+          detalle="El primer paso es cargar la pastilla y decir cuántas pusiste en el módulo del pastillero."
+          accion={{
+            titulo: "Cargar la primera",
+            onPress: () => router.push("/agregar-medicacion"),
+          }}
+        />
+      ) : (
+        pastillas.map((p) => {
+          const sinModulo = !p.modulo;
+          const quedan = p.modulo?.cantidad_actual ?? 0;
+          const poco = !sinModulo && quedan <= STOCK_BAJO;
+
+          const dondeEsta = sinModulo
+            ? "No está cargada en ningún módulo"
+            : `Módulo ${p.modulo!.numero}`;
+
+          const cuantas = sinModulo
+            ? "El pastillero no la va a poder dispensar"
+            : quedan === 1
+              ? "Queda 1 pastilla"
+              : `Quedan ${quedan} pastillas`;
+
+          return (
+            <Tarjeta key={p.id}>
+              <View accessible accessibilityLabel={`${p.nombre}. ${dondeEsta}. ${cuantas}.`}>
+                <Text style={styles.nombre}>{p.nombre}</Text>
+
+                <Text style={styles.detalle}>{dondeEsta}</Text>
+
+                <View style={styles.estado}>
+                  <Estado
+                    texto={cuantas}
+                    tono={sinModulo ? "atencion" : poco ? "atencion" : "ok"}
+                    icono={sinModulo ? "alert-circle" : poco ? "warning" : "checkmark-circle"}
+                  />
+                </View>
+              </View>
+            </Tarjeta>
+          );
+        })
+      )}
+    </Pantalla>
   );
 }
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
+  acciones: {
+    gap: espacio.md,
+    marginBottom: espacio.xxl,
   },
 
-  content: {
-    flex: 1,
-    alignItems: "center",
-    paddingTop: 70,
+  tituloSeccion: {
+    ...texto.seccion,
+    color: colores.texto,
+    marginBottom: espacio.md,
   },
 
-  title: {
-    fontSize: 58,
-    color: "#FFF",
-    fontFamily: "Nunito_700Bold",
-    marginBottom: 170,
+  nombre: {
+    ...texto.item,
+    color: colores.texto,
   },
 
-  i: {
-    color: "#098B03",
+  detalle: {
+    ...texto.cuerpo,
+    color: colores.textoSuave,
+    marginTop: espacio.xs,
   },
 
-  button: {
-    width: 400,
-    height: 72,
-    backgroundColor: "#0B5A19",
-
-    borderWidth: 3,
-    borderColor: "#FFF",
-    borderRadius: 18,
-
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-
-    paddingHorizontal: 24,
-    marginBottom: 30,
-
-    shadowColor: "#00FF55",
-    shadowOpacity: 0.9,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 15,
-  },
-
-  buttonText: {
-    flex: 1,
-    textAlign: "center",
-    color: "#FFF",
-    fontSize: 26,
-    fontFamily: "Nunito_700Bold",
+  estado: {
+    marginTop: espacio.md,
   },
 });
