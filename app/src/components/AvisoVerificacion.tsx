@@ -1,11 +1,14 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import {
   getUsuarioActual,
   refrescarUsuario,
   reenviarVerificacion,
 } from "../lib/voitos";
+import { Boton } from "../ui";
+import { colores, espacio, radio, texto } from "../tema";
 
 // Aviso de cuenta sin verificar.
 //
@@ -13,8 +16,10 @@ import {
 // pastillas, agendar y ver el calendario sin haber confirmado el mail. El
 // aviso esta para que la persona sepa que le falta un paso, no para trabarla.
 //
-// Se pone al tope de las pantallas principales. Cuando la cuenta se verifica,
-// desaparece solo.
+// Lo que cambio del diseno anterior: el texto pasó de 13px a 17, y las dos
+// acciones dejaron de ser texto suelto de 13px —"Reenviar el mail", "Ahora
+// no"— para ser botones de 48px. Eran las dos cosas mas chicas de la pantalla
+// y habia que acertarles con el dedo.
 export default function AvisoVerificacion() {
   const [verificado, setVerificado] = useState<boolean | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -64,30 +69,35 @@ export default function AvisoVerificacion() {
   };
 
   return (
-    <View style={styles.caja}>
-      <View style={styles.franja} />
+    <View style={styles.caja} accessibilityLiveRegion="polite">
+      <View style={styles.titulo}>
+        <Ionicons name="mail-unread" size={22} color={colores.atencion.texto} />
+        <Text style={styles.tituloTexto}>Falta confirmar tu cuenta</Text>
+      </View>
 
-      <View style={styles.contenido}>
-        <Text style={styles.titulo}>Falta confirmar tu cuenta</Text>
+      <Text style={styles.cuerpo}>
+        Te mandamos un mail con un enlace. Podés usar la app igual, pero hasta
+        confirmarla no te van a llegar los avisos del pastillero.
+      </Text>
 
-        <Text style={styles.texto}>
-          Te mandamos un mail con un enlace. Mientras tanto podés usar la app
-          normalmente, pero confirmala para no perder los avisos del pastillero.
-        </Text>
+      {mensaje !== "" && <Text style={styles.respuesta}>{mensaje}</Text>}
 
-        {mensaje !== "" && <Text style={styles.respuesta}>{mensaje}</Text>}
+      <View style={styles.acciones}>
+        <Boton
+          titulo={enviando ? "Enviando..." : "Reenviar el mail"}
+          variante="secundario"
+          onPress={handleReenviar}
+          cargando={enviando}
+          ancho="auto"
+        />
 
-        <View style={styles.acciones}>
-          <Pressable onPress={handleReenviar} disabled={enviando}>
-            <Text style={styles.enlace}>
-              {enviando ? "Enviando..." : "Reenviar el mail"}
-            </Text>
-          </Pressable>
-
-          <Pressable onPress={() => setOculto(true)}>
-            <Text style={styles.enlaceSuave}>Ahora no</Text>
-          </Pressable>
-        </View>
+        <Boton
+          titulo="Ahora no"
+          variante="enlace"
+          onPress={() => setOculto(true)}
+          ancho="auto"
+          ayuda="Oculta este aviso hasta la próxima vez que entres"
+        />
       </View>
     </View>
   );
@@ -95,63 +105,43 @@ export default function AvisoVerificacion() {
 
 const styles = StyleSheet.create({
   caja: {
-    flexDirection: "row",
-    width: "90%",
-    maxWidth: 520,
-    alignSelf: "center",
-    backgroundColor: "#2A2005",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#7A5C12",
-    overflow: "hidden",
-    marginBottom: 18,
-  },
-
-  // Franja ambar al costado, el mismo recurso que usan los mails para el
-  // estado: el color como acento y no como fondo del texto.
-  franja: {
-    width: 5,
-    backgroundColor: "#E0A82E",
-  },
-
-  contenido: {
-    flex: 1,
-    padding: 16,
+    width: "100%",
+    backgroundColor: colores.atencion.fondo,
+    borderWidth: 2,
+    borderColor: colores.atencion.borde,
+    borderRadius: radio.lg,
+    padding: espacio.lg,
+    marginBottom: espacio.xl,
   },
 
   titulo: {
-    color: "#F2D08A",
-    fontSize: 15,
-    fontWeight: "900",
-    marginBottom: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.sm,
+    marginBottom: espacio.sm,
   },
 
-  texto: {
-    color: "#D8C9A6",
-    fontSize: 13,
-    lineHeight: 19,
+  tituloTexto: {
+    ...texto.item,
+    color: colores.atencion.texto,
+    flex: 1,
+  },
+
+  cuerpo: {
+    ...texto.cuerpo,
+    color: colores.atencion.texto,
   },
 
   respuesta: {
-    color: "#F2D08A",
-    fontSize: 13,
-    marginTop: 10,
+    ...texto.cuerpoFuerte,
+    color: colores.atencion.texto,
+    marginTop: espacio.md,
   },
 
   acciones: {
     flexDirection: "row",
-    gap: 20,
-    marginTop: 12,
-  },
-
-  enlace: {
-    color: "#E0A82E",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-
-  enlaceSuave: {
-    color: "#9A8A66",
-    fontSize: 13,
+    flexWrap: "wrap",
+    gap: espacio.sm,
+    marginTop: espacio.lg,
   },
 });

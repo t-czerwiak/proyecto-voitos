@@ -135,13 +135,13 @@ const styles = StyleSheet.create({
 
   // El anillo de foco del teclado. Va por fuera del borde para que se vea
   // tambien cuando el boton ya tiene borde propio.
+  //
+  // Con boxShadow y no con shadowColor/shadowRadius: las shadow* estan
+  // deprecadas y ademas dibujaban un halo difuso, no un anillo. Un anillo
+  // nitido de 3px se ve; un halo verde sobre un boton verde, no.
   foco: {
     borderColor: colores.texto,
-    shadowColor: colores.acento,
-    shadowOpacity: 1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
+    boxShadow: `0 0 0 3px ${colores.acento}`,
   },
 
   // Atenuado pero todavia legible: un boton apagado que no se lee no explica

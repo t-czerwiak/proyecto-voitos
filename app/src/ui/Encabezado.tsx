@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { Href, router } from "expo-router";
 import { colores, espacio, radio, texto, toque } from "../tema";
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
   // ahorra mas tiempo que cualquier icono.
   bajada?: string;
   // A donde vuelve la flecha. Por defecto, a la pantalla anterior.
-  volverA?: string;
+  volverA?: Href;
   // La portada y el inicio de sesion no tienen a donde volver.
   sinVolver?: boolean;
 };
@@ -25,14 +25,14 @@ type Props = {
 export default function Encabezado({ titulo, bajada, volverA, sinVolver }: Props) {
   const volver = () => {
     if (volverA) {
-      router.push(volverA as never);
+      router.push(volverA);
       return;
     }
     if (router.canGoBack()) {
       router.back();
       return;
     }
-    router.push("/home" as never);
+    router.push("/home");
   };
 
   return (

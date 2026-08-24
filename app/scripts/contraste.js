@@ -96,6 +96,40 @@ RUTINA.forEach((color, i) => {
   pares.push([`rutina ${i + 1}: ${color} como texto en tarjeta`, color, C.superficie, 4.5]);
 });
 
+// EL FONDO SE MUEVE, ASI QUE EL FONDO NO ES UN SOLO COLOR.
+//
+// Las burbujas de la lampara de lava pasan por detras del texto. Con opacidad
+// 0.13 aclaran el fondo, y ahi es donde el contraste puede caerse sin que
+// nadie lo note mirando una captura quieta: hay que mirar el peor momento,
+// que es cuando la burbuja mas clara esta justo atras.
+//
+// Esto compone cada burbuja sobre el fondo y verifica el texto contra el
+// resultado. Si alguna vez sube la opacidad de las burbujas, esto avisa.
+const OPACIDAD_BURBUJA = 0.13;
+
+const componer = (encima, debajo, alfa) => {
+  const partes = (hex) => {
+    const n = parseInt(hex.replace("#", ""), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const a = partes(encima);
+  const b = partes(debajo);
+  const mezcla = a.map((v, i) => Math.round(v * alfa + b[i] * (1 - alfa)));
+  return "#" + mezcla.map((v) => v.toString(16).padStart(2, "0")).join("");
+};
+
+const BURBUJAS = { verde: C.acento, claro: C.acentoSuave, medio: "#32CD32" };
+
+for (const [nombre, color] of Object.entries(BURBUJAS)) {
+  const fondoConBurbuja = componer(color, C.fondo, OPACIDAD_BURBUJA);
+  pares.push([`texto sobre el fondo con burbuja ${nombre}`, C.texto, fondoConBurbuja, 4.5]);
+  pares.push([`texto suave sobre el fondo con burbuja ${nombre}`, C.textoSuave, fondoConBurbuja, 4.5]);
+  pares.push([`texto tenue sobre el fondo con burbuja ${nombre}`, C.textoTenue, fondoConBurbuja, 4.5]);
+  // El "Volver" del encabezado es verde y va sobre el fondo pelado, asi que
+  // es el que mas puede sufrir cuando pasa una burbuja verde por atras.
+  pares.push([`acento sobre el fondo con burbuja ${nombre}`, C.acento, fondoConBurbuja, 4.5]);
+}
+
 let fallos = 0;
 
 for (const [nombre, frente, fondo, minimo] of pares) {

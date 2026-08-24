@@ -1,65 +1,55 @@
 import React, { useCallback, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Pressable, // Added missing import
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import LavaBackground from "../../components/LavaBackground";
 import {
   getActividades,
   getHorariosDelUsuario,
   cancelarRutina,
+  Actividad,
   Horario,
 } from "../../lib/voitos";
 import { confirmar } from "../../lib/avisos";
 import {
   armarRutinas,
-  comoDiaYFecha,
   comoFecha,
   DIAS_SEMANA,
+  letraDelDia,
   rutinaDeHorario,
   rutinasActivas,
   rutinasEnFecha,
   Rutina,
 } from "../../lib/rutinas";
+import { esHoy, fechaLarga, fechaRelativa, hoyISO, MESES_LARGOS } from "../../lib/fechas";
+import FilaDosis from "../../components/FilaDosis";
+import {
+  Pantalla,
+  Encabezado,
+  Tarjeta,
+  Boton,
+  Aviso,
+  Vacio,
+  Cargando,
+  Estado,
+} from "../../ui";
+import { colores, espacio, radio, texto, toque } from "../../tema";
 
-type Actividad = {
-  id: string;
-  nombre: string;
-  fecha: string;
-  hora: string;
-  tipo: "rutina" | "una-vez";
-  dias?: string[];
+// Nombre completo del dia de la semana, para el lector de pantalla. La letra
+// suelta ("X") no es una palabra que nadie pueda escuchar.
+const NOMBRE_DIA: Record<string, string> = {
+  L: "lunes",
+  M: "martes",
+  X: "miércoles",
+  J: "jueves",
+  V: "viernes",
+  S: "sábado",
+  D: "domingo",
 };
-
-const meses = [
-  "ENERO",
-  "FEBRERO",
-  "MARZO",
-  "ABRIL",
-  "MAYO",
-  "JUNIO",
-  "JULIO",
-  "AGOSTO",
-  "SEPTIEMBRE",
-  "OCTUBRE",
-  "NOVIEMBRE",
-  "DICIEMBRE",
-];
-
-const diasSemana = DIAS_SEMANA;
 
 export default function Calendario() {
   const [mes, setMes] = useState(new Date().getMonth());
   const [anio, setAnio] = useState(new Date().getFullYear());
-
-  const [fechaSeleccionada, setFechaSeleccionada] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(hoyISO());
 
   const [actividades, setActividades] = useState<Actividad[]>([]);
 
@@ -67,6 +57,7 @@ export default function Calendario() {
   // se marcan distinto: una rutina de medicacion ya viene materializada como
   // una fila por dia, asi que no hay que resolver dias de la semana.
   const [horarios, setHorarios] = useState<Horario[]>([]);
+  const [cargando, setCargando] = useState(true);
   const [borrando, setBorrando] = useState(false);
   const [errorRutina, setErrorRutina] = useState("");
   const [errorCarga, setErrorCarga] = useState("");
@@ -84,18 +75,16 @@ export default function Calendario() {
         setHorarios(datos);
         setErrorCarga("");
       })
-      .catch((e: any) => setErrorCarga(e?.message ?? "No se pudieron cargar las dosis"));
+      .catch((e: any) =>
+        setErrorCarga(e?.message ?? "No se pudieron cargar las dosis")
+      );
 
   const handleBorrarRutina = async (rutina: Rutina) => {
     const seguir = await confirmar(
       `Borrar la rutina de ${rutina.nombre}`,
-      `${rutina.horaTexto}, ${rutina.dias.join(" ")}.
-
-` +
+      `${rutina.horaTexto}, ${rutina.dias.join(" ")}.\n\n` +
         `Se borran las ${rutina.pendientes} dosis que todavía no salieron. ` +
-        `Las ya dispensadas quedan en el historial.
-
-¿Seguro?`,
+        `Las ya dispensadas quedan en el historial.\n\n¿Seguro?`,
       "Borrar rutina"
     );
     if (!seguir) return;
@@ -113,8 +102,6 @@ export default function Calendario() {
       });
       await recargarHorarios();
     } catch (e: any) {
-      // Antes esto se tragaba el error y la rutina quedaba en pantalla sin
-      // ninguna explicacion.
       setErrorRutina(e.message ?? "No se pudo borrar la rutina");
     } finally {
       setBorrando(false);
@@ -131,13 +118,8 @@ export default function Calendario() {
       let vigente = true;
 
       getActividades()
-        .then((datos) => {
-          if (vigente) setActividades(datos as Actividad[]);
-        })
-        .catch(() => {
-          // Sin sesion o sin backend: el calendario se muestra vacio
-          if (vigente) setActividades([]);
-        });
+        .then((datos) => vigente && setActividades(datos))
+        .catch(() => vigente && setActividades([]));
 
       getHorariosDelUsuario()
         .then((datos) => {
@@ -151,6 +133,9 @@ export default function Calendario() {
           if (!vigente) return;
           setHorarios([]);
           setErrorCarga(e?.message ?? "No se pudieron cargar las dosis");
+        })
+        .finally(() => {
+          if (vigente) setCargando(false);
         });
 
       return () => {
@@ -160,7 +145,6 @@ export default function Calendario() {
   );
 
   const cantidadDias = new Date(anio, mes + 1, 0).getDate();
-
   const primerDia = new Date(anio, mes, 1).getDay();
 
   // Convertimos domingo=0 a lunes=0
@@ -168,75 +152,40 @@ export default function Calendario() {
 
   const diasCalendario = useMemo(() => {
     const dias: (number | null)[] = [];
-
-    for (let i = 0; i < primerDiaAjustado; i++) {
-      dias.push(null);
-    }
-
-    for (let dia = 1; dia <= cantidadDias; dia++) {
-      dias.push(dia);
-    }
-
+    for (let i = 0; i < primerDiaAjustado; i++) dias.push(null);
+    for (let dia = 1; dia <= cantidadDias; dia++) dias.push(dia);
     return dias;
-  }, [mes, anio, primerDiaAjustado, cantidadDias]);
+  }, [primerDiaAjustado, cantidadDias]);
 
-  function obtenerFecha(dia: number) {
-    const mesTexto = String(mes + 1).padStart(2, "0");
-    const diaTexto = String(dia).padStart(2, "0");
+  const fechaDe = (dia: number) =>
+    `${anio}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
 
-    return `${anio}-${mesTexto}-${diaTexto}`;
-  }
-
-  function tieneActividad(dia: number) {
-    const fecha = obtenerFecha(dia);
-
-    return actividades.some((actividad) => {
-      if (actividad.tipo === "una-vez") {
-        return actividad.fecha === fecha;
-      }
-
-      const fechaObjeto = new Date(`${fecha}T12:00:00`);
-
-      const diaSemana = fechaObjeto.getDay();
-
-      const indice = diaSemana === 0 ? 6 : diaSemana - 1;
-
-      return actividad.dias?.includes(diasSemana[indice]);
-    });
-  }
+  const actividadesEn = (fecha: string) =>
+    actividades.filter((a) =>
+      a.tipo === "una-vez" ? a.fecha === fecha : a.dias?.includes(letraDelDia(fecha))
+    );
 
   // Las rutinas que tienen una dosis este dia.
   //
   // Se compara contra las fechas de cada rutina. Antes se filtraba por
   // pastilla, y como varias rutinas pueden ser de la misma pastilla, un dia con
-  // una sola dosis pintaba el marcador de todas: salian ocho marcadores donde
-  // correspondia uno.
-  // Solo las activas. Marcar tambien las terminadas llenaba el calendario de
-  // dosis sueltas viejas, en dias anteriores a cualquier rutina en curso, y
-  // con colores que no correspondian a ninguna tarjeta de abajo.
-  function rutinasDelDia(dia: number) {
-    return rutinasEnFecha(activas, obtenerFecha(dia));
-  }
+  // una sola dosis pintaba el marcador de todas.
+  // Solo las activas: marcar tambien las terminadas llenaba el calendario de
+  // dosis viejas con colores que no correspondian a ninguna tarjeta de abajo.
+  const rutinasEn = (fecha: string) => rutinasEnFecha(activas, fecha);
 
-  function medicacionDelDia() {
-    return horarios.filter((h) => h.dia === fechaSeleccionada);
-  }
+  const dosisDelDia = useMemo(
+    () =>
+      horarios
+        .filter((h) => h.dia === fechaSeleccionada)
+        .sort((a, b) => a.hora - b.hora || a.minuto - b.minuto),
+    [horarios, fechaSeleccionada]
+  );
 
-  function actividadesDelDia() {
-    return actividades.filter((actividad) => {
-      if (actividad.tipo === "una-vez") {
-        return actividad.fecha === fechaSeleccionada;
-      }
-
-      const fecha = new Date(`${fechaSeleccionada}T12:00:00`);
-
-      const diaSemana = fecha.getDay();
-
-      const indice = diaSemana === 0 ? 6 : diaSemana - 1;
-
-      return actividad.dias?.includes(diasSemana[indice]);
-    });
-  }
+  const actividadesDelDia = useMemo(
+    () => actividadesEn(fechaSeleccionada).sort((a, b) => a.hora.localeCompare(b.hora)),
+    [actividades, fechaSeleccionada]
+  );
 
   function cambiarMes(valor: number) {
     let nuevoMes = mes + valor;
@@ -246,7 +195,6 @@ export default function Calendario() {
       nuevoMes = 0;
       nuevoAnio++;
     }
-
     if (nuevoMes < 0) {
       nuevoMes = 11;
       nuevoAnio--;
@@ -256,711 +204,615 @@ export default function Calendario() {
     setAnio(nuevoAnio);
   }
 
-  function agregarActividad() {
-    router.push({
-      pathname: "/agregar-actividad",
-      params: {
-        fecha: fechaSeleccionada,
-      },
-    });
-  }
+  const irAHoy = () => {
+    const ahora = new Date();
+    setMes(ahora.getMonth());
+    setAnio(ahora.getFullYear());
+    setFechaSeleccionada(hoyISO());
+  };
 
   return (
-    <View style={styles.container}>
-      <LavaBackground />
+    <Pantalla>
+      <Encabezado
+        titulo="Calendario"
+        bajada="Tocá un día para ver qué hay agendado."
+        volverA="/home"
+      />
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        <Pressable onPress={() => router.push("/home")}>
-          <Text style={styles.title}>CALENDARIO</Text>
+      <Aviso texto={errorCarga} />
+
+      {/* MES */}
+      <View style={styles.navegacion}>
+        <Pressable
+          onPress={() => cambiarMes(-1)}
+          style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
+          accessibilityRole="button"
+          accessibilityLabel="Mes anterior"
+        >
+          <Ionicons name="chevron-back" size={24} color={colores.acento} />
         </Pressable>
 
-        {/* AÑO */}
+        <Text style={styles.mes} accessibilityRole="header">
+          {MESES_LARGOS[mes]} {anio}
+        </Text>
 
-        <View style={styles.yearContainer}>
-          <TouchableOpacity
-            style={styles.arrow}
-            onPress={() => setAnio(anio - 1)}
-          >
-            <Text style={styles.arrowText}>‹</Text>
-          </TouchableOpacity>
+        <Pressable
+          onPress={() => cambiarMes(1)}
+          style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
+          accessibilityRole="button"
+          accessibilityLabel="Mes siguiente"
+        >
+          <Ionicons name="chevron-forward" size={24} color={colores.acento} />
+        </Pressable>
+      </View>
 
-          <Text style={styles.year}>{anio}</Text>
-
-          <TouchableOpacity
-            style={styles.arrow}
-            onPress={() => setAnio(anio + 1)}
-          >
-            <Text style={styles.arrowText}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* MES */}
-
-        <View style={styles.monthContainer}>
-          <TouchableOpacity
-            style={styles.monthArrow}
-            onPress={() => cambiarMes(-1)}
-          >
-            <Text style={styles.monthArrowText}>‹</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.month}>{meses[mes]}</Text>
-
-          <TouchableOpacity
-            style={styles.monthArrow}
-            onPress={() => cambiarMes(1)}
-          >
-            <Text style={styles.monthArrowText}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* DÍAS DE LA SEMANA */}
-
-        <View style={styles.weekHeader}>
-          {diasSemana.map((dia) => (
-            <Text key={dia} style={styles.weekText}>
+      {/* GRILLA */}
+      <View style={styles.grilla}>
+        <View style={styles.semana}>
+          {DIAS_SEMANA.map((dia) => (
+            <Text
+              key={dia}
+              style={styles.diaSemana}
+              // La cabecera de la columna la lee cada celda en su propia
+              // etiqueta, asi que repetirla acá solo alarga la escucha.
+              accessibilityElementsHidden
+            >
               {dia}
             </Text>
           ))}
         </View>
 
-        {/* CALENDARIO */}
-
-        <View style={styles.calendar}>
-          {diasCalendario.map((dia, index) => {
+        <View style={styles.dias}>
+          {diasCalendario.map((dia, i) => {
             if (dia === null) {
-              return (
-                <View
-                  key={`empty-${index}`}
-                  style={styles.day}
-                />
-              );
+              return <View key={`vacio-${i}`} style={styles.celda} />;
             }
 
-            const fecha = obtenerFecha(dia);
+            const fecha = fechaDe(dia);
+            const elegido = fecha === fechaSeleccionada;
+            const hoy = esHoy(fecha);
+            const susRutinas = rutinasEn(fecha);
+            const susActividades = actividadesEn(fecha);
 
-            const seleccionado =
-              fecha === fechaSeleccionada;
-
-            const actividad = tieneActividad(dia);
+            // Todo lo que el ojo saca de los colores, dicho en palabras.
+            const partes: string[] = [fechaLarga(fecha)];
+            if (hoy) partes.push("hoy");
+            if (susRutinas.length)
+              partes.push(
+                susRutinas.length === 1
+                  ? "1 dosis agendada"
+                  : `${susRutinas.length} dosis agendadas`
+              );
+            if (susActividades.length)
+              partes.push(
+                susActividades.length === 1
+                  ? "1 actividad"
+                  : `${susActividades.length} actividades`
+              );
+            if (!susRutinas.length && !susActividades.length) partes.push("sin nada agendado");
 
             return (
-              <TouchableOpacity
+              <Pressable
                 key={dia}
-                style={[
-                  styles.day,
-                  seleccionado && styles.selectedDay,
+                onPress={() => setFechaSeleccionada(fecha)}
+                style={({ pressed }) => [
+                  styles.celda,
+                  styles.celdaTocable,
+                  hoy && styles.celdaHoy,
+                  elegido && styles.celdaElegida,
+                  pressed && styles.celdaActiva,
                 ]}
-                onPress={() => {
-                  setFechaSeleccionada(fecha);
-                }}
+                accessibilityRole="button"
+                accessibilityLabel={partes.join(", ")}
+                accessibilityState={{ selected: elegido }}
+                // react-native-web no traduce accessibilityState.selected en
+                // un role="button", asi que el navegador no anunciaba cual
+                // era el dia elegido. Se pone a mano.
+                aria-selected={elegido}
               >
                 <Text
                   style={[
-                    styles.dayText,
-                    seleccionado && styles.selectedDayText,
+                    styles.numero,
+                    hoy && styles.numeroHoy,
+                    elegido && styles.numeroElegido,
                   ]}
                 >
                   {dia}
                 </Text>
 
-                <View style={styles.dotsRow}>
-                  {actividad && <View style={styles.activityDot} />}
-                  {rutinasDelDia(dia).map((r) => (
+                {/* Los marcadores son una ayuda visual. Lo que significan está
+                    escrito en la referencia de abajo y en la etiqueta de la
+                    celda, así que nadie depende del color. */}
+                <View style={styles.marcadores}>
+                  {susActividades.length > 0 && (
+                    <View style={[styles.marcador, styles.marcadorActividad]} />
+                  )}
+                  {susRutinas.slice(0, 3).map((r) => (
                     <View
-                      key={r.pastillaId}
-                      style={[
-                        styles.medicationDot,
-                        { backgroundColor: r.color, shadowColor: r.color },
-                      ]}
+                      key={r.id}
+                      style={[styles.marcador, { backgroundColor: r.color }]}
                     />
                   ))}
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </View>
+      </View>
 
-        {/* RUTINAS ACTIVAS */}
+      <View style={styles.bajoGrilla}>
+        <Boton
+          titulo="Ir a hoy"
+          variante="enlace"
+          icono="today-outline"
+          onPress={irAHoy}
+          ancho="auto"
+        />
+      </View>
 
-        {activas.length > 0 && (
-          <View style={styles.activitiesContainer}>
-            <Text style={styles.activitiesTitle}>RUTINAS</Text>
+      {/* REFERENCIA DE COLORES
+          Sin esto, los colores del calendario son adivinanza: se ven tres
+          barras distintas y no hay forma de saber cuál es cuál sin abrir cada
+          día uno por uno. */}
+      {activas.length > 0 && (
+        <View style={styles.referencia}>
+          <Text style={styles.tituloReferencia}>Qué es cada color</Text>
 
-            {errorRutina !== "" && (
-              <Text style={styles.errorRutina}>{errorRutina}</Text>
-            )}
+          {activas.map((r) => (
+            <View
+              key={r.id}
+              style={styles.filaReferencia}
+              accessible
+              accessibilityLabel={`${r.nombre}, a las ${r.horaTexto}`}
+            >
+              <View style={[styles.muestra, { backgroundColor: r.color }]} />
+              <Text style={styles.textoReferencia}>
+                {r.nombre} · {r.horaTexto}
+              </Text>
+            </View>
+          ))}
 
-            {activas.map((r) => (
-              <View key={r.id} style={styles.activity}>
-                {/* Misma barra de color que el marcador del calendario, asi
-                    se ve de una cual rutina es cual */}
-                <View
-                  style={[
-                    styles.rutinaColor,
-                    { backgroundColor: r.color, shadowColor: r.color },
-                  ]}
-                />
-
-                <View style={styles.activityInfo}>
-                  <Text style={styles.activityName}>
-                    {r.nombre} · {r.horaTexto}
-                  </Text>
-
-                  {/* Los siete dias siempre a la vista, con los de la rutina
-                      encendidos en su color. Leer "L M X V" suelto obliga a
-                      reconstruir la semana mentalmente; asi se ve de una. */}
-                  <View style={styles.diasRutina}>
-                    {DIAS_SEMANA.map((d) => {
-                      const activo = r.dias.includes(d);
-                      return (
-                        <Text
-                          key={d}
-                          style={[
-                            styles.diaRutina,
-                            activo && {
-                              color: "#0A0A0A",
-                              backgroundColor: r.color,
-                              fontWeight: "900",
-                            },
-                          ]}
-                        >
-                          {d}
-                        </Text>
-                      );
-                    })}
-                  </View>
-
-                  {r.proxima && (
-                    <Text style={styles.rutinaProxima}>
-                      Próxima: {comoDiaYFecha(r.proxima)} a las {r.horaTexto}
-                    </Text>
-                  )}
-
-                  <Text style={styles.rutinaDetalle}>
-                    {r.cantidad === 1 ? "1 pastilla" : `${r.cantidad} pastillas`} por dosis
-                    {"  ·  "}
-                    {r.pendientes} de {r.dosis} sin tomar
-                  </Text>
-
-                  <Text style={styles.rutinaDetalle}>
-                    {r.semanas === 1 ? "1 semana" : `${r.semanas} semanas`}
-                    {"  ·  "}
-                    {comoFecha(r.desde)} al {comoFecha(r.hasta)}
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.botonBorrar}
-                  onPress={() => handleBorrarRutina(r)}
-                  disabled={borrando}
-                >
-                  <Text style={styles.botonBorrarTexto}>BORRAR</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+          <View style={styles.filaReferencia} accessible accessibilityLabel="Actividades">
+            <View style={[styles.muestra, styles.marcadorActividad]} />
+            <Text style={styles.textoReferencia}>Actividades</Text>
           </View>
-        )}
+        </View>
+      )}
 
-        {/* FECHA SELECCIONADA */}
-
-        <View style={styles.selectedDateContainer}>
-          <Text style={styles.selectedDateTitle}>
-            FECHA SELECCIONADA
+      {/* DÍA ELEGIDO */}
+      <View style={styles.seccion}>
+        <View style={styles.tituloDia}>
+          <Text style={styles.tituloSeccion} accessibilityRole="header">
+            {fechaLarga(fechaSeleccionada)}
           </Text>
-
-          <Text style={styles.selectedDate}>
-            {fechaSeleccionada.split("-").reverse().join("/")}
-          </Text>
+          {esHoy(fechaSeleccionada) && <Estado texto="Hoy" tono="ok" icono="today" />}
         </View>
 
-        {/* MEDICACIÓN DEL DÍA */}
+        {cargando ? (
+          <Cargando texto="Buscando lo agendado..." />
+        ) : (
+          <>
+            <Text style={styles.subtitulo}>Medicación</Text>
 
-        <View style={styles.activitiesContainer}>
-          <Text style={styles.activitiesTitle}>
-            MEDICACIÓN
-          </Text>
-
-          {errorCarga !== "" ? (
-            <Text style={styles.errorRutina}>{errorCarga}</Text>
-          ) : medicacionDelDia().length === 0 ? (
-            <Text style={styles.noActivities}>
-              No hay dosis para este día
-            </Text>
-          ) : (
-            medicacionDelDia()
-              .sort((a, b) => a.hora - b.hora || a.minuto - b.minuto)
-              .map((dosis) => {
-                // La rutina de la que sale esta dosis. Se usa para pintarla
-                // del mismo color que su marcador y su tarjeta, asi se ve a
-                // cual pertenece cuando hay varias a la misma hora.
+            {dosisDelDia.length === 0 ? (
+              <Vacio
+                icono="medkit-outline"
+                titulo="No hay dosis para este día"
+                detalle="Las dosis se agendan desde Pastillas, eligiendo los días de la semana."
+                accion={{
+                  titulo: "Agendar una dosis",
+                  onPress: () => router.push("/agendar-medicacion"),
+                }}
+              />
+            ) : (
+              dosisDelDia.map((dosis) => {
+                // La rutina de la que sale esta dosis, para pintarla del mismo
+                // color que su marcador en el calendario.
                 const suRutina = rutinaDeHorario(activas, dosis);
-
                 return (
-                  <View key={dosis.id} style={styles.activity}>
-                    <View
-                      style={[
-                        styles.rutinaColor,
-                        styles.colorDeDosis,
-                        suRutina
-                          ? { backgroundColor: suRutina.color, shadowColor: suRutina.color }
-                          : { backgroundColor: "#2C4A38" },
-                      ]}
-                    />
-
-                    <Text style={styles.activityTime}>
-                      {String(dosis.hora).padStart(2, "0")}:
-                      {String(dosis.minuto).padStart(2, "0")}
-                    </Text>
-
-                    <View style={styles.activityInfo}>
-                      <Text style={styles.activityName}>
-                        {dosis.pastillas?.nombre ?? "Pastilla"}
-                      </Text>
-
-                      {/* No dice si se tomo o no. El sistema solo sabe que la
-                          pastilla salio del modulo, no que la persona se la
-                          haya tomado, y afirmarlo seria decir de mas. El aviso
-                          al cuidador lo hacen los mails. */}
-                      <Text style={styles.activityType}>
-                        {dosis.cantidad === 1
-                          ? "1 PASTILLA"
-                          : `${dosis.cantidad} PASTILLAS`}
-                      </Text>
-
-                      {suRutina ? (
-                        <Text style={styles.rutinaDetalle}>
-                          Rutina: {suRutina.dias.join(" ")} a las {suRutina.horaTexto}
-                        </Text>
-                      ) : (
-                        <Text style={styles.rutinaDetalle}>Dosis suelta</Text>
-                      )}
-                    </View>
-                  </View>
+                  <FilaDosis
+                    key={dosis.id}
+                    dosis={dosis}
+                    color={suRutina?.color}
+                    detalle={
+                      suRutina
+                        ? `Rutina: ${suRutina.dias.join(" ")} a las ${suRutina.horaTexto}`
+                        : "Dosis suelta"
+                    }
+                  />
                 );
               })
-          )}
-        </View>
+            )}
 
-        {/* ACTIVIDADES DEL DÍA */}
+            <Text style={styles.subtitulo}>Actividades</Text>
 
-        <View style={styles.activitiesContainer}>
-          <Text style={styles.activitiesTitle}>
-            ACTIVIDADES
-          </Text>
+            {actividadesDelDia.length === 0 ? (
+              <Vacio
+                icono="walk-outline"
+                titulo="No hay actividades para este día"
+                detalle="Sirven para anotar lo que no dispensa el pastillero: una caminata, el kinesiólogo, una visita."
+              />
+            ) : (
+              actividadesDelDia.map((a) => (
+                <Tarjeta key={a.id}>
+                  <View
+                    style={styles.actividad}
+                    accessible
+                    accessibilityLabel={`A las ${a.hora}, ${a.nombre}. ${
+                      a.tipo === "rutina" ? "Se repite todas las semanas" : "Una sola vez"
+                    }.`}
+                  >
+                    <Text style={styles.actividadHora}>{a.hora}</Text>
 
-          {actividadesDelDia().length === 0 ? (
-            <Text style={styles.noActivities}>
-              No hay actividades para este día
-            </Text>
-          ) : (
-            actividadesDelDia()
-              .sort((a, b) =>
-                a.hora.localeCompare(b.hora)
-              )
-              .map((actividad) => (
-                <View
-                  key={actividad.id}
-                  style={styles.activity}
-                >
-                  <Text style={styles.activityTime}>
-                    {actividad.hora}
-                  </Text>
-
-                  <View style={styles.activityInfo}>
-                    <Text style={styles.activityName}>
-                      {actividad.nombre}
-                    </Text>
-
-                    <Text style={styles.activityType}>
-                      {actividad.tipo === "rutina"
-                        ? "RUTINA"
-                        : "UNA VEZ"}
-                    </Text>
+                    <View style={styles.actividadDatos}>
+                      <Text style={styles.actividadNombre}>{a.nombre}</Text>
+                      <Text style={styles.actividadTipo}>
+                        {a.tipo === "rutina" ? "Todas las semanas" : "Una sola vez"}
+                      </Text>
+                    </View>
                   </View>
-                </View>
+                </Tarjeta>
               ))
-          )}
-        </View>
+            )}
 
-        {/* AGREGAR ACTIVIDAD */}
+            <View style={styles.agregar}>
+              <Boton
+                titulo="Agregar una actividad"
+                variante="secundario"
+                icono="add-outline"
+                onPress={() =>
+                  router.push({
+                    pathname: "/agregar-actividad",
+                    params: { fecha: fechaSeleccionada },
+                  })
+                }
+                ayuda={`Se agrega el ${fechaLarga(fechaSeleccionada)}`}
+              />
+            </View>
+          </>
+        )}
+      </View>
 
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={agregarActividad}
-        >
-          <Text style={styles.addButtonText}>
-            + AGREGAR ACTIVIDAD
+      {/* RUTINAS EN CURSO */}
+      {activas.length > 0 && (
+        <View style={styles.seccion}>
+          <Text style={styles.tituloSeccion} accessibilityRole="header">
+            Rutinas en curso
           </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+
+          <Aviso texto={errorRutina} />
+
+          {activas.map((r) => (
+            <Tarjeta key={r.id} franja={r.color}>
+              <Text style={styles.rutinaNombre}>{r.nombre}</Text>
+
+              <Text style={styles.rutinaHora}>
+                Todos los días marcados, a las {r.horaTexto}
+              </Text>
+
+              {/* Los siete días siempre a la vista, con los de la rutina
+                  encendidos. Leer "L M X V" suelto obliga a reconstruir la
+                  semana mentalmente; así se ve de una. */}
+              <View
+                style={styles.diasRutina}
+                accessible
+                accessibilityLabel={`Se repite los ${r.dias
+                  .map((d) => NOMBRE_DIA[d])
+                  .join(", ")}`}
+              >
+                {DIAS_SEMANA.map((d) => {
+                  const activo = r.dias.includes(d);
+                  return (
+                    <Text
+                      key={d}
+                      style={[
+                        styles.diaRutina,
+                        activo && {
+                          color: "#0A0A0A",
+                          backgroundColor: r.color,
+                        },
+                      ]}
+                    >
+                      {d}
+                    </Text>
+                  );
+                })}
+              </View>
+
+              {r.proxima && (
+                <Text style={styles.rutinaProxima}>
+                  La próxima es {fechaRelativa(r.proxima)} a las {r.horaTexto}
+                </Text>
+              )}
+
+              <Text style={styles.rutinaDetalle}>
+                {r.cantidad === 1 ? "1 pastilla" : `${r.cantidad} pastillas`} por dosis ·{" "}
+                {r.pendientes} de {r.dosis} sin salir
+              </Text>
+
+              <Text style={styles.rutinaDetalle}>
+                {r.semanas === 1 ? "1 semana" : `${r.semanas} semanas`} · del{" "}
+                {comoFecha(r.desde)} al {comoFecha(r.hasta)}
+              </Text>
+
+              <View style={styles.borrar}>
+                <Boton
+                  titulo="Borrar la rutina"
+                  variante="peligro"
+                  icono="trash-outline"
+                  onPress={() => handleBorrarRutina(r)}
+                  deshabilitado={borrando}
+                  ayuda={`Se borran las ${r.pendientes} dosis que todavía no salieron`}
+                />
+              </View>
+            </Tarjeta>
+          ))}
+        </View>
+      )}
+    </Pantalla>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  navegacion: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colores.superficie,
+    borderWidth: 2,
+    borderColor: colores.borde,
+    borderRadius: radio.lg,
+    padding: espacio.xs,
+    marginBottom: espacio.lg,
+  },
+
+  flecha: {
+    width: toque.comodo,
+    height: toque.comodo,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radio.md,
+    backgroundColor: colores.superficieAlta,
+  },
+
+  flechaActiva: {
+    backgroundColor: colores.borde,
+  },
+
+  mes: {
+    ...texto.seccion,
+    color: colores.texto,
     flex: 1,
-    backgroundColor: "#000000",
-  },
-
-  scroll: {
-    flexGrow: 1,
-    alignItems: "center",
-    paddingTop: 55,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-  },
-
-  title: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    fontWeight: "bold",
-    letterSpacing: 2,
-    marginBottom: 20,
-  },
-
-  // AÑO
-
-  yearContainer: {
-    width: "90%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 15,
-  },
-
-  year: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "bold",
-  },
-
-  arrow: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 2,
-    borderColor: "#00FF7F",
-    backgroundColor: "#01250E",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  arrowText: {
-    color: "#00FF7F",
-    fontSize: 32,
-    lineHeight: 34,
-  },
-
-  // MES
-
-  monthContainer: {
-    width: "90%",
-    height: 55,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#01250E",
-    borderWidth: 2,
-    borderColor: "#105A2C",
-    borderRadius: 15,
-    marginBottom: 20,
-  },
-
-  month: {
-    color: "#FFFFFF",
-    fontSize: 21,
-    fontWeight: "bold",
-    letterSpacing: 1,
-  },
-
-  monthArrow: {
-    width: 50,
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  monthArrowText: {
-    color: "#00FF7F",
-    fontSize: 32,
-  },
-
-  // DÍAS
-
-  weekHeader: {
-    width: "95%",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 8,
-  },
-
-  weekText: {
-    width: 40,
     textAlign: "center",
-    color: "#00FF7F",
-    fontSize: 15,
-    fontWeight: "bold",
+    // El nombre del mes va en minúscula porque así se lee más rápido: las
+    // mayúsculas sostenidas borran la silueta de la palabra.
+    textTransform: "capitalize",
   },
 
-  // CALENDARIO
+  grilla: {
+    backgroundColor: colores.superficie,
+    borderWidth: 2,
+    borderColor: colores.borde,
+    borderRadius: radio.lg,
+    padding: espacio.sm,
+  },
 
-  calendar: {
-    width: "90%",
+  semana: {
+    flexDirection: "row",
+    marginBottom: espacio.xs,
+  },
+
+  diaSemana: {
+    ...texto.etiqueta,
+    color: colores.acentoSuave,
+    width: `${100 / 7}%`,
+    textAlign: "center",
+  },
+
+  dias: {
     flexDirection: "row",
     flexWrap: "wrap",
-    backgroundColor: "rgba(0, 27, 12, 0.8)",
-    borderWidth: 1,
-    borderColor: "#105A2C",
-    borderRadius: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 3,
   },
 
-  day: {
-    width: "14.285%",
-    aspectRatio: 1,
-    justifyContent: "center",
+  celda: {
+    width: `${100 / 7}%`,
+    minHeight: toque.minimo,
     alignItems: "center",
-    borderRadius: 20,
-  },
-
-  dayText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  selectedDay: {
-    backgroundColor: "#00FF7F",
-  },
-
-  selectedDayText: {
-    color: "#000000",
-    fontWeight: "bold",
-  },
-
-  // Los dos puntos van en una fila para que un dia con actividad Y medicacion
-  // los muestre juntos en vez de pisarse.
-  dotsRow: {
-    position: "absolute",
-    bottom: 8,
-    flexDirection: "row",
-    flexWrap: "wrap",
     justifyContent: "center",
-    maxWidth: "90%",
-    gap: 4,
+    paddingVertical: espacio.xs,
   },
 
-  // Franja vertical de color al costado de la rutina, del mismo color que su
-  // marcador en el calendario.
-  rutinaColor: {
-    width: 6,
-    height: 92,
+  celdaTocable: {
+    borderRadius: radio.md,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+
+  // Hoy se marca con borde, no con relleno: el relleno queda reservado para
+  // el día que uno eligió, y así los dos estados se pueden ver a la vez.
+  celdaHoy: {
+    borderColor: colores.bordeFuerte,
+  },
+
+  celdaElegida: {
+    backgroundColor: colores.acento,
+    borderColor: colores.acento,
+  },
+
+  celdaActiva: {
+    borderColor: colores.texto,
+  },
+
+  numero: {
+    ...texto.cuerpoFuerte,
+    color: colores.texto,
+  },
+
+  numeroHoy: {
+    color: colores.acento,
+  },
+
+  numeroElegido: {
+    color: colores.sobreAcento,
+  },
+
+  marcadores: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 3,
+    marginTop: 3,
+    minHeight: 6,
+  },
+
+  marcador: {
+    width: 12,
+    height: 5,
     borderRadius: 3,
-    marginRight: 14,
-    shadowOpacity: 0.9,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
   },
 
-  errorRutina: {
-    color: "#FF8080",
-    fontSize: 13,
-    marginBottom: 10,
+  marcadorActividad: {
+    backgroundColor: colores.acentoSuave,
+  },
+
+  bajoGrilla: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: espacio.sm,
+  },
+
+  referencia: {
+    backgroundColor: colores.superficie,
+    borderWidth: 2,
+    borderColor: colores.borde,
+    borderRadius: radio.lg,
+    padding: espacio.lg,
+    marginTop: espacio.md,
+    gap: espacio.sm,
+  },
+
+  tituloReferencia: {
+    ...texto.etiqueta,
+    color: colores.textoSuave,
+    marginBottom: espacio.xs,
+  },
+
+  filaReferencia: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.md,
+  },
+
+  muestra: {
+    width: 20,
+    height: 8,
+    borderRadius: 4,
+  },
+
+  textoReferencia: {
+    ...texto.dato,
+    color: colores.texto,
+    flex: 1,
+  },
+
+  seccion: {
+    marginTop: espacio.xxl,
+  },
+
+  tituloDia: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: espacio.md,
+    marginBottom: espacio.lg,
+  },
+
+  tituloSeccion: {
+    ...texto.seccion,
+    color: colores.texto,
+    textTransform: "capitalize",
+  },
+
+  subtitulo: {
+    ...texto.etiqueta,
+    color: colores.acentoSuave,
+    marginTop: espacio.lg,
+    marginBottom: espacio.md,
+  },
+
+  actividad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.lg,
+  },
+
+  actividadHora: {
+    ...texto.hora,
+    color: colores.acento,
+    minWidth: 78,
+  },
+
+  actividadDatos: {
+    flex: 1,
+  },
+
+  actividadNombre: {
+    ...texto.item,
+    color: colores.texto,
+  },
+
+  actividadTipo: {
+    ...texto.dato,
+    color: colores.textoSuave,
+    marginTop: 2,
+  },
+
+  agregar: {
+    marginTop: espacio.lg,
+  },
+
+  rutinaNombre: {
+    ...texto.item,
+    color: colores.texto,
+  },
+
+  rutinaHora: {
+    ...texto.cuerpo,
+    color: colores.textoSuave,
+    marginTop: espacio.xs,
   },
 
   diasRutina: {
     flexDirection: "row",
-    gap: 4,
-    marginTop: 4,
-    marginBottom: 6,
+    gap: espacio.xs,
+    marginTop: espacio.md,
+    marginBottom: espacio.md,
   },
 
-  // Apagado por defecto; el color lo enciende la rutina en linea.
+  // Apagado por defecto; el color lo enciende la rutina en línea.
   diaRutina: {
-    width: 20,
-    height: 20,
-    lineHeight: 20,
-    borderRadius: 10,
+    ...texto.etiqueta,
+    width: 28,
+    height: 28,
+    lineHeight: 28,
+    borderRadius: 14,
     textAlign: "center",
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#4A6A55",
-    backgroundColor: "#0C2415",
+    color: colores.textoTenue,
+    backgroundColor: colores.neutro.fondo,
     overflow: "hidden",
   },
 
-  // La misma franja de la tarjeta de rutina, mas baja, para las filas de dosis.
-  colorDeDosis: {
-    height: 52,
-    marginRight: 12,
-  },
-
   rutinaProxima: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 2,
+    ...texto.cuerpoFuerte,
+    color: colores.texto,
   },
 
   rutinaDetalle: {
-    color: "#7FA98C",
-    fontSize: 12,
-    marginTop: 2,
+    ...texto.dato,
+    color: colores.textoSuave,
+    marginTop: espacio.xs,
   },
 
-  botonBorrar: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: "#2a0d0d",
-    borderWidth: 1,
-    borderColor: "#7a1f1f",
-  },
-
-  botonBorrarTexto: {
-    color: "#FF8080",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-  },
-
-  activityDot: {
-    width: 14,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#00FF7F",
-    shadowColor: "#00FF7F",
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-  },
-
-  // Barra y no punto: un circulo de 4px se perdia contra el fondo oscuro.
-  // El color lo pone cada rutina en linea, esto es solo la forma.
-  medicationDot: {
-    width: 14,
-    height: 6,
-    borderRadius: 3,
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
-  },
-
-  // FECHA
-
-  selectedDateContainer: {
-    width: "75%",
-    alignItems: "center",
-    marginTop: 20,
-  },
-
-  selectedDateTitle: {
-    color: "#90EE90",
-    fontSize: 13,
-    fontWeight: "bold",
-    letterSpacing: 1,
-  },
-
-  selectedDate: {
-    color: "#FFFFFF",
-    fontSize: 22,
-    fontWeight: "bold",
-    marginTop: 4,
-  },
-
-  // ACTIVIDADES
-
-  activitiesContainer: {
-    width: "75%",
-    marginTop: 20,
-  },
-
-  activitiesTitle: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-
-  noActivities: {
-    color: "#AAAAAA",
-    fontSize: 16,
-    textAlign: "center",
-    paddingVertical: 20,
-  },
-
-  activity: {
-    width: "100%",
-    minHeight: 70,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#01250E",
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "#105A2C",
-    marginBottom: 10,
-    paddingHorizontal: 15,
-  },
-
-  activityTime: {
-    color: "#00FF7F",
-    fontSize: 18,
-    fontWeight: "bold",
-    width: 65,
-  },
-
-  activityInfo: {
-    flex: 1,
-  },
-
-  activityName: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "bold",
-  },
-
-  activityType: {
-    color: "#90EE90",
-    fontSize: 12,
-    fontWeight: "bold",
-    marginTop: 4,
-  },
-
-  // BOTÓN
-
-  addButton: {
-    width: 280,
-    height: 60,
-    backgroundColor: "#004E1E",
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: "#00FF7F",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 25,
-
-    shadowColor: "#00FF7F",
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.7,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-
-  addButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "bold",
-    letterSpacing: 1,
+  borrar: {
+    marginTop: espacio.lg,
   },
 });
-

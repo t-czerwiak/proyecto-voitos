@@ -5,19 +5,15 @@
 //
 // Muestra la respuesta cruda del backend a proposito: cuando algo falla, lo
 // util es ver la URL exacta a la que se le pego y que contesto el dispositivo.
+// Es la unica pantalla donde el texto va en monoespaciado, porque lo que se
+// lee son URLs y respuestas de un aparato, no prosa.
 
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-} from "react-native";
-
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { API_URL } from "../lib/api";
 import { dispensarAhora } from "../lib/voitos";
+import { Pantalla, Encabezado, Campo, Boton, Aviso } from "../ui";
+import { colores, espacio, radio, texto } from "../tema";
 
 export default function PruebaHardware() {
   const [cantidad, setCantidad] = useState("1");
@@ -25,15 +21,16 @@ export default function PruebaHardware() {
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState("");
   const [fallo, setFallo] = useState(false);
+  const [errorCantidad, setErrorCantidad] = useState("");
 
   const dispensar = async () => {
     setResultado("");
+    setErrorCantidad("");
     setFallo(false);
 
     const cuantas = Number(cantidad);
     if (!Number.isInteger(cuantas) || cuantas < 1 || cuantas > 20) {
-      setFallo(true);
-      setResultado("La cantidad tiene que ser un entero entre 1 y 20.");
+      setErrorCantidad("Tiene que ser un número entero entre 1 y 20");
       return;
     }
 
@@ -48,8 +45,6 @@ export default function PruebaHardware() {
 
       setResultado(
         [
-          "SEÑAL ENVIADA",
-          "",
           `URL:        ${r.destino}`,
           `Cantidad:   ${r.cantidad}`,
           `Horario:    ${r.horario_id ?? "ninguno (no se va a registrar)"}`,
@@ -62,120 +57,114 @@ export default function PruebaHardware() {
       );
     } catch (e: any) {
       setFallo(true);
-      setResultado(`FALLÓ (${e.status ?? "?"})\n\n${e.message}`);
+      setResultado(`Falló (${e.status ?? "?"})\n\n${e.message}`);
     } finally {
       setEnviando(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contenido}>
-      <Text style={styles.titulo}>PRUEBA DE HARDWARE</Text>
-
-      <Text style={styles.ayuda}>Backend: {API_URL}</Text>
-
-      <Text style={styles.label}>Cantidad de pastillas</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        value={cantidad}
-        onChangeText={setCantidad}
+    <Pantalla>
+      <Encabezado
+        titulo="Prueba de hardware"
+        bajada="Le pide al backend que le mande la orden de dispensar al pastillero, ahora mismo."
+        volverA="/home"
       />
 
-      <Text style={styles.label}>IP del pastillero (opcional)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="vacío = el del .env"
-        placeholderTextColor="#777"
-        autoCapitalize="none"
-        value={destino}
-        onChangeText={setDestino}
+      <View style={styles.backend}>
+        <Text style={styles.backendEtiqueta}>Backend</Text>
+        <Text style={styles.backendUrl}>{API_URL}</Text>
+      </View>
+
+      <Campo
+        etiqueta="Cuántas pastillas"
+        valor={cantidad}
+        alCambiar={setCantidad}
+        teclado="numeric"
+        ayuda="Entre 1 y 20."
+        error={errorCantidad}
       />
 
-      <TouchableOpacity
-        style={styles.boton}
+      <Campo
+        etiqueta="IP del pastillero"
+        valor={destino}
+        alCambiar={setDestino}
+        ayuda="Si lo dejás vacío se usa la del .env del backend."
+        placeholder="192.168.1.50"
+      />
+
+      <Boton
+        titulo={enviando ? "Enviando..." : "Dispensar ahora"}
         onPress={dispensar}
-        disabled={enviando}
-      >
-        <Text style={styles.botonTexto}>
-          {enviando ? "ENVIANDO..." : "DISPENSAR AHORA"}
-        </Text>
-      </TouchableOpacity>
+        cargando={enviando}
+        ayuda="El pastillero va a sonar y liberar las pastillas"
+      />
 
       {resultado !== "" && (
-        <Text style={[styles.salida, fallo && styles.salidaFallo]}>
-          {resultado}
-        </Text>
+        <View
+          style={[styles.salida, fallo && styles.salidaFallo]}
+          accessibilityLiveRegion="polite"
+        >
+          <Aviso
+            texto={fallo ? "La orden no llegó al pastillero" : "Señal enviada"}
+            tipo={fallo ? "error" : "ok"}
+          />
+
+          <Text style={styles.salidaTexto} selectable>
+            {resultado}
+          </Text>
+        </View>
       )}
-    </ScrollView>
+    </Pantalla>
   );
 }
 
+const MONO = Platform.select({
+  web: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+  ios: "Menlo",
+  default: "monospace",
+});
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
-
-  contenido: {
-    padding: 24,
-    gap: 10,
-  },
-
-  titulo: {
-    color: "#FFF",
-    fontSize: 24,
-    fontWeight: "900",
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-
-  ayuda: {
-    color: "#777",
-    fontSize: 12,
-    marginBottom: 12,
-  },
-
-  label: {
-    color: "#FFF",
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 8,
-  },
-
-  input: {
-    backgroundColor: "#FFF",
-    height: 46,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    fontSize: 16,
-  },
-
-  boton: {
-    marginTop: 20,
-    height: 60,
-    borderRadius: 14,
-    backgroundColor: "#01250e",
+  backend: {
+    backgroundColor: colores.superficie,
     borderWidth: 2,
-    borderColor: "#105a2c",
-    alignItems: "center",
-    justifyContent: "center",
+    borderColor: colores.borde,
+    borderRadius: radio.md,
+    padding: espacio.lg,
+    marginBottom: espacio.xl,
   },
 
-  botonTexto: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "900",
-    letterSpacing: 1,
+  backendEtiqueta: {
+    ...texto.etiqueta,
+    color: colores.acentoSuave,
+    marginBottom: espacio.xs,
   },
 
-  // Monoespaciada: es salida tecnica, y alineada se lee mucho mejor.
+  backendUrl: {
+    fontFamily: MONO,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colores.texto,
+  },
+
   salida: {
-    marginTop: 20,
-    color: "#00FF7F",
-    fontFamily: "monospace",
-    fontSize: 13,
-    lineHeight: 20,
+    backgroundColor: colores.superficie,
+    borderWidth: 2,
+    borderColor: colores.borde,
+    borderRadius: radio.lg,
+    padding: espacio.lg,
+    marginTop: espacio.xl,
   },
 
   salidaFallo: {
-    color: "#FF6B6B",
+    borderColor: colores.peligro.borde,
+  },
+
+  salidaTexto: {
+    fontFamily: MONO,
+    fontSize: 14,
+    lineHeight: 22,
+    color: colores.textoSuave,
   },
 });

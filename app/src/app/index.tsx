@@ -1,100 +1,80 @@
-import { View, Text, Pressable, StyleSheet, Image } from "react-native";
-import { useState } from "react";
+import React from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import LavaBackground from "../components/LavaBackground";
+import { Pantalla, Boton } from "../ui";
+import { colores, espacio, texto } from "../tema";
 
-export default function LoginScreen() {
-  const [hover, setHover] = useState(false);
-
+// La portada.
+//
+// Antes era el logo, un boton con brillo verde y "Crear cuenta" en letra
+// chica abajo. Se veia bien y no decia nada: quien abre la aplicacion por
+// primera vez —el hijo al que le pasaron el pastillero, el enfermero del
+// primer dia— no tenia forma de saber que es esto.
+//
+// Ahora dice en una linea para que sirve, y las dos salidas pesan lo mismo
+// visualmente que su importancia: entrar es el boton lleno, crear cuenta es
+// el de borde. Ninguna de las dos depende de pasar el mouse por encima.
+export default function Portada() {
   return (
-    <View style={styles.container}>
-      <LavaBackground />
+    <Pantalla scroll={false} centrado>
+      <View style={styles.centro}>
+        <Image
+          source={require("../../assets/images/logoClaro.png")}
+          style={styles.logo}
+          resizeMode="contain"
+          // El logo dice "Voitos"; para quien escucha la pantalla, eso es el
+          // titulo de la portada.
+          accessibilityRole="header"
+          accessibilityLabel="Voitos"
+        />
 
-      <Image
-        source={require("../../assets/images/logoClaro.png")}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-
-      <View style={styles.bottomContainer}>
-        <Pressable
-          style={[
-            styles.loginButton,
-            hover && styles.loginButtonHover,
-          ]}
-          onHoverIn={() => setHover(true)}
-          onHoverOut={() => setHover(false)}
-          onPress={() => router.push("/Login")}
-        >
-          <Text style={styles.loginButtonText}>
-            INICIO DE SESIÓN
-          </Text>
-        </Pressable>
-
-        <Pressable onPress={() => router.push("/crear-cuenta")}>
-          <Text style={styles.createAccountText}>
-            Crear cuenta
-          </Text>
-        </Pressable>
+        <Text style={styles.bajada}>
+          El pastillero entrega la medicación a horario. Vos la agendás desde
+          acá y te enterás de cada dosis.
+        </Text>
       </View>
-    </View>
+
+      <View style={styles.acciones}>
+        <Boton
+          titulo="Iniciar sesión"
+          icono="log-in-outline"
+          onPress={() => router.push("/Login")}
+        />
+
+        <Boton
+          titulo="Crear una cuenta"
+          variante="secundario"
+          icono="person-add-outline"
+          onPress={() => router.push("/crear-cuenta")}
+          ayuda="Si todavía no tenés cuenta, empezá por acá"
+        />
+      </View>
+    </Pantalla>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000000",
+  centro: {
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 100,
-    paddingBottom: 120,
+    marginBottom: espacio.xxxl,
   },
 
   logo: {
-    width: 500,
-    height: 215,
-    zIndex: 1,
+    width: "100%",
+    maxWidth: 320,
+    height: 150,
   },
 
-  bottomContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1,
+  bajada: {
+    ...texto.cuerpo,
+    color: colores.textoSuave,
+    textAlign: "center",
+    marginTop: espacio.lg,
+    maxWidth: 420,
   },
 
-  loginButton: {
-    backgroundColor: "#004d1a",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 280,
-
-    shadowColor: "#00FF66",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 15,
-    elevation: 10,
-  },
-
-  loginButtonHover: {
-    backgroundColor: "#098B03",
-  },
-
-  loginButtonText: {
-    fontFamily: "Nunito_700Bold",
-    color: "#FFFFFF",
-    fontSize: 20,
-  },
-
-  createAccountText: {
-    fontFamily: "Nunito_400Regular",
-    color: "#FFFFFF",
-    fontSize: 18,
-    marginTop: 25,
+  acciones: {
+    width: "100%",
+    gap: espacio.md,
   },
 });

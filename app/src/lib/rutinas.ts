@@ -11,17 +11,12 @@ import { Horario } from "./voitos";
 
 export const DIAS_SEMANA = ["L", "M", "X", "J", "V", "S", "D"];
 
-// Un color por rutina. Tienen que destacar sobre el verde oscuro del fondo y
-// distinguirse entre si de un vistazo, por eso son tonos saturados de familias
-// distintas. El verde queda reservado para las actividades.
-export const COLORES_RUTINA = [
-  "#FF4D6D",
-  "#4DA3FF",
-  "#FFD166",
-  "#B388FF",
-  "#00E5FF",
-  "#FF9F1C",
-];
+// Un color por rutina. Viven en el tema, con el resto de la paleta, y estan
+// verificados contra el fondo y contra la letra negra que llevan encima
+// (npm run contraste). El color nunca es la unica senal: al lado de cada
+// marcador siempre esta escrito el nombre de la pastilla.
+export { COLORES_RUTINA } from "../tema/colores";
+import { COLORES_RUTINA } from "../tema/colores";
 
 // Letra del dia de la semana de una fecha "YYYY-MM-DD".
 // El T12:00:00 evita que la zona horaria corra la fecha un dia para atras.
