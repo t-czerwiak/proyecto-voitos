@@ -15,7 +15,7 @@ import { colores, espacio, texto } from "../tema";
 // Si Google no esta configurado (falta EXPO_PUBLIC_GOOGLE_CLIENT_ID) el
 // componente no dibuja nada. La pantalla queda igual que antes, sin un boton
 // roto que promete algo que no funciona.
-export default function BotonGoogle({ ancho = 280 }: { ancho?: number }) {
+export default function BotonGoogle({ ancho = 360 }: { ancho?: number }) {
   const contenedor = useRef<View | null>(null);
   const [error, setError] = useState("");
 
