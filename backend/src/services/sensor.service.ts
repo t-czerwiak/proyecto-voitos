@@ -8,10 +8,25 @@ const APP_URL = (process.env.APP_URL ?? "http://localhost:8081").replace(/\/$/, 
 import { getModuloDePastilla, descontarDelModulo } from "./modulos.service";
 import { avisarDispensacionOk, avisarPastilleroVacio } from "./email.service";
 
-// Cada cuantos minutos consulta la ESP32. Define el tamano de la ventana de
-// busqueda: si buscaramos la hora exacta, una dosis se perderia para siempre
-// cuando cae entre dos consultas.
-const MINUTOS_VENTANA = 5;
+// Cuanto tiempo despues de su horario una dosis sigue estando disponible para
+// el dispositivo.
+//
+// No se busca la hora exacta porque una dosis caeria entre dos consultas y se
+// perderia para siempre. Pero el numero tampoco es libre: tiene que coincidir
+// con el resto del sistema, y antes no lo hacia.
+//
+// Estaba en 5 porque se escribio cuando la ESP32 consultaba cada 5 minutos. Hoy
+// consulta cada 30 segundos, y los otros dos plazos del sistema son de 15:
+// MINUTOS_DE_GRACIA en dosis-a-dispensar y MINUTOS_PARA_AVISAR en
+// dosis-no-tomadas, que a su vez coincide con el ciclo de alarmas del firmware
+// (suena a los 0, 5, 10 y 15).
+//
+// Con 5 quedaba una zona muerta entre el minuto 5 y el 15: el pastillero ya no
+// veia la dosis, pero el sistema todavia no la daba por perdida. Si alguien
+// tardaba seis minutos en llegar, la dosis desaparecia sin que nada lo dijera, y
+// diez minutos despues llegaba un mail de "no se tomo" sobre una dosis que el
+// aparato nunca llego a ofrecer. Paso de verdad el 24/08.
+const MINUTOS_VENTANA = 15;
 
 export const getPendiente = async () => {
   const { hoy, hora, minuto } = getHoraArgentina();
