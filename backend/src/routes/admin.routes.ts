@@ -16,6 +16,10 @@ router.get("/soy-admin", adminController.soyAdmin);
 // Diagnostico: manda un mail de prueba y devuelve la respuesta del proveedor
 router.post("/probar-mail", adminController.probarMail);
 
+// Todas las dosis de todos, para el calendario general del panel. Acepta
+// ?desde= y ?hasta= en YYYY-MM-DD.
+router.get("/calendario", adminController.calendarioCompleto);
+
 router.get("/usuarios", adminController.getUsuarios);
 router.get("/usuarios/:id/pastillas", adminController.pastillasDe);
 router.get("/usuarios/:id/horarios", adminController.horariosDe);

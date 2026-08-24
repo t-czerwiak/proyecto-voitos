@@ -100,6 +100,51 @@ export const getHorariosDe = async (usuario_id: string) => {
   return data;
 };
 
+// Todas las dosis de TODOS los usuarios, con el dueno pegado.
+//
+// Es la unica consulta del panel que no se filtra por persona: existe
+// justamente para ver el conjunto. Por eso vive aca y no en horarios.service,
+// que siempre filtra por el dueno del token.
+//
+// El rango es opcional pero la app siempre lo manda, con el mes que esta
+// mirando. Sin rango esto crece sin techo a medida que se agendan dosis.
+export const getCalendarioCompleto = async (desde?: string, hasta?: string) => {
+  let consulta = supabase
+    .from("horarios")
+    .select(
+      `id, dia, hora, minuto, cantidad, dispensado, notificado, senal_enviada,
+       pastillas!inner (
+         id, nombre, tipo,
+         usuarios!inner ( id, nombre, apellido, mail )
+       )`
+    );
+
+  if (desde) consulta = consulta.gte("dia", desde);
+  if (hasta) consulta = consulta.lte("dia", hasta);
+
+  const { data, error } = await consulta
+    .order("dia", { ascending: true })
+    .order("hora", { ascending: true })
+    .order("minuto", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  // Se aplana aca y no en la pantalla: la forma anidada que devuelve PostgREST
+  // es un detalle de como se consulta, no algo que la app tenga que conocer.
+  return (data ?? []).map((h: any) => {
+    const { pastillas, ...horario } = h;
+    const duenio = pastillas?.usuarios;
+
+    return {
+      ...horario,
+      pastilla: { id: pastillas?.id, nombre: pastillas?.nombre, tipo: pastillas?.tipo },
+      usuario: duenio
+        ? { id: duenio.id, nombre: duenio.nombre, apellido: duenio.apellido, mail: duenio.mail }
+        : null,
+    };
+  });
+};
+
 // Borra TODAS las dosis pendientes de un usuario, de todas sus pastillas.
 //
 // Las ya dispensadas no se tocan: son el historial de lo que salio del
