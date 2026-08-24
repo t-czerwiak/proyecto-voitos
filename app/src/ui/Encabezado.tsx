@@ -21,7 +21,7 @@ type Props = {
 // Antes se volvia tocando el logo, o el titulo, sin ninguna senal de que eso
 // se pudiera tocar. Quien no lo sabia de memoria quedaba encerrado en la
 // pantalla —en el navegador no hay boton de atras a mano en un celular—.
-// Ahora hay una flecha con la palabra "Volver" al lado, de 48px.
+// Ahora hay una flecha con la palabra "Volver" al lado, de 56px.
 export default function Encabezado({ titulo, bajada, volverA, sinVolver }: Props) {
   const volver = () => {
     if (volverA) {
@@ -45,7 +45,7 @@ export default function Encabezado({ titulo, bajada, volverA, sinVolver }: Props
           accessibilityLabel="Volver"
           hitSlop={8}
         >
-          <Ionicons name="arrow-back" size={22} color={colores.acento} />
+          <Ionicons name="arrow-back" size={30} color={colores.acento} />
           <Text style={styles.volverTexto}>Volver</Text>
         </Pressable>
       )}
@@ -72,9 +72,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-start",
     gap: espacio.sm,
-    minHeight: toque.minimo,
-    paddingRight: espacio.md,
-    paddingVertical: espacio.sm,
+    minHeight: toque.comodo,
+    paddingRight: espacio.lg,
+    paddingVertical: espacio.md,
     borderRadius: radio.sm,
     marginBottom: espacio.sm,
   },
@@ -85,6 +85,10 @@ const styles = StyleSheet.create({
 
   volverTexto: {
     ...texto.cuerpoFuerte,
+    // Mas grande que el cuerpo: es la salida de la pantalla, no una nota al
+    // pie. Con 17 se leia como un detalle y costaba encontrarlo.
+    fontSize: 20,
+    lineHeight: 28,
     color: colores.acento,
   },
 

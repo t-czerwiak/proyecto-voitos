@@ -60,7 +60,7 @@ const cargarScript = (): Promise<void> => {
 export const dibujarBotonGoogle = async (
   contenedor: HTMLElement,
   onToken: (idToken: string) => void,
-  ancho = 280
+  ancho = 360
 ): Promise<void> => {
   if (!googleDisponible()) {
     throw new Error("El inicio de sesión con Google no está configurado");
@@ -82,7 +82,10 @@ export const dibujarBotonGoogle = async (
 
   gis.renderButton(contenedor, {
     type: "standard",
-    theme: "filled_black",
+    // Blanco y no "filled_black". Sobre el fondo verde muy oscuro de la
+    // aplicacion, el boton negro de Google se confundia con el fondo: parecia
+    // apagado, y no se leia como algo que se puede tocar.
+    theme: "outline",
     size: "large",
     shape: "pill",
     text: "continue_with",
