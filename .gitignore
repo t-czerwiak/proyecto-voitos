@@ -1,0 +1,34 @@
+# Esta rama es SOLO firmware. Todo lo demas que aparezca en la carpeta viene de
+# haberse parado en otra rama antes, y no tiene que subirse desde aca.
+#
+# El repositorio es publico, asi que esto no es prolijidad: es lo que evita que
+# un "git add -A" distraido publique un token o una clave.
+
+# Variables de entorno, en cualquiera de sus formas
+.env
+.env.*
+*.env
+
+# Las carpetas del proyecto, que viven en las otras ramas
+app/
+backend/
+docs/
+dist/
+node_modules/
+
+# Herramientas
+.claude/
+.vercel/
+graphify-out/
+.code-review-graph/
+CLAUDE.md
+
+# Arduino: lo que genera el IDE al compilar
+build/
+*.bin
+*.elf
+*.hex
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
