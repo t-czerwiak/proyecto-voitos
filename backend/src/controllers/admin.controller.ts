@@ -128,6 +128,25 @@ export const probarMail = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+// El calendario de todo el mundo junto.
+//
+// desde y hasta son opcionales, en formato YYYY-MM-DD. La app manda el mes que
+// esta mirando; sin rango devuelve todo, que con el tiempo es mucho.
+export const calendarioCompleto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    await exigirAdmin(req);
+
+    const fecha = /^\d{4}-\d{2}-\d{2}$/;
+    const desde = typeof req.query.desde === "string" && fecha.test(req.query.desde) ? req.query.desde : undefined;
+    const hasta = typeof req.query.hasta === "string" && fecha.test(req.query.hasta) ? req.query.hasta : undefined;
+
+    const data = await adminService.getCalendarioCompleto(desde, hasta);
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Borra una cuenta entera, con todo lo que cuelga de ella.
 export const borrarUsuario = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

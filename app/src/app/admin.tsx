@@ -149,6 +149,16 @@ export default function Admin() {
             {usuarios.length} {usuarios.length === 1 ? "cuenta" : "cuentas"}
           </Text>
         )}
+        <Pressable
+          style={styles.calendarioGeneral}
+          onPress={() => router.push("/admin-calendario")}
+        >
+          <Text style={styles.calendarioGeneralTexto}>VER CALENDARIO GENERAL</Text>
+          <Text style={styles.calendarioGeneralBajada}>
+            Las dosis de todas las cuentas en una sola grilla
+          </Text>
+        </Pressable>
+
 
         {usuarios.map((u) => (
           <View key={u.id} style={styles.tarjeta}>
@@ -328,6 +338,28 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10,
     marginTop: 14,
+  },
+
+  calendarioGeneral: {
+    borderWidth: 1,
+    borderColor: "#105A2C",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 22,
+  },
+
+  calendarioGeneralTexto: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+
+  calendarioGeneralBajada: {
+    color: "#78877E",
+    fontSize: 13,
+    marginTop: 4,
   },
 
   boton: {

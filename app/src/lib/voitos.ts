@@ -102,6 +102,24 @@ export const desverificarUsuario = (id: string) =>
 export const getPastillasDe = (id: string) =>
   api.get<Pastilla[]>(`/api/admin/usuarios/${id}/pastillas`);
 
+// Todas las dosis de todas las cuentas, para el calendario general del panel.
+//
+// El rango es lo que esta mirando la pantalla. Se manda siempre: sin el, el
+// backend devuelve la historia entera y eso crece sin techo.
+export interface DosisDeTodos {
+  id: string;
+  dia: string;
+  hora: number;
+  minuto: number;
+  cantidad: number;
+  dispensado: boolean;
+  pastilla: { id: string; nombre: string; tipo?: string } | null;
+  usuario: { id: string; nombre: string; apellido: string; mail: string } | null;
+}
+
+export const getCalendarioCompleto = (desde: string, hasta: string) =>
+  api.get<DosisDeTodos[]>(`/api/admin/calendario?desde=${desde}&hasta=${hasta}`);
+
 export const vaciarCalendarioDe = (id: string) =>
   api.delete<{ borradas: number }>(`/api/admin/usuarios/${id}/calendario`);
 
