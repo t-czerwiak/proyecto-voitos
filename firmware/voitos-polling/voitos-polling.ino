@@ -27,8 +27,8 @@
 #include <ESP32Servo.h>
 #include <ArduinoJson.h>
 
-const char* ssid = "PONER_LA_RED";
-const char* password = "PONER_LA_CLAVE";
+const char* ssid = "Proyecto L5";
+const char* password = "preguntaleamaxi";
 
 // El backend ahora vive en internet, asi que esto ya NO cambia con la red.
 // Se configura una sola vez y sirve en cualquier lado.
