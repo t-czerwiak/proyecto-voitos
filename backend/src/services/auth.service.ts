@@ -354,11 +354,30 @@ export const loginConGoogle = async ({ id_token }: LoginGoogle) => {
     if (errorPerfil) throw new Error(errorPerfil.message);
     perfil = creado;
 
+    // Primera vez con Google: se le OFRECE una contrasena, no se le exige.
+    //
+    // Entrar con Google no pide contrasena y no tiene por que pedirla. Pero
+    // una cuenta que solo entra con Google queda atada a tener Google a mano:
+    // en un telefono prestado, o en una computadora sin la sesion abierta, no
+    // hay forma de entrar. Por eso el mail de bienvenida lleva un enlace para
+    // elegir una, una sola vez, que se puede ignorar sin consecuencias.
+    //
+    // Se manda un ENLACE y no una contrasena generada. Una contrasena escrita
+    // en un mail queda para siempre en la casilla, en texto plano, en
+    // servidores que no controlamos: cualquiera que abra ese correo mas
+    // adelante —un telefono sincronizado, una computadora compartida— entra a
+    // una cuenta que tiene la medicacion de una persona mayor y los telefonos
+    // de sus contactos de emergencia. El enlace, en cambio, se usa una vez y
+    // vence.
+    const enlacePassword = await tokenParaPrimeraPassword(data.user.id);
+
     // Sin await: la cuenta ya esta creada y la sesion ya se puede devolver.
     void avisarBienvenida({
       cuidadorMail: mail,
       cuidadorNombre: nombre,
       enlaceApp: APP_URL,
+      enlacePassword,
+      horasParaVencer: HORAS_PRIMERA_PASSWORD,
     });
   }
 
@@ -367,6 +386,40 @@ export const loginConGoogle = async ({ id_token }: LoginGoogle) => {
     expira_en: data.session.expires_at,
     usuario: perfil,
   };
+};
+
+// Cuanto vale el enlace para poner la primera contrasena.
+//
+// Mas largo que el de recuperar (una hora), porque no es una urgencia: nadie
+// esta afuera de su cuenta. Es una oferta que se puede atender al otro dia.
+const HORAS_PRIMERA_PASSWORD = 24;
+
+// Emite el token de "elegi tu primera contrasena" y devuelve el enlace.
+//
+// Reusa el mismo par de columnas que recuperar (token_reset / token_reset_expira)
+// y el mismo endpoint de confirmacion, asi que no hay un segundo camino que
+// mantener ni una segunda forma de equivocarse.
+//
+// Si algo falla, devuelve undefined y el mail de bienvenida sale sin el
+// enlace: la cuenta ya quedo creada y la sesion ya es valida, asi que esto no
+// puede tirar abajo un inicio de sesion que funciono.
+const tokenParaPrimeraPassword = async (id: string): Promise<string | undefined> => {
+  try {
+    const token = randomBytes(32).toString("hex");
+    const expira = new Date(Date.now() + HORAS_PRIMERA_PASSWORD * 60 * 60 * 1000);
+
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ token_reset: token, token_reset_expira: expira.toISOString() })
+      .eq("id", id);
+
+    if (error) throw new Error(error.message);
+
+    return `${APP_URL}/recuperar?token=${token}`;
+  } catch (e) {
+    console.error("No se pudo emitir el enlace de primera contrasena:", e);
+    return undefined;
+  }
 };
 
 // ---------------------------------------------------------------------------
