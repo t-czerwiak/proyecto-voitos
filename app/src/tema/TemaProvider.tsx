@@ -101,6 +101,38 @@ export function TemaProvider({ children }: { children: React.ReactNode }) {
 
   const esOscuro = modo === "auto" ? sistemaOscuro : modo === "oscuro";
 
+  // Mantiene el DOCUMENTO al dia con el tema.
+  //
+  // El fondo del documento —html, body, #root— lo pinta +html.tsx con CSS,
+  // porque desde React Native no se llega ahi y sin eso aparece un pantallazo
+  // del color contrario cuando se abre el teclado del celular. Ese CSS mira el
+  // atributo data-tema de <html>, que un script del <head> estampa antes de la
+  // primera pintada; cuando la persona cambia el tema a mano, hay que
+  // reescribirlo, que es lo que hace esto.
+  //
+  // Solo corre en el navegador: en nativo no hay documento, y en el build
+  // estatico esto se saltea porque el efecto no se ejecuta en el servidor.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    document.documentElement.dataset.tema = esOscuro ? "oscuro" : "claro";
+
+    // La barra del navegador del celular, del mismo color que la aplicacion.
+    const etiqueta = document.querySelector<HTMLMetaElement>(
+      'meta[name="theme-color"]:not([media])'
+    );
+    const color = esOscuro ? paletaOscura.fondo : paletaClara.fondo;
+
+    if (etiqueta) {
+      etiqueta.content = color;
+    } else {
+      const nueva = document.createElement("meta");
+      nueva.name = "theme-color";
+      nueva.content = color;
+      document.head.appendChild(nueva);
+    }
+  }, [esOscuro]);
+
   const setModo = useCallback((m: ModoTema) => {
     setModoEstado(m);
     guardado.escribir(m);
