@@ -1,8 +1,8 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Boton from "./Boton";
-import { colores, espacio, radio, texto } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto } from "../tema";
 
 type Props = {
   icono?: keyof typeof Ionicons.glyphMap;
@@ -19,6 +19,9 @@ type Props = {
 // eso es normal, si algo fallo, o que hacer. Aca hay titulo, explicacion y,
 // cuando corresponde, el boton que resuelve el vacio.
 export default function Vacio({ icono = "calendar-outline", titulo, detalle, accion }: Props) {
+  const styles = useEstilos();
+  const colores = useColores();
+
   return (
     <View style={styles.caja}>
       <Ionicons name={icono} size={34} color={colores.textoTenue} />
@@ -36,7 +39,7 @@ export default function Vacio({ icono = "calendar-outline", titulo, detalle, acc
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     alignItems: "center",
@@ -68,4 +71,4 @@ const styles = StyleSheet.create({
     maxWidth: 320,
     marginTop: espacio.sm,
   },
-});
+}));

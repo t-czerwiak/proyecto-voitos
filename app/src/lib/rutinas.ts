@@ -11,12 +11,13 @@ import { Horario } from "./voitos";
 
 export const DIAS_SEMANA = ["L", "M", "X", "J", "V", "S", "D"];
 
-// Un color por rutina. Viven en el tema, con el resto de la paleta, y estan
-// verificados contra el fondo y contra la letra negra que llevan encima
-// (npm run contraste). El color nunca es la unica senal: al lado de cada
-// marcador siempre esta escrito el nombre de la pastilla.
-export { COLORES_RUTINA } from "../tema/colores";
-import { COLORES_RUTINA } from "../tema/colores";
+// Los colores de las rutinas ya no viven aca.
+//
+// Antes eran una constante de este modulo, y eso alcanzaba mientras hubo un
+// solo tema. Con dos, los tonos claros que funcionan sobre el fondo negro se
+// pierden sobre papel, asi que cada paleta trae los suyos y armarRutinas los
+// recibe. El color nunca es la unica senal: al lado de cada marcador siempre
+// esta escrito el nombre de la pastilla.
 
 // Letra del dia de la semana de una fecha "YYYY-MM-DD".
 // El T12:00:00 evita que la zona horaria corra la fecha un dia para atras.
@@ -65,7 +66,10 @@ export type Rutina = {
 // Despues, dentro de cada grupo, se corta donde hay un hueco grande de fechas.
 // Sin eso, una dosis suelta de hace dos meses se pegaba a la rutina de esta
 // semana y el rango salia disparatado.
-export const armarRutinas = (horarios: Horario[]): Rutina[] => {
+export const armarRutinas = (
+  horarios: Horario[],
+  coloresRutina: readonly string[]
+): Rutina[] => {
   const grupos = new Map<string, Horario[]>();
 
   for (const h of horarios) {
@@ -112,7 +116,7 @@ export const armarRutinas = (horarios: Horario[]): Rutina[] => {
         proxima: pendientes[0]?.dia ?? null,
         pastillaId: primera.pastilla_id,
         nombre: primera.pastillas?.nombre ?? "Pastilla",
-        color: COLORES_RUTINA[i % COLORES_RUTINA.length],
+        color: coloresRutina[i % coloresRutina.length],
         dias,
         desde,
         hasta,

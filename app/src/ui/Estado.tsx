@@ -1,7 +1,7 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colores, espacio, radio, texto } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto, Paleta } from "../tema";
 
 type Tono = "ok" | "atencion" | "peligro" | "neutro";
 
@@ -11,7 +11,11 @@ type Props = {
   icono?: keyof typeof Ionicons.glyphMap;
 };
 
-const TONOS: Record<Tono, { fondo: string; borde: string; color: string; icono: keyof typeof Ionicons.glyphMap }> = {
+// La tabla se arma con la paleta activa: los mismos roles cambian de color
+// segun el tema.
+const tonosDe = (
+  colores: Paleta
+): Record<Tono, { fondo: string; borde: string; color: string; icono: keyof typeof Ionicons.glyphMap }> => ({
   ok: {
     fondo: colores.ok.fondo,
     borde: colores.ok.borde,
@@ -36,7 +40,7 @@ const TONOS: Record<Tono, { fondo: string; borde: string; color: string; icono: 
     color: colores.neutro.texto,
     icono: "time-outline",
   },
-};
+});
 
 // La etiqueta de estado de una dosis, una cuenta o un modulo.
 //
@@ -45,7 +49,10 @@ const TONOS: Record<Tono, { fondo: string; borde: string; color: string; icono: 
 // dice nada a quien no distingue el verde del ambar, ni a quien escucha la
 // pantalla en vez de verla.
 export default function Estado({ texto: contenido, tono = "neutro", icono }: Props) {
-  const t = TONOS[tono];
+  const styles = useEstilos();
+
+  const colores = useColores();
+  const t = tonosDe(colores)[tono];
 
   return (
     <View style={[styles.caja, { backgroundColor: t.fondo, borderColor: t.borde }]}>
@@ -55,7 +62,7 @@ export default function Estado({ texto: contenido, tono = "neutro", icono }: Pro
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     flexDirection: "row",
     alignItems: "center",
@@ -70,4 +77,4 @@ const styles = StyleSheet.create({
   texto: {
     ...texto.etiqueta,
   },
-});
+}));

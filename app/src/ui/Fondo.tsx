@@ -11,7 +11,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { colores, usarMovimientoReducido } from "../tema";
+import { crearEstilos, useColores, useMovimientoReducido } from "../tema";
 
 // El fondo de lámpara de lava.
 //
@@ -37,8 +37,11 @@ import { colores, usarMovimientoReducido } from "../tema";
 // pantalla donde algo se mueve todo el tiempo, y esa preferencia ya la dejó
 // dicha en su teléfono.
 export default function Fondo() {
+  const styles = useEstilos();
+  const colores = useColores();
+
   const { width, height } = useWindowDimensions();
-  const quieto = usarMovimientoReducido();
+  const quieto = useMovimientoReducido();
 
   return (
     <LinearGradient
@@ -49,7 +52,15 @@ export default function Fondo() {
       importantForAccessibility="no-hide-descendants"
     >
       {BURBUJAS.map((b, i) => (
-        <Burbuja key={i} {...b} ancho={width} alto={height} quieta={quieto} />
+        <Burbuja
+          key={i}
+          {...b}
+          color={colores.burbujas[i % colores.burbujas.length]}
+          opacidad={colores.opacidadBurbuja}
+          ancho={width}
+          alto={height}
+          quieta={quieto}
+        />
       ))}
     </LinearGradient>
   );
@@ -57,7 +68,6 @@ export default function Fondo() {
 
 type Receta = {
   tam: number;
-  color: string;
   // Dónde está su carril, en proporción del ancho de la pantalla.
   carril: number;
   // Cuánto se hamaca de costado, en píxeles.
@@ -72,12 +82,12 @@ type Receta = {
   demora: number;
 };
 
-// Los tres verdes son los de siempre. Las duraciones no son múltiplos entre sí
-// a propósito.
+// Las duraciones no son múltiplos entre sí a propósito. El color no está acá:
+// lo pone la paleta activa, porque el verde neón sobre un fondo claro no se ve
+// y el modo claro necesita verdes profundos.
 const BURBUJAS: Receta[] = [
   {
     tam: 320,
-    color: colores.acento,
     carril: 0.18,
     vaiven: 46,
     subida: 17000,
@@ -88,7 +98,6 @@ const BURBUJAS: Receta[] = [
   },
   {
     tam: 240,
-    color: colores.acentoSuave,
     carril: 0.76,
     vaiven: 62,
     subida: 23000,
@@ -99,7 +108,6 @@ const BURBUJAS: Receta[] = [
   },
   {
     tam: 360,
-    color: "#32CD32",
     carril: 0.44,
     vaiven: 38,
     subida: 29000,
@@ -110,7 +118,6 @@ const BURBUJAS: Receta[] = [
   },
   {
     tam: 180,
-    color: colores.acento,
     carril: 0.9,
     vaiven: 30,
     subida: 13000,
@@ -124,6 +131,7 @@ const BURBUJAS: Receta[] = [
 function Burbuja({
   tam,
   color,
+  opacidad,
   carril,
   vaiven,
   subida,
@@ -134,7 +142,15 @@ function Burbuja({
   ancho,
   alto,
   quieta,
-}: Receta & { ancho: number; alto: number; quieta: boolean }) {
+}: Receta & {
+  color: string;
+  opacidad: number;
+  ancho: number;
+  alto: number;
+  quieta: boolean;
+}) {
+  const styles = useEstilos();
+
   // Cuatro relojes independientes. Cada uno va de 0 a 1 y vuelve.
   const arriba = useSharedValue(0);
   const costado = useSharedValue(0);
@@ -213,6 +229,7 @@ function Burbuja({
       style={[
         styles.burbuja,
         {
+          opacity: opacidad,
           width: tam,
           // Un poco más ancha que alta, como una gota aplastada.
           height: tam * 0.9,
@@ -235,7 +252,7 @@ function Burbuja({
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   // Equivalente a StyleSheet.absoluteFill, escrito a mano porque
   // absoluteFillObject no existe en los tipos de esta versión de React Native.
   fondo: {
@@ -251,12 +268,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
+  // La opacidad la pone la paleta (colores.opacidadBurbuja), porque el valor
+  // que funciona sobre negro no es el que funciona sobre papel. Es baja a
+  // propósito en las dos: tiene que dar profundidad, no competir con lo que se
+  // lee encima.
   burbuja: {
     position: "absolute",
     top: 0,
-    // Bajo a propósito. Tiene que dar profundidad, no competir con lo que se
-    // lee encima: con más opacidad, el texto blanco sobre el fondo pierde
-    // contraste justo cuando pasa una burbuja por atrás.
-    opacity: 0.13,
   },
-});
+}));

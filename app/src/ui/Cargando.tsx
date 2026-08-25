@@ -1,6 +1,6 @@
 import React from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { colores, espacio, texto } from "../tema";
+import { ActivityIndicator, Text, View } from "react-native";
+import { crearEstilos, useColores, espacio, texto } from "../tema";
 
 // La espera, con texto.
 //
@@ -8,6 +8,9 @@ import { colores, espacio, texto } from "../tema";
 // tardar, y para quien escucha la pantalla no existe. Con accessibilityLiveRegion
 // el lector anuncia "Buscando las dosis..." cuando aparece.
 export default function Cargando({ texto: contenido = "Cargando..." }: { texto?: string }) {
+  const styles = useEstilos();
+  const colores = useColores();
+
   return (
     <View style={styles.caja} accessibilityLiveRegion="polite">
       <ActivityIndicator color={colores.acento} size="large" />
@@ -16,7 +19,7 @@ export default function Cargando({ texto: contenido = "Cargando..." }: { texto?:
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     alignItems: "center",
@@ -28,4 +31,4 @@ const styles = StyleSheet.create({
     ...texto.cuerpo,
     color: colores.textoSuave,
   },
-});
+}));

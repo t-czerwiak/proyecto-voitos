@@ -1,6 +1,6 @@
 import React from "react";
-import { Pressable, StyleSheet, View, ViewStyle } from "react-native";
-import { colores, espacio, radio } from "../tema";
+import { Pressable, View, ViewStyle } from "react-native";
+import { crearEstilos, espacio, radio } from "../tema";
 
 type Props = {
   children: React.ReactNode;
@@ -28,6 +28,8 @@ export default function Tarjeta({
   franja,
   estilo,
 }: Props) {
+  const styles = useEstilos();
+
   const contenido = (
     <>
       {franja && <View style={[styles.franja, { backgroundColor: franja }]} />}
@@ -65,7 +67,7 @@ export default function Tarjeta({
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     flexDirection: "row",
@@ -99,4 +101,4 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: espacio.lg,
   },
-});
+}));

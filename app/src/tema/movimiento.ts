@@ -11,7 +11,7 @@ import { AccessibilityInfo } from "react-native";
 // En iOS y Android sale de "Reducir movimiento" en accesibilidad; en el
 // navegador, de prefers-reduced-motion. Se escucha el cambio en vivo porque
 // alguien puede activarlo con la aplicacion abierta.
-export function usarMovimientoReducido(): boolean {
+export function useMovimientoReducido(): boolean {
   const [reducido, setReducido] = useState(false);
 
   useEffect(() => {

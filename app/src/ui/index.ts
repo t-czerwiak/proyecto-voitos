@@ -2,6 +2,7 @@ export { default as Pantalla } from "./Pantalla";
 export { default as Fondo } from "./Fondo";
 export { default as Encabezado } from "./Encabezado";
 export { default as Boton } from "./Boton";
+export { default as BotonTema } from "./BotonTema";
 export { default as Campo } from "./Campo";
 export { default as Selector } from "./Selector";
 export { default as Opciones } from "./Opciones";

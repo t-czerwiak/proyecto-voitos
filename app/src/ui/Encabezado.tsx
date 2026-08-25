@@ -1,8 +1,8 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Href, router } from "expo-router";
-import { colores, espacio, radio, texto, toque } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema";
 
 type Props = {
   titulo: string;
@@ -23,6 +23,9 @@ type Props = {
 // pantalla —en el navegador no hay boton de atras a mano en un celular—.
 // Ahora hay una flecha con la palabra "Volver" al lado, de 48px.
 export default function Encabezado({ titulo, bajada, volverA, sinVolver }: Props) {
+  const styles = useEstilos();
+  const colores = useColores();
+
   const volver = () => {
     if (volverA) {
       router.push(volverA);
@@ -61,7 +64,7 @@ export default function Encabezado({ titulo, bajada, volverA, sinVolver }: Props
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     marginBottom: espacio.xl,
@@ -98,4 +101,4 @@ const styles = StyleSheet.create({
     color: colores.textoSuave,
     marginTop: espacio.sm,
   },
-});
+}));

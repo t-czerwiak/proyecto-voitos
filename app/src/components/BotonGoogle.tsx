@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { dibujarBotonGoogle, googleDisponible } from "../lib/google";
 import { iniciarSesionConGoogle } from "../lib/voitos";
 import { Aviso } from "../ui";
-import { colores, espacio, texto } from "../tema";
+import { crearEstilos, espacio, texto } from "../tema";
 
 // Boton de "Continuar con Google".
 //
@@ -15,12 +15,38 @@ import { colores, espacio, texto } from "../tema";
 // Si Google no esta configurado (falta EXPO_PUBLIC_GOOGLE_CLIENT_ID) el
 // componente no dibuja nada. La pantalla queda igual que antes, sin un boton
 // roto que promete algo que no funciona.
-export default function BotonGoogle({ ancho = 280 }: { ancho?: number }) {
+//
+// EL ANCHO
+//
+// Este es el unico boton de la aplicacion que no dibujamos nosotros, asi que
+// era el unico que no seguia el ancho de los demas: quedaba de 280px en una
+// columna donde el resto ocupaba todo, y la fila se veia desprolija.
+//
+// Ahora se mide el hueco donde va a entrar y se le pasa esa medida a Google.
+// GIS solo acepta entre 200 y 400, asi que se recorta a ese rango; por eso las
+// pantallas de entrada usan una columna de 400 (ANCHO_FORMULARIO), que es
+// justo lo mas ancho que Google sabe dibujar.
+export default function BotonGoogle({
+  // Donde va la linea del "o". Con Google arriba del formulario, la linea
+  // tiene que ir debajo suyo.
+  separador = "arriba",
+  leyenda = "o",
+}: {
+  separador?: "arriba" | "abajo" | "ninguno";
+  leyenda?: string;
+} = {}) {
+  const styles = useEstilos();
+
   const contenedor = useRef<View | null>(null);
   const [error, setError] = useState("");
+  const [ancho, setAncho] = useState(0);
 
   useEffect(() => {
     if (!googleDisponible()) return;
+    // Hasta no saber el ancho no se dibuja: si se dibujara antes, Google
+    // pintaria el boton con el valor por defecto y despues habria que
+    // borrarlo y rehacerlo, que se ve como un parpadeo.
+    if (!ancho) return;
 
     // En web, View termina siendo un div: el ref ES el nodo del DOM.
     const nodo = contenedor.current as unknown as HTMLElement | null;
@@ -55,12 +81,17 @@ export default function BotonGoogle({ ancho = 280 }: { ancho?: number }) {
   if (!googleDisponible()) return null;
 
   return (
-    <View style={styles.caja}>
-      <View style={styles.separador}>
-        <View style={styles.linea} />
-        <Text style={styles.oTexto}>o</Text>
-        <View style={styles.linea} />
-      </View>
+    <View
+      style={styles.caja}
+      // De aca sale el ancho que se le pasa a Google.
+      onLayout={(e) => {
+        const medido = Math.round(e.nativeEvent.layout.width);
+        // El rango que acepta GIS. Fuera de el, tira error y no dibuja nada.
+        const valido = Math.max(200, Math.min(400, medido));
+        setAncho((actual) => (actual === valido ? actual : valido));
+      }}
+    >
+      {separador === "arriba" && <Raya leyenda={leyenda} styles={styles} />}
 
       {/* El boton lo dibuja Google adentro de este hueco. La altura minima
           es la del boton de Google, para que la pantalla no pegue un salto
@@ -68,11 +99,26 @@ export default function BotonGoogle({ ancho = 280 }: { ancho?: number }) {
       <View ref={contenedor} style={styles.hueco} />
 
       <Aviso texto={error} />
+
+      {separador === "abajo" && <Raya leyenda={leyenda} styles={styles} />}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+// La linea con una palabra en el medio. Es decoracion que separa dos caminos,
+// asi que se esconde del lector de pantalla: la separacion ya la dan los
+// encabezados y las etiquetas de cada campo.
+function Raya({ leyenda, styles }: { leyenda: string; styles: any }) {
+  return (
+    <View style={styles.separador} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={styles.linea} />
+      <Text style={styles.oTexto}>{leyenda}</Text>
+      <View style={styles.linea} />
+    </View>
+  );
+}
+
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     alignItems: "center",
     width: "100%",
@@ -101,4 +147,4 @@ const styles = StyleSheet.create({
   hueco: {
     minHeight: 44,
   },
-});
+}));

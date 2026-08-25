@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { router } from "expo-router";
 import { getPastillas, ajustarStock, borrarPastilla, Pastilla } from "../lib/voitos";
 import { confirmar } from "../lib/avisos";
@@ -13,7 +13,7 @@ import {
   Vacio,
   Cargando,
 } from "../ui";
-import { colores, espacio, radio, texto } from "../tema";
+import { crearEstilos, espacio, radio, texto } from "../tema";
 
 // Recargar un módulo, o borrar una pastilla.
 //
@@ -25,6 +25,8 @@ import { colores, espacio, radio, texto } from "../tema";
 // de la misma fila, del mismo tamaño, y borra el historial entero de una
 // pastilla sin vuelta atrás.
 export default function RecargarMedicacion() {
+  const styles = useEstilos();
+
   const [pastillas, setPastillas] = useState<Pastilla[]>([]);
   const [pastillaSel, setPastillaSel] = useState("");
   const [ajuste, setAjuste] = useState("");
@@ -258,7 +260,7 @@ export default function RecargarMedicacion() {
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   stock: {
     alignItems: "center",
     backgroundColor: colores.superficieAlta,
@@ -304,4 +306,4 @@ const styles = StyleSheet.create({
     ...texto.cuerpo,
     color: colores.textoSuave,
   },
-});
+}));

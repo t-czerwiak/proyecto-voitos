@@ -1,7 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colores, espacio, radio, texto, toque } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema";
 
 type Props = {
   etiqueta: string;
@@ -29,6 +29,9 @@ export default function Contador({
   enPalabras,
   ayuda,
 }: Props) {
+  const styles = useEstilos();
+  const colores = useColores();
+
   const bajar = () => alCambiar(Math.max(minimo, valor - 1));
   const subir = () => alCambiar(Math.min(maximo, valor + 1));
 
@@ -89,7 +92,7 @@ export default function Contador({
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     marginBottom: espacio.lg,
@@ -141,4 +144,4 @@ const styles = StyleSheet.create({
     color: colores.textoTenue,
     marginTop: espacio.xs,
   },
-});
+}));

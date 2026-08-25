@@ -1,7 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colores, espacio, radio, texto, toque } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema";
 
 type Opcion = {
   valor: string;
@@ -24,6 +24,9 @@ type Props = {
 // juntas. La elegida se marca con un tilde ademas del color, asi que tambien
 // se distingue en blanco y negro.
 export default function Opciones({ etiqueta, valor, alCambiar, opciones }: Props) {
+  const styles = useEstilos();
+  const colores = useColores();
+
   return (
     <View style={styles.caja}>
       <Text style={styles.etiqueta}>{etiqueta}</Text>
@@ -71,7 +74,7 @@ export default function Opciones({ etiqueta, valor, alCambiar, opciones }: Props
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     marginBottom: espacio.lg,
@@ -128,4 +131,4 @@ const styles = StyleSheet.create({
     color: colores.textoTenue,
     marginTop: 2,
   },
-});
+}));

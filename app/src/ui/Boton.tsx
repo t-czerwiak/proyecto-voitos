@@ -2,13 +2,12 @@ import React from "react";
 import {
   ActivityIndicator,
   Pressable,
-  StyleSheet,
   Text,
   View,
   ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colores, espacio, radio, texto, toque } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto, toque, Paleta } from "../tema";
 
 type Variante = "principal" | "secundario" | "peligro" | "enlace";
 
@@ -66,8 +65,11 @@ export default function Boton({
   ayuda,
   estilo,
 }: Props) {
+  const styles = useEstilos();
+
   const inactivo = deshabilitado || cargando;
-  const v = VARIANTES[variante];
+  const colores = useColores();
+  const v = variantesDe(colores)[variante];
 
   return (
     <Pressable
@@ -106,7 +108,7 @@ export default function Boton({
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   base: {
     minHeight: toque.comodo,
     borderRadius: radio.lg,
@@ -155,12 +157,12 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     paddingHorizontal: espacio.sm,
   },
-});
+}));
 
-const VARIANTES: Record<
-  Variante,
-  { caja: ViewStyle; activo: ViewStyle; texto: { color: string } }
-> = {
+// Las cuatro variantes, armadas con la paleta activa.
+const variantesDe = (
+  colores: Paleta
+): Record<Variante, { caja: ViewStyle; activo: ViewStyle; texto: { color: string } }> => ({
   // La accion principal de la pantalla. Una sola por pantalla.
   principal: {
     caja: {
@@ -211,4 +213,4 @@ const VARIANTES: Record<
     },
     texto: { color: colores.textoSuave },
   },
-};
+});

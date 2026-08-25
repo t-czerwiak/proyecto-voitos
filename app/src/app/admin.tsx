@@ -6,7 +6,7 @@
 // no es admin. La app decide que mostrar; la seguridad la pone el servidor.
 
 import React, { useCallback, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -28,9 +28,12 @@ import {
   Aviso,
   Cargando,
 } from "../ui";
-import { colores, espacio, texto } from "../tema";
+import { crearEstilos, useColores, espacio, texto } from "../tema";
 
 export default function Admin() {
+  const styles = useEstilos();
+  const colores = useColores();
+
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -251,7 +254,7 @@ export default function Admin() {
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   acceso: {
     flexDirection: "row",
     alignItems: "center",
@@ -309,4 +312,4 @@ const styles = StyleSheet.create({
     gap: espacio.sm,
     marginTop: espacio.lg,
   },
-});
+}));

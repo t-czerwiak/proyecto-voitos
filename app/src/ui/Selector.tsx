@@ -1,7 +1,7 @@
 import React from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
-import { colores, espacio, radio, texto, toque } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema";
 
 type Opcion = { valor: string; etiqueta: string };
 
@@ -26,6 +26,9 @@ export default function Selector({
   opciones,
   ayuda,
 }: Props) {
+  const styles = useEstilos();
+  const colores = useColores();
+
   return (
     <View style={styles.caja}>
       <Text style={styles.etiqueta}>{etiqueta}</Text>
@@ -57,7 +60,7 @@ export default function Selector({
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     marginBottom: espacio.lg,
@@ -102,4 +105,4 @@ const styles = StyleSheet.create({
     color: colores.textoTenue,
     marginTop: espacio.xs,
   },
-});
+}));

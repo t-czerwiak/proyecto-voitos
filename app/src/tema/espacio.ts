@@ -36,3 +36,13 @@ export const toque = {
 // una linea de texto cruzaba 1900px de pantalla y el ojo se perdia al volver
 // al principio del renglon.
 export const ANCHO_MAXIMO = 620;
+
+// Las pantallas de entrada —portada, iniciar sesion, crear cuenta— van mas
+// angostas que el resto.
+//
+// Un formulario de login de 620px de ancho se ve raro y ademas rompia la fila:
+// el boton de Google no lo dibujamos nosotros sino la libreria de Google, que
+// acepta como maximo 400px de ancho. Con la columna en 620, ese boton quedaba
+// de otro tamano que los demas y la pantalla se veia desprolija. Con 400 entran
+// todos iguales.
+export const ANCHO_FORMULARIO = 400;

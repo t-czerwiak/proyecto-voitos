@@ -9,13 +9,15 @@
 // lee son URLs y respuestas de un aparato, no prosa.
 
 import React, { useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { API_URL } from "../lib/api";
 import { dispensarAhora } from "../lib/voitos";
 import { Pantalla, Encabezado, Campo, Boton, Aviso } from "../ui";
-import { colores, espacio, radio, texto } from "../tema";
+import { crearEstilos, espacio, radio, texto } from "../tema";
 
 export default function PruebaHardware() {
+  const styles = useEstilos();
+
   const [cantidad, setCantidad] = useState("1");
   const [destino, setDestino] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -125,7 +127,7 @@ const MONO = Platform.select({
   default: "monospace",
 });
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   backend: {
     backgroundColor: colores.superficie,
     borderWidth: 2,
@@ -167,4 +169,4 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: colores.textoSuave,
   },
-});
+}));

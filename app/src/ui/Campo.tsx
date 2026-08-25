@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 import {
   KeyboardTypeOptions,
-  StyleSheet,
   Text,
   TextInput,
   TextInputProps,
   View,
 } from "react-native";
-import { colores, espacio, radio, texto, toque } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema";
 
 type Props = {
   etiqueta: string;
@@ -42,6 +41,9 @@ export default function Campo({
   autoCompletar,
   placeholder,
 }: Props) {
+  const styles = useEstilos();
+  const colores = useColores();
+
   const [enfocado, setEnfocado] = useState(false);
   const hayError = Boolean(error);
 
@@ -83,7 +85,7 @@ export default function Campo({
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     marginBottom: espacio.lg,
@@ -128,4 +130,4 @@ const styles = StyleSheet.create({
     color: colores.peligro.texto,
     marginTop: espacio.xs,
   },
-});
+}));

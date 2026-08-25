@@ -1,8 +1,8 @@
 import React from "react";
-import { ScrollView, StyleSheet, View, ViewStyle } from "react-native";
+import { ScrollView, View, ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Fondo from "./Fondo";
-import { ANCHO_MAXIMO, espacio } from "../tema";
+import { ANCHO_FORMULARIO, ANCHO_MAXIMO, crearEstilos, espacio } from "../tema";
 
 type Props = {
   children: React.ReactNode;
@@ -11,6 +11,8 @@ type Props = {
   scroll?: boolean;
   // Centra el contenido verticalmente. Solo tiene sentido sin scroll.
   centrado?: boolean;
+  // Columna mas angosta, para las pantallas de entrada. Ver ANCHO_FORMULARIO.
+  angosta?: boolean;
   estiloContenido?: ViewStyle;
 };
 
@@ -24,10 +26,19 @@ export default function Pantalla({
   children,
   scroll = true,
   centrado = false,
+  angosta = false,
   estiloContenido,
 }: Props) {
+  const styles = useEstilos();
   const columna = (
-    <View style={[styles.columna, centrado && styles.columnaCentrada, estiloContenido]}>
+    <View
+      style={[
+        styles.columna,
+        angosta && styles.columnaAngosta,
+        centrado && styles.columnaCentrada,
+        estiloContenido,
+      ]}
+    >
       {children}
     </View>
   );
@@ -56,10 +67,10 @@ export default function Pantalla({
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   raiz: {
     flex: 1,
-    backgroundColor: "#010D07",
+    backgroundColor: colores.fondo,
   },
 
   segura: {
@@ -86,8 +97,12 @@ const styles = StyleSheet.create({
     maxWidth: ANCHO_MAXIMO,
   },
 
+  columnaAngosta: {
+    maxWidth: ANCHO_FORMULARIO,
+  },
+
   columnaCentrada: {
     flex: 1,
     justifyContent: "center",
   },
-});
+}));

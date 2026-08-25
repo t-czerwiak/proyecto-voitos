@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getPastillas, Pastilla } from "../../lib/voitos";
 import {
@@ -12,7 +12,7 @@ import {
   Vacio,
   Cargando,
 } from "../../ui";
-import { colores, espacio, texto } from "../../tema";
+import { crearEstilos, espacio, texto } from "../../tema";
 
 // Cuando quedan menos que esto en un modulo, conviene recargar antes de que
 // una dosis quede sin salir. Cinco es aproximadamente dos dias de una rutina
@@ -30,6 +30,8 @@ const STOCK_BAJO = 5;
 // aplicacion existe para evitar: que llegue la hora y el modulo este vacio.
 // Asi que ahora esta a la vista, y con aviso cuando esta por acabarse.
 export default function Pastillas() {
+  const styles = useEstilos();
+
   const [pastillas, setPastillas] = useState<Pastilla[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -165,7 +167,7 @@ export default function Pastillas() {
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   acciones: {
     gap: espacio.md,
     marginBottom: espacio.xxl,
@@ -191,4 +193,4 @@ const styles = StyleSheet.create({
   estado: {
     marginTop: espacio.md,
   },
-});
+}));

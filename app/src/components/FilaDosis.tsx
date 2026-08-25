@@ -1,10 +1,10 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Horario } from "../lib/voitos";
 import { comoHora, horaHablada } from "../lib/fechas";
 import { estadoDeDosis, presentarEstado } from "../lib/dosis";
 import { Tarjeta, Estado } from "../ui";
-import { colores, espacio, texto } from "../tema";
+import { crearEstilos, espacio, texto } from "../tema";
 
 type Props = {
   dosis: Horario;
@@ -23,6 +23,8 @@ type Props = {
 // numeros de ancho fijo para que las horas de la lista queden alineadas. El
 // estado va con icono, palabra y color juntos, nunca color solo.
 export default function FilaDosis({ dosis, color, detalle, destacada }: Props) {
+  const styles = useEstilos();
+
   const estado = presentarEstado(estadoDeDosis(dosis));
   const nombre = dosis.pastillas?.nombre ?? "Pastilla";
   const cantidad =
@@ -56,7 +58,7 @@ export default function FilaDosis({ dosis, color, detalle, destacada }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   fila: {
     flexDirection: "row",
     gap: espacio.lg,
@@ -91,4 +93,4 @@ const styles = StyleSheet.create({
   estado: {
     marginTop: espacio.xs,
   },
-});
+}));

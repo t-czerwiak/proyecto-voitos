@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-import { colores } from "../../tema";
+import { useColores } from "../../tema";
 
 // Este grupo era un Tabs con la barra escondida (`tabBarStyle: display none`).
 // Escondida para el ojo, pero no para el resto: en el navegador seguia
@@ -11,6 +11,8 @@ import { colores } from "../../tema";
 // que siempre fue, y las rutas no cambian: el nombre del grupo entre
 // parentesis no forma parte de la URL.
 export default function GrupoPrincipal() {
+  const colores = useColores();
+
   return (
     <Stack
       screenOptions={{

@@ -1,9 +1,9 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { getCalendarioCompleto, DosisDeTodos } from "../lib/voitos";
-import { COLORES_RUTINA, DIAS_SEMANA } from "../lib/rutinas";
+import { DIAS_SEMANA } from "../lib/rutinas";
 import { comoHora, fechaLarga, horaHablada, MESES_LARGOS } from "../lib/fechas";
 import {
   Pantalla,
@@ -14,7 +14,7 @@ import {
   Cargando,
   Vacio,
 } from "../ui";
-import { colores, espacio, radio, texto, toque } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema";
 
 // El calendario de todos, en una sola grilla.
 //
@@ -40,6 +40,9 @@ const hoyEnArgentina = () => {
 };
 
 export default function AdminCalendario() {
+  const styles = useEstilos();
+  const colores = useColores();
+
   const ahora = new Date();
   const [mes, setMes] = useState(ahora.getMonth());
   const [anio, setAnio] = useState(ahora.getFullYear());
@@ -82,8 +85,8 @@ export default function AdminCalendario() {
 
     return [...vistos.values()]
       .sort((a, b) => a.id.localeCompare(b.id))
-      .map((p, i) => ({ ...p, color: COLORES_RUTINA[i % COLORES_RUTINA.length] }));
-  }, [dosis]);
+      .map((p, i) => ({ ...p, color: colores.rutinas[i % colores.rutinas.length] }));
+  }, [dosis, colores.rutinas]);
 
   const colorDe = useCallback(
     (usuarioId?: string) =>
@@ -350,7 +353,7 @@ export default function AdminCalendario() {
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   navegacion: {
     flexDirection: "row",
     alignItems: "center",
@@ -389,7 +392,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colores.borde,
     borderRadius: radio.lg,
-    padding: espacio.sm,
+    padding: espacio.md,
   },
 
   semana: {
@@ -398,7 +401,7 @@ const styles = StyleSheet.create({
   },
 
   diaSemana: {
-    ...texto.etiqueta,
+    ...texto.cuerpoFuerte,
     color: colores.acentoSuave,
     width: `${100 / 7}%`,
     textAlign: "center",
@@ -411,10 +414,16 @@ const styles = StyleSheet.create({
 
   celda: {
     width: `${100 / 7}%`,
-    minHeight: toque.minimo,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: espacio.xs,
+    // Antes era el minimo de 48px y el numero se centraba JUNTO con los
+    // marcadores, asi que un dia con dosis empujaba su numero hacia arriba y
+    // los numeros de la grilla no quedaban alineados entre filas. Ahora la
+    // celda es mas alta, el numero arranca siempre a la misma distancia del
+    // borde y los marcadores van anclados abajo, fuera del flujo.
+    minHeight: 64,
+    alignItems: "center" as const,
+    justifyContent: "flex-start" as const,
+    paddingTop: 9,
+    paddingBottom: 14,
   },
 
   celdaTocable: {
@@ -437,7 +446,10 @@ const styles = StyleSheet.create({
   },
 
   numero: {
-    ...texto.cuerpoFuerte,
+    ...texto.item,
+    // Numeros de ancho fijo: en una grilla, un 11 mas angosto que un 30 se
+    // nota y desalinea la columna.
+    fontVariant: ["tabular-nums" as const],
     color: colores.texto,
   },
 
@@ -450,11 +462,12 @@ const styles = StyleSheet.create({
   },
 
   puntos: {
-    flexDirection: "row",
-    justifyContent: "center",
+    position: "absolute" as const,
+    bottom: 7,
+    flexDirection: "row" as const,
+    justifyContent: "center" as const,
     gap: 3,
-    marginTop: 3,
-    minHeight: 6,
+    minHeight: 5,
   },
 
   punto: {
@@ -555,4 +568,4 @@ const styles = StyleSheet.create({
     color: colores.textoSuave,
     marginTop: espacio.xl,
   },
-});
+}));

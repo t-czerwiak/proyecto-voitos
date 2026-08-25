@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { crearActividad } from "../lib/voitos";
 import { dosDigitos, fechaLarga } from "../lib/fechas";
@@ -13,7 +13,7 @@ import {
   Boton,
   Aviso,
 } from "../ui";
-import { colores, espacio, radio, texto } from "../tema";
+import { crearEstilos, espacio, radio, texto } from "../tema";
 
 const HORAS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTOS = Array.from({ length: 60 }, (_, i) => i);
@@ -29,6 +29,8 @@ const MINUTOS = Array.from({ length: 60 }, (_, i) => i);
 // "830", "8.30"— y el error recién aparecía al guardar. Ahora son dos
 // desplegables y no hay forma de escribir una hora que no exista.
 export default function AgregarActividad() {
+  const styles = useEstilos();
+
   const { fecha: fechaParametro } = useLocalSearchParams<{ fecha?: string }>();
 
   const [nombre, setNombre] = useState("");
@@ -169,7 +171,7 @@ export default function AgregarActividad() {
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   hora: {
     flexDirection: "row",
     gap: espacio.md,
@@ -199,4 +201,4 @@ const styles = StyleSheet.create({
     color: colores.texto,
     textTransform: "capitalize",
   },
-});
+}));

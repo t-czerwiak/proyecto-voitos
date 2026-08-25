@@ -1,6 +1,6 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colores, espacio, radio, texto, toque } from "../tema";
+import { Pressable, Text, View } from "react-native";
+import { crearEstilos, espacio, radio, texto, toque } from "../tema";
 
 export const DIAS = ["L", "M", "X", "J", "V", "S", "D"];
 
@@ -38,6 +38,8 @@ export default function SelectorDias({
   alCambiar,
   ayuda,
 }: Props) {
+  const styles = useEstilos();
+
   const alternar = (dia: string) => {
     alCambiar(
       seleccionados.includes(dia)
@@ -95,7 +97,7 @@ export default function SelectorDias({
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     marginBottom: espacio.lg,
@@ -153,4 +155,4 @@ const styles = StyleSheet.create({
     color: colores.textoTenue,
     marginTop: espacio.xs,
   },
-});
+}));

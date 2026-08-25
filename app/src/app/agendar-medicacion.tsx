@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { router } from "expo-router";
 import {
   agendarPastilla,
@@ -22,7 +22,7 @@ import {
   Vacio,
   Cargando,
 } from "../ui";
-import { colores, espacio, radio, texto } from "../tema";
+import { crearEstilos, espacio, radio, texto } from "../tema";
 
 const HORAS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTOS = Array.from({ length: 60 }, (_, i) => i);
@@ -46,6 +46,8 @@ const NOMBRE_DIA: Record<string, string> = {
 // semanas: 8 dosis"—. Leer eso lleva tres segundos y ahorra el ida y vuelta
 // de agendar, mirar el calendario y borrar todo.
 export default function AgendarMedicacion() {
+  const styles = useEstilos();
+
   const [cantidad, setCantidad] = useState(1);
 
   // La hora se elige con dos desplegables en vez de un DateTimePicker.
@@ -331,7 +333,7 @@ export default function AgendarMedicacion() {
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   hora: {
     flexDirection: "row",
     gap: espacio.md,
@@ -371,4 +373,4 @@ const styles = StyleSheet.create({
     color: colores.textoSuave,
     marginTop: espacio.sm,
   },
-});
+}));

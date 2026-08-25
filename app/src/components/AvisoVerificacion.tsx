@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import {
@@ -8,7 +8,7 @@ import {
   reenviarVerificacion,
 } from "../lib/voitos";
 import { Boton } from "../ui";
-import { colores, espacio, radio, texto } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto } from "../tema";
 
 // Aviso de cuenta sin verificar.
 //
@@ -21,6 +21,9 @@ import { colores, espacio, radio, texto } from "../tema";
 // no"— para ser botones de 48px. Eran las dos cosas mas chicas de la pantalla
 // y habia que acertarles con el dedo.
 export default function AvisoVerificacion() {
+  const styles = useEstilos();
+  const colores = useColores();
+
   const [verificado, setVerificado] = useState<boolean | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -103,7 +106,7 @@ export default function AvisoVerificacion() {
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     backgroundColor: colores.atencion.fondo,
@@ -144,4 +147,4 @@ const styles = StyleSheet.create({
     gap: espacio.sm,
     marginTop: espacio.lg,
   },
-});
+}));

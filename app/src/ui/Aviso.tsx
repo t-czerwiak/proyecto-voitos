@@ -1,7 +1,7 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colores, espacio, radio, texto } from "../tema";
+import { crearEstilos, useColores, espacio, radio, texto, Paleta } from "../tema";
 
 type Tipo = "error" | "ok" | "atencion" | "info";
 
@@ -11,10 +11,14 @@ type Props = {
   titulo?: string;
 };
 
-const ESTILOS: Record<
+// Igual que en Estado: la tabla depende del tema, asi que se arma con la
+// paleta en vez de quedar clavada al cargar el modulo.
+const estilosDe = (
+  colores: Paleta
+): Record<
   Tipo,
   { fondo: string; borde: string; color: string; icono: keyof typeof Ionicons.glyphMap; nombre: string }
-> = {
+> => ({
   error: {
     fondo: colores.peligro.fondo,
     borde: colores.peligro.borde,
@@ -43,7 +47,7 @@ const ESTILOS: Record<
     icono: "information-circle",
     nombre: "Aviso",
   },
-};
+});
 
 // Un mensaje en pantalla: el error de un formulario, la confirmacion de que
 // algo se guardo.
@@ -57,9 +61,18 @@ const ESTILOS: Record<
 //   - El texto arranca en 17px. El anterior era de 14 centrado, que para un
 //     mensaje de error de tres renglones es incomodo de leer.
 export default function Aviso({ texto: contenido, tipo = "error", titulo }: Props) {
+  // Los dos hooks van ARRIBA del "if (!contenido) return null", no abajo.
+  //
+  // React identifica cada hook por el orden en que se llama, asi que uno que
+  // queda detras de un return temprano se llama en unos renders y en otros no,
+  // y a partir de ahi React lee mal todo el estado del componente. No falla
+  // ruidosamente: descoloca los valores.
+  const styles = useEstilos();
+  const colores = useColores();
+
   if (!contenido) return null;
 
-  const e = ESTILOS[tipo];
+  const e = estilosDe(colores)[tipo];
 
   return (
     <View
@@ -79,7 +92,7 @@ export default function Aviso({ texto: contenido, tipo = "error", titulo }: Prop
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   caja: {
     width: "100%",
     flexDirection: "row",
@@ -107,4 +120,4 @@ const styles = StyleSheet.create({
   cuerpo: {
     ...texto.cuerpo,
   },
-});
+}));

@@ -70,7 +70,7 @@ export default function Recuperar() {
   };
 
   return (
-    <Pantalla>
+    <Pantalla angosta>
       <Encabezado
         titulo={hayToken ? "Elegí tu contraseña" : "Recuperar la contraseña"}
         bajada={

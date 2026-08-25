@@ -1,8 +1,8 @@
 import React from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import { router } from "expo-router";
-import { Pantalla, Boton } from "../ui";
-import { colores, espacio, texto } from "../tema";
+import { Pantalla, Boton, BotonTema } from "../ui";
+import { crearEstilos, espacio, texto } from "../tema";
 
 // La portada.
 //
@@ -15,8 +15,12 @@ import { colores, espacio, texto } from "../tema";
 // visualmente que su importancia: entrar es el boton lleno, crear cuenta es
 // el de borde. Ninguna de las dos depende de pasar el mouse por encima.
 export default function Portada() {
+  const styles = useEstilos();
+
   return (
-    <Pantalla scroll={false} centrado>
+    <Pantalla scroll={false} centrado angosta>
+      <BotonTema />
+
       <View style={styles.centro}>
         <Image
           source={require("../../assets/images/logoClaro.png")}
@@ -53,7 +57,7 @@ export default function Portada() {
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   centro: {
     alignItems: "center",
     marginBottom: espacio.xxxl,
@@ -77,4 +81,4 @@ const styles = StyleSheet.create({
     width: "100%",
     gap: espacio.md,
   },
-});
+}));

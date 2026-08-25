@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { iniciarSesion } from "../../lib/voitos";
 import BotonGoogle from "../../components/BotonGoogle";
-import { Pantalla, Encabezado, Campo, Boton, Aviso } from "../../ui";
+import { Pantalla, Encabezado, Campo, Boton, Aviso, BotonTema } from "../../ui";
 import { espacio } from "../../tema";
 
 export default function Login() {
@@ -32,7 +32,9 @@ export default function Login() {
   };
 
   return (
-    <Pantalla>
+    <Pantalla angosta>
+      <BotonTema />
+
       <Encabezado
         titulo="Entrar a tu cuenta"
         bajada="Con el mail y la contraseña con los que te registraste."
@@ -40,6 +42,13 @@ export default function Login() {
       />
 
       <Aviso texto={error} />
+
+      {/* Google va PRIMERO, arriba del formulario.
+          Antes estaba abajo de todo, despues de los campos de mail y
+          contrasena, y eso hacia parecer que para entrar con Google habia que
+          completar igual la contrasena. Entrar con Google no pide ninguna: ni
+          para entrar, ni para registrarse. */}
+      <BotonGoogle separador="abajo" leyenda="o con tu mail y contraseña" />
 
       <Campo
         etiqueta="Mail"
@@ -78,8 +87,6 @@ export default function Login() {
           onPress={() => router.push("/crear-cuenta")}
         />
       </View>
-
-      <BotonGoogle />
     </Pantalla>
   );
 }

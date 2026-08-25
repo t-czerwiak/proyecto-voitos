@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { router } from "expo-router";
 import { registrarse } from "../../lib/voitos";
 import BotonGoogle from "../../components/BotonGoogle";
-import { Pantalla, Encabezado, Campo, Boton, Aviso } from "../../ui";
+import { Pantalla, Encabezado, Campo, Boton, Aviso, BotonTema } from "../../ui";
 
 export default function CrearCuenta() {
   const [nombre, setNombre] = useState("");
@@ -49,7 +49,9 @@ export default function CrearCuenta() {
   };
 
   return (
-    <Pantalla>
+    <Pantalla angosta>
+      <BotonTema />
+
       <Encabezado
         titulo="Crear una cuenta"
         bajada="La cuenta es de quien cuida. El pastillero se agenda desde acá."
@@ -57,6 +59,11 @@ export default function CrearCuenta() {
       />
 
       <Aviso texto={error} />
+
+      {/* Ver el comentario de Login: Google arriba, y sin contrasena.
+          Con Google no hace falta elegir ninguna; si despues quiere una, el
+          mail de bienvenida trae un enlace para ponerla. */}
+      <BotonGoogle separador="abajo" leyenda="o con tu mail y una contraseña" />
 
       <Campo etiqueta="Nombre" valor={nombre} alCambiar={setNombre} autoCompletar="name" />
 
@@ -95,8 +102,6 @@ export default function CrearCuenta() {
         onPress={handleCrearCuenta}
         cargando={cargando}
       />
-
-      <BotonGoogle />
     </Pantalla>
   );
 }

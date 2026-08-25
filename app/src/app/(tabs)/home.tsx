@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import AvisoVerificacion from "../../components/AvisoVerificacion";
@@ -23,7 +23,7 @@ import {
   letraDelDia,
 } from "../../lib/rutinas";
 import { Pantalla, Tarjeta, Boton, Aviso, Vacio, Cargando, Estado } from "../../ui";
-import { colores, espacio, texto } from "../../tema";
+import { crearEstilos, useColores, espacio, texto } from "../../tema";
 
 // La pantalla de inicio.
 //
@@ -36,6 +36,9 @@ import { colores, espacio, texto } from "../../tema";
 // salio la medicacion. Asi que la pantalla es la respuesta a esa pregunta, y
 // los accesos a las otras secciones van despues.
 export default function Hoy() {
+  const styles = useEstilos();
+  const colores = useColores();
+
   const [admin, setAdmin] = useState(false);
   const [horarios, setHorarios] = useState<Horario[]>([]);
   const [actividades, setActividades] = useState<Actividad[]>([]);
@@ -84,7 +87,7 @@ export default function Hoy() {
     }, [])
   );
 
-  const rutinas = useMemo(() => rutinasActivas(armarRutinas(horarios)), [horarios]);
+  const rutinas = useMemo(() => rutinasActivas(armarRutinas(horarios, colores.rutinas)), [horarios, colores.rutinas]);
 
   const dosisDeHoy = useMemo(
     () =>
@@ -326,6 +329,9 @@ function Acceso({
   detalle: string;
   onPress: () => void;
 }) {
+  const styles = useEstilos();
+  const colores = useColores();
+
   return (
     <Tarjeta onPress={onPress} etiqueta={titulo} ayuda={detalle}>
       <View style={styles.acceso}>
@@ -344,7 +350,7 @@ function Acceso({
   );
 }
 
-const styles = StyleSheet.create({
+const useEstilos = crearEstilos((colores) => ({
   saludo: {
     marginBottom: espacio.xl,
   },
@@ -447,4 +453,4 @@ const styles = StyleSheet.create({
     gap: espacio.md,
     marginTop: espacio.sm,
   },
-});
+}));
