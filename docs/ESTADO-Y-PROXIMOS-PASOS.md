@@ -454,8 +454,31 @@ Ramas: `main` (producción) ← `develop` ← `czerwiak/backend`, `ojman/fronten
 
 **Servicios:**
 - Backend: `https://voitos-backend.onrender.com` (Render, plan free)
-- App: `https://voitos.vercel.app` (Vercel, deploy automático desde `main`)
+- **App: `https://voitos.vercel.app`** ← esta es la dirección de la aplicación
 - Base: Supabase, proyecto `pshejdspqqhuhyjbzslx`
+
+### Cómo se despliega la app
+
+**`voitos.vercel.app` es la única dirección que hay que dar.** Es la de
+producción y no cambia nunca.
+
+El proyecto de Vercel se llama `app` y está enganchado al repositorio, así que
+el deploy no se dispara a mano: sale solo con cada push.
+
+| Qué se pushea | Qué sale |
+| --- | --- |
+| `main` | **Producción**: `voitos.vercel.app` |
+| Cualquier otra rama | Una *preview*, en una dirección larga y fea del tipo `app-git-<rama>-timos-projects-…vercel.app` |
+
+Las previews sirven para mirar una rama antes de mergearla, y nada más. **No
+son la aplicación**: no hay que compartirlas, ni pasarlas a la cátedra, ni
+guardarlas en ningún lado. Cada push a una rama pisa la anterior, y quedan
+dando vueltas en el panel de Vercel hasta que alguien las borra a mano
+(Vercel → proyecto `app` → Deployments → ⋯ → Delete).
+
+O sea: **para que un cambio se vea en `voitos.vercel.app` hay que llegar hasta
+`main`.** El camino es el de siempre, rama de área → `develop` → `main`, con un
+pull request en cada paso.
 
 **Sobre el plan free de Render:** el servicio se duerme a los 15 minutos sin
 tráfico. Con la ESP32 consultando cada 30 segundos nunca se duerme, lo cual es

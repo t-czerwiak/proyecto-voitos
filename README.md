@@ -6,6 +6,8 @@
 
 `Node.js` · `TypeScript` · `Express` · `Supabase` · `React Native` · `Expo` · `ESP32`
 
+**La aplicación está en [voitos.vercel.app](https://voitos.vercel.app)**
+
 </div>
 
 ---
@@ -68,6 +70,7 @@ intervención manual en ningún paso.
 | 📧 **Mails** | Enviando a cualquier destinatario, por la API de Brevo |
 | 🔐 **Cuentas** | Con contraseña o con Google, y recuperación por mail |
 | 🗄️ **Base** | Supabase, con el registro completo de cada dispensación |
+| 🌐 **Deploy** | Automático en [voitos.vercel.app](https://voitos.vercel.app) con cada push a `main` |
 | 🎨 **Diseño** | Rediseñada para quien cuida, con una sola paleta verificada contra WCAG AA |
 
 **El recorrido que se probó:** se agenda una dosis desde el celular, llega la

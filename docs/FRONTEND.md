@@ -161,6 +161,20 @@ npm run contraste         # accesibilidad de la paleta
 npm run build:web         # el export que sube a Vercel
 ```
 
+### Dónde vive la app
+
+**`https://voitos.vercel.app`**. Esa es la dirección, y no cambia.
+
+El deploy es automático: Vercel está enganchado al repositorio y compila con
+cada push. Lo que sale de `main` va a `voitos.vercel.app`; lo que sale de
+cualquier otra rama va a una *preview* con una dirección larga del tipo
+`app-git-<rama>-timos-projects-….vercel.app`.
+
+Esa distinción importa más de lo que parece: una preview es para mirar una rama
+antes de mergearla y se pisa con el push siguiente. No se comparte ni se pasa
+como si fuera la aplicación. **Un cambio no está publicado hasta que llegó a
+`main`.**
+
 ---
 
 ## 6. Un detalle que cuesta caro olvidar
