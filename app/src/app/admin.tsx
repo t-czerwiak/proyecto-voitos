@@ -228,6 +228,14 @@ export default function Admin() {
                   )}
                 </View>
 
+                {/* Cuales son, no cuantas. "4 pastillas" no dice nada cuando lo
+                    que se quiere saber es de quien es la Aspirina. */}
+                {u.listaPastillas && u.listaPastillas.length > 0 && (
+                  <Text style={styles.pastillasDe}>
+                    {u.listaPastillas.map((p) => p.nombre).join(" · ")}
+                  </Text>
+                )}
+
                 <View style={styles.acciones}>
                   <Boton
                     titulo={u.verificado ? "Quitar la verificación" : "Verificar la cuenta"}
@@ -270,6 +278,15 @@ export default function Admin() {
 }
 
 const useEstilos = crearEstilos((colores) => ({
+  // Los nombres de las pastillas de cada cuenta, debajo de las etiquetas de
+  // estado. En texto corrido y separados por punto medio: son pocos y no
+  // merecen una lista con vinetas.
+  pastillasDe: {
+    ...texto.dato,
+    color: colores.textoTenue,
+    marginTop: espacio.sm,
+  },
+
   acceso: {
     flexDirection: "row",
     alignItems: "center",

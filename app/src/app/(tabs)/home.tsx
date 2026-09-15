@@ -6,14 +6,12 @@ import AvisoVerificacion from "../../components/AvisoVerificacion";
 import FilaDosis from "../../components/FilaDosis";
 import {
   soyAdmin,
-  cerrarSesion,
   getUsuarioActual,
   getHorariosDelUsuario,
   getActividades,
   Actividad,
   Horario,
 } from "../../lib/voitos";
-import { confirmar } from "../../lib/avisos";
 import { fechaLarga, fechaRelativa, hoyISO, comoHora } from "../../lib/fechas";
 import { proximaDosis, resumirDia } from "../../lib/dosis";
 import {
@@ -106,26 +104,6 @@ export default function Hoy() {
       .filter((a) => (a.tipo === "una-vez" ? a.fecha === hoy : a.dias?.includes(letra)))
       .sort((a, b) => a.hora.localeCompare(b.hora));
   }, [actividades, hoy]);
-
-  // Confirma antes de salir. Cerrar sesion sin querer obliga a escribir mail y
-  // contrasena de nuevo, y esta pantalla se toca a diario.
-  const salir = async () => {
-    const seguro = await confirmar(
-      "Cerrar sesión",
-      usuario?.mail
-        ? `Vas a salir de la cuenta ${usuario.mail}. Para volver a entrar vas a tener que iniciar sesión de nuevo.`
-        : "Para volver a entrar vas a tener que iniciar sesión de nuevo.",
-      "Cerrar sesión"
-    );
-    if (!seguro) return;
-
-    cerrarSesion();
-
-    // replace y no push: si quedara en el historial, el boton de atras del
-    // navegador devolveria a esta pantalla con la sesion ya cerrada, y todo
-    // empezaria a fallar con 401.
-    router.replace("/");
-  };
 
   const nombrePastilla = proxima?.pastillas?.nombre ?? "Pastilla";
   const cantidadProxima =
@@ -300,12 +278,15 @@ export default function Hoy() {
           />
         )}
 
+        {/* Cerrar sesion y borrar la cuenta viven en /perfil y no aca.
+            Esta pantalla se abre veinte veces por dia; no hay motivo para tener
+            a mano el boton que obliga a escribir mail y contrasena de nuevo. */}
         <Boton
-          titulo="Cerrar sesión"
+          titulo="Tu perfil"
           variante="enlace"
-          icono="log-out-outline"
-          onPress={salir}
-          ayuda="Vas a tener que escribir el mail y la contraseña de nuevo"
+          icono="person-circle-outline"
+          onPress={() => router.push("/perfil")}
+          ayuda="Tus datos, tus pastillas, y cerrar sesión"
         />
       </View>
     </Pantalla>
