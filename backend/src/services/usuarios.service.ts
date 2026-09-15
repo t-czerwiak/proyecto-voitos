@@ -10,7 +10,8 @@ import { UsuarioCreate, UsuarioUpdate } from "../schemas/usuarios.schema";
 //                       token, asi que no hay razon para exponerlo.
 //
 // Con select("*") esos dos viajaban en cada respuesta.
-const CAMPOS_PUBLICOS = "id, nombre, apellido, mail, edad, verificado, created_at";
+const CAMPOS_PUBLICOS =
+  "id, nombre, apellido, mail, fecha_nacimiento, verificado, created_at";
 
 export const getAllUsuarios = async () => {
   const { data, error } = await supabase.from("usuarios").select(CAMPOS_PUBLICOS);

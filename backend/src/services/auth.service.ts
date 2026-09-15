@@ -24,7 +24,8 @@ const API_URL = (process.env.API_URL ?? "http://localhost:3000").replace(/\/$/, 
 // mas, y el de reset es peor todavia: con el se elige una contrasena nueva, o
 // sea que se toma la cuenta entera. Cualquier consulta a usuarios que vaya a
 // salir por la API tiene que usar esta constante.
-const CAMPOS_PUBLICOS = "id, nombre, apellido, mail, edad, verificado, created_at";
+const CAMPOS_PUBLICOS =
+  "id, nombre, apellido, mail, fecha_nacimiento, verificado, created_at";
 
 const getPerfil = async (id: string) => {
   const { data, error } = await supabase
@@ -70,7 +71,7 @@ export const registro = async (body: Registro) => {
       nombre: body.nombre,
       apellido: body.apellido,
       mail: body.mail,
-      edad: body.edad,
+      fecha_nacimiento: body.fecha_nacimiento ?? null,
       token_verificacion: token,
       token_expira: expira.toISOString(),
     })

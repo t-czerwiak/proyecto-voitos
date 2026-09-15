@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { FechaNacimientoSchema } from "./fechaNacimiento";
 
 export const UsuarioCreateSchema = z.object({
   nombre: z.string().min(1, "nombre requerido"),
   apellido: z.string().min(1, "apellido requerido"),
   mail: z.string().email("mail invalido"),
-  edad: z.number().int().positive("edad debe ser positiva"),
+  fecha_nacimiento: FechaNacimientoSchema.optional(),
 });
 
 export const UsuarioUpdateSchema = UsuarioCreateSchema.partial();

@@ -14,7 +14,9 @@ import { supabase } from "../config/supabase";
 export const getUsuarios = async () => {
   const { data, error } = await supabase
     .from("usuarios")
-    .select("id, nombre, apellido, mail, edad, verificado, rol, created_at")
+    .select(
+      "id, nombre, apellido, mail, fecha_nacimiento, verificado, rol, created_at"
+    )
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);

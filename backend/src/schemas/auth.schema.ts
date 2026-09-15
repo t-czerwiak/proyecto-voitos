@@ -1,13 +1,14 @@
 import { z } from "zod";
+import { FechaNacimientoSchema } from "./fechaNacimiento";
 
 // Supabase Auth exige un minimo de 6 caracteres para la password.
 export const RegistroSchema = z.object({
   nombre: z.string().min(1, "nombre requerido"),
   apellido: z.string().min(1, "apellido requerido"),
   mail: z.string().email("mail invalido"),
-  // Opcional: el formulario de la app no pide la edad del cuidador. Queda
-  // para completar despues desde el perfil.
-  edad: z.number().int().positive("edad debe ser positiva").optional(),
+  // Opcional a proposito: quien se esta registrando quiere entrar, no llenar
+  // una ficha. El campo esta en el formulario y se puede dejar vacio.
+  fecha_nacimiento: FechaNacimientoSchema.optional(),
   password: z.string().min(6, "la password debe tener al menos 6 caracteres"),
 });
 
