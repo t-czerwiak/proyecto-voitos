@@ -92,7 +92,8 @@ export default function Admin() {
         `de dispensaciones, sus contactos y sus actividades.\n\n` +
         `Los módulos del pastillero quedan, vacíos.\n\n` +
         `Esto no se puede deshacer. ¿Seguro?`,
-      "Eliminar cuenta"
+      "Eliminar cuenta",
+      "peligro"
     );
     if (!seguir) return;
 
@@ -114,7 +115,8 @@ export default function Admin() {
       `Vaciar el calendario de ${u.nombre}`,
       `Se borran las dosis que todavía no salieron de ${u.mail}.\n\n` +
         `Las ya dispensadas quedan en el historial.\n\n¿Seguro?`,
-      "Vaciar"
+      "Vaciar",
+      "peligro"
     );
     if (!seguir) return;
 

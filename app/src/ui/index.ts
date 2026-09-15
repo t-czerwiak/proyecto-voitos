@@ -12,3 +12,5 @@ export { default as Estado } from "./Estado";
 export { default as Aviso } from "./Aviso";
 export { default as Vacio } from "./Vacio";
 export { default as Cargando } from "./Cargando";
+export { default as Dialogo } from "./Dialogo";
+export { default as AvisoDespertando } from "./AvisoDespertando";

@@ -63,7 +63,8 @@ export default function RecargarMedicacion() {
     const seguir = await confirmar(
       `Eliminar ${seleccionada.nombre}`,
       `Se borra la pastilla y todas sus dosis, incluido el historial de las ya dispensadas. El módulo queda libre pero no se borra.\n\nEsto no se puede deshacer. ¿Seguro?`,
-      "Eliminar"
+      "Eliminar",
+      "peligro"
     );
     if (!seguir) return;
 

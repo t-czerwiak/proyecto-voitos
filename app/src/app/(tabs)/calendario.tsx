@@ -88,7 +88,8 @@ export default function Calendario() {
       `${rutina.horaTexto}, ${rutina.dias.join(" ")}.\n\n` +
         `Se borran las ${rutina.pendientes} dosis que todavía no salieron. ` +
         `Las ya dispensadas quedan en el historial.\n\n¿Seguro?`,
-      "Borrar rutina"
+      "Borrar rutina",
+      "peligro"
     );
     if (!seguir) return;
 
