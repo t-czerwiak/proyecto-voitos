@@ -15,6 +15,10 @@ type Props = {
   valor: string;
   alCambiar: (iso: string) => void;
   error?: string;
+  // La linea de abajo. Cambia segun donde se use: al crear la cuenta el campo
+  // es opcional, pero en el perfil se esta editando algo que ya existe y decir
+  // "podes dejarlo vacio" ahi seria falso.
+  ayuda?: string;
 };
 
 const vacio = { dia: "", mes: "", anio: "" };
@@ -44,7 +48,12 @@ const diasDelMes = (mes: number, anio: number): number =>
 //
 // El mes va con el nombre escrito y no con el numero, que es lo que saca la
 // ambiguedad de raiz.
-export default function CampoFechaNacimiento({ valor, alCambiar, error }: Props) {
+export default function CampoFechaNacimiento({
+  valor,
+  alCambiar,
+  error,
+  ayuda = "Pod\u00e9s dejarlo vac\u00edo y completarlo despu\u00e9s.",
+}: Props) {
   const styles = useEstilos();
 
   // LAS TRES PARTES VIVEN ACA, NO SE DEDUCEN DE valor.
@@ -141,9 +150,9 @@ export default function CampoFechaNacimiento({ valor, alCambiar, error }: Props)
         <Text style={styles.error} accessibilityLiveRegion="polite">
           {error}
         </Text>
-      ) : (
-        <Text style={styles.ayuda}>Podés dejarlo vacío y completarlo después.</Text>
-      )}
+      ) : ayuda ? (
+        <Text style={styles.ayuda}>{ayuda}</Text>
+      ) : null}
     </View>
   );
 }

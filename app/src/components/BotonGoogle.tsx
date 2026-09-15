@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { dibujarBotonGoogle, googleDisponible } from "../lib/google";
 import { iniciarSesionConGoogle } from "../lib/voitos";
 import { Aviso } from "../ui";
-import { crearEstilos, espacio, texto } from "../tema";
+import { crearEstilos, espacio, radio, texto } from "../tema";
 
 // Boton de "Continuar con Google".
 //
@@ -93,9 +93,14 @@ export default function BotonGoogle({
     >
       {separador === "arriba" && <Raya leyenda={leyenda} styles={styles} />}
 
-      {/* El boton lo dibuja Google adentro de este hueco. La altura minima
-          es la del boton de Google, para que la pantalla no pegue un salto
-          cuando termina de cargar. */}
+      {/* EL MARCO QUE LE DA NUESTRA FORMA AL BOTON DE GOOGLE.
+          Google lo dibuja adentro de este hueco y le pone fondo blanco y radio
+          de 4px, que no se pueden cambiar por parametro. Este contenedor tiene
+          el radio de los demas botones y recorta, asi que el blanco sale con
+          nuestras esquinas en vez de las de Google.
+          La altura es EXACTA y no minima: si el contenedor fuera mas alto que
+          el boton, el recorte agarraria las esquinas de arriba y no las de
+          abajo, y quedaria torcido. */}
       <View ref={contenedor} style={styles.hueco} />
 
       <Aviso texto={error} />
@@ -117,6 +122,9 @@ function Raya({ leyenda, styles }: { leyenda: string; styles: any }) {
     </View>
   );
 }
+
+// Lo que mide el boton de Google con size "large". Medido en el navegador.
+const ALTO_GOOGLE = 40;
 
 const useEstilos = crearEstilos((colores) => ({
   caja: {
@@ -144,7 +152,16 @@ const useEstilos = crearEstilos((colores) => ({
     color: colores.textoSuave,
   },
 
+  // ALTO_GOOGLE es lo que mide el boton con size "large", medido en el
+  // navegador. Es el unico alto que da GIS: no hay un tamano mas grande, asi
+  // que este boton es mas bajo que los nuestros (56) y no hay forma de
+  // emparejarlos sin deformarlo.
   hueco: {
-    minHeight: 44,
+    height: ALTO_GOOGLE,
+    width: "100%",
+    borderRadius: radio.lg,
+    // Lo que le da la forma. Sin esto, el boton queda con el radio de 4px de
+    // Google, que al lado de los nuestros se ve como un cuadrado.
+    overflow: "hidden",
   },
 }));
