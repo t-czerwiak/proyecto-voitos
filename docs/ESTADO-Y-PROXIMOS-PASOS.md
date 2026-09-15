@@ -29,6 +29,13 @@ Lo que sí conviene saber antes de tocar nada:
 - **La app tiene un solo tema y no lleva interruptor.** Si aparece un color
   escrito a mano en una pantalla, es un error: todo sale de `src/tema/paletas.ts`
   y se verifica con `npm run contraste`. Ver [`FRONTEND.md`](FRONTEND.md).
+- **Nada de `alert`, `confirm` ni `prompt` del navegador**, ni `Alert.alert`.
+  Para preguntar algo está `confirmar()` de `app/src/lib/avisos.ts`, que lo
+  dibuja adentro de la página. El motivo está en la sección 1.
+- **El backend se duerme si el pastillero está apagado.** Render apaga el plan
+  free a los 15 minutos sin tráfico y tarda hasta un minuto en despertar. La app
+  ya lo espera sola, pero si algo "no anda" y la ESP32 está desenchufada, ese es
+  el primer lugar donde mirar.
 
 ---
 
@@ -60,8 +67,9 @@ el modelo push, por si hiciera falta volver.
 
 ### Lo que pasó entre el 21 de agosto y el 15 de septiembre
 
-El sistema no cambió: lo que se movió fue **todo lo que se ve**. El backend, el
-firmware y la base siguen exactamente como quedaron el 21.
+Casi todo lo que se movió es **lo que se ve**. El firmware sigue exactamente
+como quedó el 21; el backend y la base se tocaron una sola vez, el 15/09, para
+reemplazar la columna `edad` por `fecha_nacimiento`.
 
 | Fecha | Qué |
 | --- | --- |
@@ -73,6 +81,9 @@ firmware y la base siguen exactamente como quedaron el 21.
 | 28/08 | **Modo claro y oscuro** con interruptor a mano desde la entrada |
 | 30/08 | **El error se hace visible** en vez de dejar una pantalla negra |
 | 15/09 | **Se sacó el modo claro y el interruptor de tema.** Queda una sola paleta |
+| 15/09 | **Se fue `window.confirm`.** Las 6 confirmaciones pasan a un diálogo propio, dentro de la página |
+| 15/09 | **El backend dormido deja de ser un error.** La app reintenta con más tiempo y avisa que el servidor está arrancando |
+| 15/09 | **`edad` → `fecha_nacimiento`.** La columna nunca se había completado: 6 usuarios, 6 NULL |
 
 Sobre lo último, porque es lo que más va a llamar la atención al leer el
 historial: el modo claro se agregó y se sacó en tres semanas. El motivo está
@@ -82,6 +93,56 @@ el tema era el único estado de la aplicación que vivía en `localStorage` y
 tenía que sobrevivir a la hidratación del prerender. Para un equipo de tres,
 eso se paga en pantallas a medio revisar. La paleta que queda es la de la
 marca, y sus 40 pares de contraste se verifican con `npm run contraste`.
+
+### Por qué no hay más `alert` ni `confirm` del navegador
+
+Las seis confirmaciones de la app usaban `window.confirm`. Eso no es un diálogo
+de Voitos: lo dibuja el navegador, con el título **"voitos.vercel.app dice"**
+seguido del texto. Arriba de una pregunta sobre medicación —"se borra la cuenta
+con todo su historial, ¿seguro?"— esa es exactamente la forma que tienen los
+avisos falsos del navegador, y quien cuida a otro no tiene por qué saber
+distinguirlos.
+
+Ahora es `app/src/ui/Dialogo.tsx`, montado una sola vez en el layout raíz. Los
+botones dicen qué hacen, el que borra va en rojo, y se sale con Escape o tocando
+el fondo.
+
+**La regla quedó escrita en `AGENTS.md`: nunca `window.alert`, `window.confirm`,
+`window.prompt` ni `Alert.alert`.** Para preguntar algo, `confirmar()` de
+`app/src/lib/avisos.ts`.
+
+### El backend dormido, y por qué la app espera
+
+Render apaga el servicio del plan free a los 15 minutos sin tráfico, y
+despertarlo tarda entre 30 y 60 segundos. Lo que lo mantiene despierto es la
+ESP32 consultando cada 30 segundos: **con el pastillero apagado, se duerme.**
+
+La app cortaba a los 10 segundos y mostraba un error que además mandaba a
+revisar `EXPO_PUBLIC_API_URL`, que contra el backend desplegado es justo lo
+único que está bien. Ese texto se había escrito para desarrollo, cuando el
+backend era una IP de la red de casa.
+
+Ahora son dos intentos: uno corto, y si corta por tiempo **y** el backend es
+remoto, uno solo más con 45 segundos, mostrando una franja que dice que el
+servidor está arrancando y que no se recargue la página.
+
+### `edad` pasó a ser `fecha_nacimiento`
+
+La columna `edad` existía desde el primer día y **nadie la escribió nunca**: seis
+usuarios, seis NULL. No era un bug de una pantalla, es que el campo no estaba en
+ningún formulario. El comentario del schema lo decía: quedaba "para completar
+después desde el perfil", y ese perfil nunca se construyó.
+
+Ahora se pide la fecha de nacimiento al crear la cuenta, es opcional, y va en
+tres desplegables con el mes escrito (03/04 es ambiguo). **La edad no se guarda,
+se calcula** con `edadDesde()` de `app/src/lib/fechas.ts`: una edad guardada como
+entero se escribe una vez y al año siguiente miente.
+
+**La migración fue en dos pasos, y el orden no es un detalle.** Primero se
+agregó `fecha_nacimiento`; después se desplegó el backend que deja de nombrar
+`edad` en su `SELECT`; recién entonces se borró la columna. Al revés, el backend
+que estaba corriendo se habría roto en el acto. Si alguna vez hay que sacar otra
+columna, ese es el orden.
 
 **Cómo está documentado el front:** [`docs/FRONTEND.md`](FRONTEND.md) cuenta la
 estructura de `app/src`, las reglas del diseño, el kit de `ui/` y lo que es
@@ -437,13 +498,14 @@ No queda nada bloqueante. Por orden de lo que más falta hace:
    grande que queda entre lo que el sistema sabe y lo que el cuidador ve.
 2. **Pantallas de configuración, emergencia y detalle del día**, que siguen
    vacías. Las piezas de `ui/` ya están, así que es armarlas, no diseñarlas.
-3. **Mergear la rama `ojman/frontend` a `develop` y de ahí a `main`**, que es
-   lo que dispara el deploy de producción en Vercel.
-4. **El feature `modulos`**, que sigue sin mergear en `czerwiak/backend`.
-5. Un dominio propio, si se quiere sacar las advertencias de DKIM y DMARC y
+3. **El feature `modulos`**, que sigue sin mergear en `czerwiak/backend`.
+4. Un dominio propio, si se quiere sacar las advertencias de DKIM y DMARC y
    mejorar la entregabilidad.
-6. Sensor que confirme cuántas pastillas salieron de verdad. Hoy se asume que
+5. Sensor que confirme cuántas pastillas salieron de verdad. Hoy se asume que
    salieron las que se pidieron.
+
+Nada de esto está bloqueado por otra cosa. Todo lo del 15/09 ya está en `main` y
+desplegado.
 
 ---
 
