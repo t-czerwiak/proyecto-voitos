@@ -3,7 +3,9 @@ export interface Usuario {
   nombre: string;
   apellido: string;
   mail: string;
-  edad?: number;
+  // Date pelado de Postgres: "YYYY-MM-DD", sin hora ni zona. La edad no se
+  // guarda, se calcula a partir de esto.
+  fecha_nacimiento?: string | null;
   created_at: string;
 }
 
