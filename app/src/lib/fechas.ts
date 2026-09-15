@@ -82,3 +82,27 @@ export const minutosDeAhora = () => {
   const d = new Date();
   return d.getHours() * 60 + d.getMinutes();
 };
+
+// La edad a partir de la fecha de nacimiento.
+//
+// Se calcula y no se guarda. Una edad guardada como numero se escribe una vez y
+// al ano siguiente miente; la fecha no cambia nunca.
+//
+// El calculo es "anos cumplidos": si el cumpleanos de este ano todavia no paso,
+// se resta uno. Sin eso, quien nacio en diciembre aparecia un ano mas grande
+// durante once meses.
+export const edadDesde = (iso: string | null | undefined): number | null => {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+
+  const [anio, mes, dia] = iso.split("-").map(Number);
+  const hoy = new Date();
+
+  let edad = hoy.getFullYear() - anio;
+
+  const mesActual = hoy.getMonth() + 1;
+  const cumpleFuePaso = mesActual > mes || (mesActual === mes && hoy.getDate() >= dia);
+  if (!cumpleFuePaso) edad -= 1;
+
+  return edad >= 0 ? edad : null;
+};
+

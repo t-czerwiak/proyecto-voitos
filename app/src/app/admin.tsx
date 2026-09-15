@@ -19,6 +19,7 @@ import {
   UsuarioAdmin,
 } from "../lib/voitos";
 import { confirmar } from "../lib/avisos";
+import { edadDesde } from "../lib/fechas";
 import {
   Pantalla,
   Encabezado,
@@ -92,7 +93,8 @@ export default function Admin() {
         `de dispensaciones, sus contactos y sus actividades.\n\n` +
         `Los módulos del pastillero quedan, vacíos.\n\n` +
         `Esto no se puede deshacer. ¿Seguro?`,
-      "Eliminar cuenta"
+      "Eliminar cuenta",
+      "peligro"
     );
     if (!seguir) return;
 
@@ -114,7 +116,8 @@ export default function Admin() {
       `Vaciar el calendario de ${u.nombre}`,
       `Se borran las dosis que todavía no salieron de ${u.mail}.\n\n` +
         `Las ya dispensadas quedan en el historial.\n\n¿Seguro?`,
-      "Vaciar"
+      "Vaciar",
+      "peligro"
     );
     if (!seguir) return;
 
@@ -211,6 +214,18 @@ export default function Admin() {
                     tono="neutro"
                     icono="time-outline"
                   />
+
+                  {/* La edad se calcula acá, no viene de la base: lo que se
+                      guarda es la fecha de nacimiento. Las cuentas viejas no la
+                      tienen y no se muestra nada, que es mejor que un hueco que
+                      diga "sin edad". */}
+                  {edadDesde(u.fecha_nacimiento) !== null && (
+                    <Estado
+                      texto={`${edadDesde(u.fecha_nacimiento)} años`}
+                      tono="neutro"
+                      icono="person-outline"
+                    />
+                  )}
                 </View>
 
                 <View style={styles.acciones}>

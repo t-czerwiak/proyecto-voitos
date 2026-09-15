@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { router } from "expo-router";
 import { registrarse } from "../../lib/voitos";
 import BotonGoogle from "../../components/BotonGoogle";
-import { Pantalla, Encabezado, Campo, Boton, Aviso } from "../../ui";
+import { Pantalla, Encabezado, Campo, CampoFechaNacimiento, Boton, Aviso } from "../../ui";
 
 export default function CrearCuenta() {
   const [nombre, setNombre] = useState("");
@@ -10,6 +10,8 @@ export default function CrearCuenta() {
   const [mail, setMail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
+  // Opcional: queda "" si no la completan y no se manda.
+  const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
@@ -39,7 +41,15 @@ export default function CrearCuenta() {
 
     setCargando(true);
     try {
-      await registrarse({ nombre, apellido, mail, password });
+      await registrarse({
+        nombre,
+        apellido,
+        mail,
+        password,
+        // Sin la fecha no se manda la clave: el backend la tiene como opcional,
+        // y mandar "" seria mandar una fecha invalida en vez de ninguna.
+        ...(fechaNacimiento ? { fecha_nacimiento: fechaNacimiento } : {}),
+      });
       router.push("/home");
     } catch (e: any) {
       setError(e.message);
@@ -75,6 +85,11 @@ export default function CrearCuenta() {
         autoCompletar="email"
         ayuda="Acá te van a llegar los avisos de cada dosis."
         placeholder="nombre@mail.com"
+      />
+
+      <CampoFechaNacimiento
+        valor={fechaNacimiento}
+        alCambiar={setFechaNacimiento}
       />
 
       <Campo
