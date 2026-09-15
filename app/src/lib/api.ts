@@ -119,6 +119,15 @@ export const sesion = {
     if (usuario) almacenamiento.set(CLAVE_USUARIO, JSON.stringify(usuario));
   },
 
+  // Pisa solo el usuario y deja el token donde esta.
+  //
+  // Hace falta cuando se edita el perfil: el token sigue siendo valido, lo que
+  // cambio son los datos. Con guardar() habria que pasarle el token de nuevo,
+  // y un error ahi deja la sesion sin token.
+  guardarUsuario(usuario: Usuario) {
+    almacenamiento.set(CLAVE_USUARIO, JSON.stringify(usuario));
+  },
+
   cerrar() {
     tokenEnMemoria = null;
     almacenamiento.borrar(CLAVE_TOKEN);
