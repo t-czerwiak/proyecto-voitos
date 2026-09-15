@@ -158,9 +158,11 @@ export const borrarUsuario = (id: string) =>
 
 // El modulo fisico donde esta cargada la pastilla. Es de donde sale el stock:
 // pastillas no tiene cantidad, la tiene el modulo.
-// El unico modulo del pastillero. Hay una sola ESP32 con un solo servo, asi que
-// el modulo es compartido: cantidad_actual es "cuantas pastillas hay adentro de
-// la maquina", no "cuantas quedan de esta pastilla".
+// Un modulo del pastillero: un servo con su tolva y su filtro. Como el filtro
+// es especifico, cada modulo dispensa UNA pastilla, y cantidad_actual son las
+// que quedan de esa.
+//
+// Una ESP32 puede manejar varios. Hoy hay uno solo armado, "voitos_1".
 export interface Modulo {
   id: string;
   numero: number;
@@ -182,15 +184,15 @@ export const getPastillas = () => {
   return api.get<Pastilla[]>(`/api/pastillas${filtro}`);
 };
 
-// cantidad_inicial son las pastillas que se cargan fisicamente en la maquina.
+// cantidad_inicial son las pastillas que se cargan fisicamente en el modulo.
 //
-// OJO: hay UN solo modulo y es compartido, asi que este numero pisa el conteo
-// anterior en vez de sumarse. Es lo que corresponde —cargar la tolva es
-// vaciarla y poner lo nuevo— pero conviene saberlo.
+// modulo_numero elige en cual. Sin el, el backend usa el primero libre; si no
+// queda ninguno, la pastilla se crea igual pero sin cargar y modulo vuelve null.
 export const crearPastilla = (datos: {
   nombre: string;
   tipo?: string;
   cantidad_inicial?: number;
+  modulo_numero?: number;
 }) => {
   const usuario = sesion.getUsuario();
   if (!usuario) throw new Error("No hay sesion iniciada");

@@ -203,12 +203,12 @@ export default function Perfil() {
                   <Estado texto="Sin dosis agendadas" tono="neutro" icono="time-outline" />
                 )}
 
-                {/* El stock es del pastillero entero, no de esta pastilla: hay
-                    un solo módulo y es compartido. Por eso dice "en el
-                    pastillero" y no "quedan 8 aspirinas", que sería mentira. */}
+                {/* El stock sale del modulo donde esta cargada ESTA pastilla:
+                    cada modulo tiene su tolva y su filtro, asi que el numero es
+                    de ella. Si no esta cargada en ninguno, no se muestra nada. */}
                 {quedan !== null && (
                   <Estado
-                    texto={`${quedan} en el pastillero`}
+                    texto={`Quedan ${quedan}`}
                     tono={quedan === 0 ? "atencion" : "neutro"}
                     icono="medkit-outline"
                   />
