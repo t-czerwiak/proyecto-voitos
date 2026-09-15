@@ -5,7 +5,7 @@ import {
   StockAjusteSchema,
 } from "../schemas/pastillas.schema";
 import * as pastillasService from "../services/pastillas.service";
-import { ajustarStock as ajustarStockDelModulo } from "../services/modulos.service";
+import { ajustarStockDePastilla } from "../services/modulos.service";
 import { idDelUsuario, puedeOperar } from "../utils/sesion";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -111,12 +111,9 @@ export const getHorarios = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-// Suma o resta pastillas del modulo.
-//
-// La ruta sigue siendo /api/pastillas/:id/stock y no /api/modulos/... porque el
-// cuidador piensa en "me quedan pocas aspirinas", no en "el modulo esta bajo".
-// El :id se usa para verificar que la pastilla sea suya; el stock que se toca
-// es el del unico modulo que hay.
+// Suma o resta pastillas del modulo donde esta cargada esta. Se hace por
+// pastilla y no por modulo porque el cuidador piensa en "me quedan pocas
+// aspirinas", no en "el modulo 2 esta bajo".
 export const ajustarStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = StockAjusteSchema.safeParse(req.body);
   if (!result.success) {
@@ -132,7 +129,7 @@ export const ajustarStock = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const data = await ajustarStockDelModulo(result.data.delta);
+    const data = await ajustarStockDePastilla(req.params.id, result.data.delta);
     res.json({ success: true, data });
   } catch (error) {
     next(error);

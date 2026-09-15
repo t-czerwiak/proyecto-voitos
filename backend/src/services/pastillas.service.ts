@@ -1,6 +1,6 @@
 import { supabase } from "../config/supabase";
 import { PastillaCreate, PastillaUpdate } from "../schemas/pastillas.schema";
-import { cargarModulo } from "./modulos.service";
+import { asignarPastillaAModulo } from "./modulos.service";
 
 // Supabase devuelve la relacion modulos como array porque la FK va de modulos
 // a pastillas. Para la app es mas comodo un solo modulo (o null): una pastilla
@@ -51,15 +51,13 @@ export const esDelUsuario = async (id: string, usuario_id: string) => {
   return data !== null;
 };
 
-// Al crear una pastilla, si se dice cuantas se cargaron, eso queda anotado en
-// el modulo.
+// Al crear una pastilla se la deja cargada en un modulo con su stock inicial.
 //
-// OJO: el pastillero tiene UN modulo y es compartido, asi que cantidad_inicial
-// PISA lo que hubiera. Es lo que corresponde fisicamente —cargar la tolva es
-// vaciarla y poner lo nuevo— pero significa que crear una pastilla diciendo
-// "20" borra el conteo anterior. Ver services/modulos.service.ts.
+// modulo puede volver null, y no es un error: significa que no habia ninguna
+// tolva libre donde ponerla. La pastilla queda registrada igual y se puede
+// agendar; el pastillero no va a poder dispensarla hasta que se la cargue.
 export const createPastilla = async (body: PastillaCreate) => {
-  const { cantidad_inicial, ...datosPastilla } = body;
+  const { cantidad_inicial, modulo_numero, ...datosPastilla } = body;
 
   const { data, error } = await supabase
     .from("pastillas")
@@ -71,13 +69,17 @@ export const createPastilla = async (body: PastillaCreate) => {
 
   if (cantidad_inicial === undefined) return { ...data, modulo: null };
 
-  const modulo = await cargarModulo(cantidad_inicial);
+  const modulo = await asignarPastillaAModulo(
+    data.id,
+    cantidad_inicial,
+    modulo_numero
+  );
 
   return { ...data, modulo };
 };
 
 export const updatePastilla = async (id: string, body: PastillaUpdate) => {
-  const { cantidad_inicial, ...datosPastilla } = body;
+  const { cantidad_inicial, modulo_numero, ...datosPastilla } = body;
 
   const { data, error } = await supabase
     .from("pastillas")

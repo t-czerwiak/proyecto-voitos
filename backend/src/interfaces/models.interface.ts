@@ -48,14 +48,17 @@ export interface Dispensacion {
   timestamp: string;
 }
 
-// El unico modulo del pastillero. Ver services/modulos.service.ts: hay una sola
-// ESP32 con un solo servo, asi que hay un solo modulo y es compartido.
+// Un modulo del pastillero: un servo con su tolva y su filtro.
+//
+// Una ESP32 puede manejar VARIOS. Hoy hay uno solo armado. Los modulos se dan
+// de alta a mano cuando se arma el hardware; el backend no los crea nunca.
 export interface Modulo {
   id: string;
-  numero: number; // el Arduino lo mapea a su pin. Hoy siempre 1.
+  numero: number; // identificador del modulo. El Arduino lo mapea a su pin.
   nombre: string; // como se lo llama en la app: "voitos_1"
-  cantidad_actual: number; // cuantas pastillas hay adentro de la maquina
-  dispositivo_id: string; // la placa que lo tiene. Tiene que coincidir con el firmware.
+  pastilla_id: string | null; // que pastilla tiene cargada (null si vacio)
+  cantidad_actual: number; // cuantas pastillas quedan cargadas
+  dispositivo_id: string; // la placa que lo tiene. Coincide con el firmware.
   created_at: string;
 }
 

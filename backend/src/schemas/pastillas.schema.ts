@@ -5,16 +5,18 @@ export const PastillaCreateSchema = z.object({
   usuario_id: uuid("usuario_id debe ser UUID"),
   nombre: z.string().min(1, "nombre requerido"),
   tipo: z.string().min(1, "tipo requerido"),
-  // Cuantas pastillas se cargan en la maquina al crearla. No es una columna de
+  // Cuantas pastillas se cargan en el modulo al crearla. No es una columna de
   // pastillas: va a modulos.cantidad_actual, que es de donde sale el stock.
-  //
-  // Ya no viene modulo_numero: hay un solo modulo, asi que no hay cual elegir.
   cantidad_inicial: z
     .number()
     .int()
     .min(0, "la cantidad no puede ser negativa")
     .max(500, "500 pastillas es mas de lo que entra en un modulo")
     .optional(),
+  // En que modulo se carga. Si no viene, se usa el primero libre. Si el numero
+  // no existe se responde 409: los modulos se arman a mano, no se crean desde
+  // la aplicacion.
+  modulo_numero: z.number().int().min(1, "el modulo arranca en 1").optional(),
 });
 
 export const PastillaUpdateSchema = PastillaCreateSchema.partial();
