@@ -5,7 +5,7 @@ import { ErrorHttp } from "../utils/errores";
 import { formatearFecha, formatearHora } from "./plantillas-mail";
 
 const APP_URL = (process.env.APP_URL ?? "http://localhost:8081").replace(/\/$/, "");
-import { getModuloDePastilla, descontarDelModulo } from "./modulos.service";
+import { getModulo, descontarDelModulo } from "./modulos.service";
 import { avisarDispensacionOk, avisarPastilleroVacio } from "./email.service";
 
 // Cuanto tiempo despues de su horario una dosis sigue estando disponible para
@@ -54,9 +54,9 @@ export const getPendiente = async () => {
     return { pendiente: false, horario: null, modulo: null, disponibles: null };
   }
 
-  // Buscar que modulo tiene cargada esa pastilla, que es el que la ESP32 tiene
-  // que activar. Si ningun modulo la tiene cargada, modulo queda null.
-  const modulo = await getModuloDePastilla(data.pastilla_id);
+  // El modulo del pastillero. Es uno solo y es el que la ESP32 activa para
+  // cualquier dosis; el numero que se devuelve es el que mapea al servo.
+  const modulo = await getModulo();
 
   return {
     pendiente: true,
@@ -121,7 +121,7 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
   // No tiene sentido hacer sonar la alarma si el modulo no tiene con que
   // cumplir la dosis: la persona iria hasta el pastillero al pedo.
   if (pastillaId) {
-    const modulo = await getModuloDePastilla(pastillaId);
+    const modulo = await getModulo();
 
     if (modulo && modulo.cantidad_actual < cantidad) {
       throw new ErrorHttp(
@@ -234,7 +234,7 @@ export const createConfirmacion = async (body: Confirmacion) => {
   // Descontar del stock del modulo lo que salio
   let quedanEnModulo: number | null = null;
   if (horario?.pastilla_id) {
-    const modulo = await getModuloDePastilla(horario.pastilla_id);
+    const modulo = await getModulo();
     if (modulo) {
       quedanEnModulo = await descontarDelModulo(modulo.id, cantidad);
     }
@@ -268,7 +268,7 @@ export const createConfirmacion = async (body: Confirmacion) => {
       .limit(1)
       .maybeSingle();
 
-    const moduloVacio = await getModuloDePastilla(horario!.pastilla_id);
+    const moduloVacio = await getModulo();
 
     void avisarPastilleroVacio({
       cuidadorMail: cuidador.mail,
