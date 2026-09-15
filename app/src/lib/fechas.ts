@@ -47,9 +47,22 @@ export const hoyISO = (): string => {
 export const esHoy = (iso: string) => iso === hoyISO();
 
 // "martes 25 de agosto"
+//
+// Sin ano a proposito: se usa para dosis y actividades, que son de esta semana
+// o de la que viene. Decir "martes 25 de agosto de 2026" ahi es ruido.
 export const fechaLarga = (iso: string) => {
   const d = comoDate(iso);
   return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
+};
+
+// "22 de abril de 1968"
+//
+// Para fechas viejas, donde el ano es el dato y el dia de la semana no le
+// importa a nadie. Con fechaLarga, una fecha de nacimiento salia "lunes 22 de
+// abril": el unico numero que hacia falta era justo el que faltaba.
+export const fechaConAnio = (iso: string) => {
+  const d = comoDate(iso);
+  return `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
 };
 
 // Lo mismo, pero diciendo "hoy" y "mañana" cuando corresponde, que es como se

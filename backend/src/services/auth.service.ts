@@ -3,6 +3,7 @@ import { Registro, Login, LoginGoogle, Recuperar, ConfirmarReset } from "../sche
 import { ErrorHttp } from "../utils/errores";
 import { randomBytes } from "crypto";
 import { avisarVerificacion, avisarBienvenida, avisarRecuperacion } from "./email.service";
+import { getHoraArgentina } from "../utils/tiempo";
 
 // Cuanto dura el enlace de verificacion. 24 horas es lo habitual: suficiente
 // para que lo abran cuando revisen el mail, y corto para que un enlace viejo
@@ -71,7 +72,16 @@ export const registro = async (body: Registro) => {
       nombre: body.nombre,
       apellido: body.apellido,
       mail: body.mail,
-      fecha_nacimiento: body.fecha_nacimiento ?? null,
+      // SIN FECHA SE GUARDA LA DE HOY.
+      //
+      // Es una decision del equipo y conviene dejar escrito que significa: una
+      // cuenta que no completo el campo queda con 0 anos, no con "no sabemos".
+      // El dato deja de distinguir entre "no lo puso" y "nacio hoy", asi que si
+      // alguna vez la edad se usa para algo —dosis por peso, avisos distintos
+      // segun la edad— estos registros van a mentir en silencio.
+      //
+      // La alternativa era dejarlo en null, que es lo que hacia antes.
+      fecha_nacimiento: body.fecha_nacimiento ?? getHoraArgentina().hoy,
       token_verificacion: token,
       token_expira: expira.toISOString(),
     })

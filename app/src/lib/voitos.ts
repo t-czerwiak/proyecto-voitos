@@ -57,6 +57,20 @@ export const confirmarRecuperacion = async (
 
 export const cerrarSesion = () => sesion.cerrar();
 
+// Borra la cuenta entera: el perfil y la cuenta de Auth.
+//
+// El backend solo deja borrar la PROPIA: compara el id de la URL contra el del
+// token y, si no coinciden, responde 404. Por eso el id sale de la sesion y no
+// es un parametro.
+//
+// No cierra la sesion: eso lo hace la pantalla despues, para poder mostrar un
+// error si algo falla en vez de dejar a la persona afuera sin explicacion.
+export const borrarMiCuenta = () => {
+  const usuario = sesion.getUsuario();
+  if (!usuario) throw new Error("No hay sesion iniciada");
+  return api.delete<{ message: string }>(`/api/usuarios/${usuario.id}`);
+};
+
 // Vuelve a pedir el perfil al backend y actualiza el guardado.
 //
 // Hace falta porque el objeto de la sesion se escribe al iniciar sesion y no se
@@ -86,6 +100,9 @@ export interface UsuarioAdmin extends Usuario {
   rol: "cuidador" | "admin";
   verificado: boolean;
   pastillas: number;
+  // Las pastillas de esta cuenta, por nombre. Sin esto el panel decia "4
+  // pastillas" y no habia forma de saber cuales sin ir a la base.
+  listaPastillas?: { id: string; nombre: string }[];
   horarios: number;
   created_at: string;
 }
@@ -141,9 +158,13 @@ export const borrarUsuario = (id: string) =>
 
 // El modulo fisico donde esta cargada la pastilla. Es de donde sale el stock:
 // pastillas no tiene cantidad, la tiene el modulo.
+// El unico modulo del pastillero. Hay una sola ESP32 con un solo servo, asi que
+// el modulo es compartido: cantidad_actual es "cuantas pastillas hay adentro de
+// la maquina", no "cuantas quedan de esta pastilla".
 export interface Modulo {
   id: string;
   numero: number;
+  nombre: string;
   cantidad_actual: number;
 }
 
@@ -152,7 +173,6 @@ export interface Pastilla {
   usuario_id: string;
   nombre: string;
   tipo?: string;
-  caracteristicas?: string;
   modulo?: Modulo | null;
 }
 
@@ -162,15 +182,15 @@ export const getPastillas = () => {
   return api.get<Pastilla[]>(`/api/pastillas${filtro}`);
 };
 
-// cantidad_inicial son las pastillas que se cargan fisicamente en el modulo.
-// Antes este numero terminaba dentro del texto de "caracteristicas", asi que
-// la pastilla quedaba sin modulo y no se podia dispensar ni descontar.
+// cantidad_inicial son las pastillas que se cargan fisicamente en la maquina.
+//
+// OJO: hay UN solo modulo y es compartido, asi que este numero pisa el conteo
+// anterior en vez de sumarse. Es lo que corresponde —cargar la tolva es
+// vaciarla y poner lo nuevo— pero conviene saberlo.
 export const crearPastilla = (datos: {
   nombre: string;
   tipo?: string;
-  caracteristicas?: string;
   cantidad_inicial?: number;
-  modulo_numero?: number;
 }) => {
   const usuario = sesion.getUsuario();
   if (!usuario) throw new Error("No hay sesion iniciada");
