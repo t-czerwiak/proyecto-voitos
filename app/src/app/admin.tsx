@@ -19,6 +19,7 @@ import {
   UsuarioAdmin,
 } from "../lib/voitos";
 import { confirmar } from "../lib/avisos";
+import { edadDesde } from "../lib/fechas";
 import {
   Pantalla,
   Encabezado,
@@ -213,6 +214,18 @@ export default function Admin() {
                     tono="neutro"
                     icono="time-outline"
                   />
+
+                  {/* La edad se calcula acá, no viene de la base: lo que se
+                      guarda es la fecha de nacimiento. Las cuentas viejas no la
+                      tienen y no se muestra nada, que es mejor que un hueco que
+                      diga "sin edad". */}
+                  {edadDesde(u.fecha_nacimiento) !== null && (
+                    <Estado
+                      texto={`${edadDesde(u.fecha_nacimiento)} años`}
+                      tono="neutro"
+                      icono="person-outline"
+                    />
+                  )}
                 </View>
 
                 <View style={styles.acciones}>

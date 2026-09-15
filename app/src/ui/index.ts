@@ -3,6 +3,7 @@ export { default as Fondo } from "./Fondo";
 export { default as Encabezado } from "./Encabezado";
 export { default as Boton } from "./Boton";
 export { default as Campo } from "./Campo";
+export { default as CampoFechaNacimiento } from "./CampoFechaNacimiento";
 export { default as Selector } from "./Selector";
 export { default as Opciones } from "./Opciones";
 export { default as Contador } from "./Contador";

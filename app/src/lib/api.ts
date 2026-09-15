@@ -90,7 +90,9 @@ export interface Usuario {
   nombre: string;
   apellido: string;
   mail: string;
-  edad?: number;
+  // "YYYY-MM-DD" o null. La edad no viene del backend: se calcula con
+  // edadDesde() de lib/fechas.ts.
+  fecha_nacimiento?: string | null;
   // Si confirmo su casilla de correo. La cuenta funciona igual sin verificar:
   // solo se muestra un aviso, no se bloquea nada.
   verificado?: boolean;
