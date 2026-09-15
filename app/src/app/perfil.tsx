@@ -6,6 +6,7 @@ import {
   refrescarUsuario,
   cerrarSesion,
   borrarMiCuenta,
+  cambiarFechaNacimiento,
   getPastillas,
   getHorariosDelUsuario,
   type Pastilla,
@@ -25,16 +26,27 @@ import {
   Estado,
   Vacio,
   Cargando,
+  CampoFechaNacimiento,
 } from "../ui";
-import { crearEstilos, espacio, texto } from "../tema";
+import { crearEstilos, espacio, radio, texto } from "../tema";
 
-// El perfil: quien sos, que tenés cargado, y las dos puertas de salida.
+// El perfil.
 //
-// Las dos puertas —cerrar sesión y borrar la cuenta— viven SOLO acá. Antes
-// "Cerrar sesión" estaba al final del inicio, que es la pantalla que se abre
-// veinte veces por día, y no hay ningún motivo para tener a mano el botón que
-// te obliga a escribir mail y contraseña de nuevo. Las cosas que se hacen una
-// vez cada mucho van juntas y en un lugar al que hay que ir a propósito.
+// EL ORDEN DE LA PANTALLA ES LA DECISION MAS IMPORTANTE DE ACA.
+//
+// Arranca por lo que se viene —la proxima dispensacion— y sigue por las
+// pastillas, porque quien abre esta pantalla casi siempre viene a mirar eso.
+// Los datos de la cuenta van despues: el mail propio no se consulta, se sabe.
+// Y al final, separadas y con aire, las dos cosas que no se pueden deshacer.
+//
+// Antes estaba al reves: el nombre y el mail arriba de todo en una tarjeta
+// grande, con el nombre en 30px. Se veia como una ficha de registro y no como
+// algo que sirva para algo. El nombre propio no es informacion: esta para
+// reconocer que la cuenta es la tuya, y para eso alcanza con verlo.
+//
+// Cerrar sesion y borrar la cuenta viven SOLO aca. El inicio se abre veinte
+// veces por dia y no hay motivo para tener a mano el boton que obliga a
+// escribir mail y contrasena de nuevo.
 export default function Perfil() {
   const styles = useEstilos();
 
@@ -44,6 +56,13 @@ export default function Perfil() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [borrando, setBorrando] = useState(false);
+
+  // La edicion de la fecha. editando=false es el estado normal: se ve el dato
+  // y un boton para cambiarlo.
+  const [editando, setEditando] = useState(false);
+  const [fechaNueva, setFechaNueva] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorFecha, setErrorFecha] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -77,8 +96,8 @@ export default function Perfil() {
     }, [])
   );
 
-  // La próxima dosis de CADA pastilla, no la próxima en general: en esta
-  // pantalla lo que se mira es "¿esta pastilla está andando?", una por una.
+  // La próxima dosis de CADA pastilla, no la próxima en general: en la lista lo
+  // que se mira es "¿esta pastilla está andando?", una por una.
   const proximaPorPastilla = useMemo(() => {
     const mapa = new Map<string, Horario | null>();
     for (const p of pastillas) {
@@ -90,6 +109,33 @@ export default function Perfil() {
   const proximaGeneral = useMemo(() => proximaDosis(horarios), [horarios]);
 
   const edad = edadDesde(usuario?.fecha_nacimiento);
+
+  const empezarAEditar = () => {
+    setFechaNueva(usuario?.fecha_nacimiento ?? "");
+    setErrorFecha("");
+    setEditando(true);
+  };
+
+  const guardarFecha = async () => {
+    if (!fechaNueva) {
+      setErrorFecha("Elegí el día, el mes y el año.");
+      return;
+    }
+
+    setGuardando(true);
+    setErrorFecha("");
+    try {
+      const actualizado = await cambiarFechaNacimiento(fechaNueva);
+      setUsuario(actualizado);
+      setEditando(false);
+    } catch (e: any) {
+      // El backend valida lo mismo que el formulario, pero tiene la ultima
+      // palabra: si rechaza algo, se muestra su mensaje tal cual.
+      setErrorFecha(e?.message ?? "No se pudo guardar la fecha");
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   const salir = async () => {
     const seguro = await confirmar(
@@ -138,27 +184,25 @@ export default function Perfil() {
 
       <Aviso texto={error} />
 
-      {/* QUIÉN SOS */}
-      <Tarjeta destacada>
-        <Text style={styles.nombre}>
-          {usuario ? `${usuario.nombre} ${usuario.apellido}` : "Tu cuenta"}
-        </Text>
+      {/* QUIÉN SOS, EN UNA LÍNEA. */}
+      <View style={styles.identidad}>
+        <View style={styles.inicial}>
+          <Text style={styles.inicialTexto}>{inicialesDe(usuario)}</Text>
+        </View>
 
-        <Dato etiqueta="Mail" valor={usuario?.mail ?? "—"} />
+        <View style={styles.identidadTextos}>
+          <Text style={styles.nombre} numberOfLines={1}>
+            {usuario ? `${usuario.nombre} ${usuario.apellido}`.trim() : "Tu cuenta"}
+          </Text>
+          <Text style={styles.mail} numberOfLines={1} selectable>
+            {usuario?.mail ?? "—"}
+          </Text>
+        </View>
+      </View>
 
-        <Dato
-          etiqueta="Fecha de nacimiento"
-          valor={
-            usuario?.fecha_nacimiento
-              ? `${fechaConAnio(usuario.fecha_nacimiento)}${edad !== null ? ` · ${edad} años` : ""}`
-              : "Sin completar"
-          }
-        />
-      </Tarjeta>
-
-      {/* LA PRÓXIMA DOSIS, DE TODAS */}
+      {/* LO QUE SE VIENE. Primero, porque es a lo que se entra a mirar. */}
       {proximaGeneral && (
-        <Tarjeta etiqueta="Tu próxima dispensación">
+        <Tarjeta destacada etiqueta="Lo próximo">
           <Text style={styles.proxima}>
             {comoHora(proximaGeneral.hora, proximaGeneral.minuto)}
           </Text>
@@ -203,9 +247,9 @@ export default function Perfil() {
                   <Estado texto="Sin dosis agendadas" tono="neutro" icono="time-outline" />
                 )}
 
-                {/* El stock sale del modulo donde esta cargada ESTA pastilla:
-                    cada modulo tiene su tolva y su filtro, asi que el numero es
-                    de ella. Si no esta cargada en ninguno, no se muestra nada. */}
+                {/* El stock sale del módulo donde está cargada ESTA pastilla:
+                    cada módulo tiene su tolva y su filtro, así que el número es
+                    de ella. Si no está cargada en ninguno, no se muestra nada. */}
                 {quedan !== null && (
                   <Estado
                     texto={`Quedan ${quedan}`}
@@ -219,7 +263,64 @@ export default function Perfil() {
         })
       )}
 
-      {/* LAS DOS PUERTAS DE SALIDA, AL FINAL Y SEPARADAS */}
+      {/* TUS DATOS. Después de las pastillas porque se miran mucho menos. */}
+      <Text style={styles.seccion}>Tus datos</Text>
+
+      <Tarjeta>
+        {editando ? (
+          <>
+            <CampoFechaNacimiento
+              valor={fechaNueva}
+              alCambiar={setFechaNueva}
+              error={errorFecha}
+              ayuda="Se guarda al tocar Guardar."
+            />
+
+            <View style={styles.filaBotones}>
+              <Boton
+                titulo="Cancelar"
+                variante="secundario"
+                ancho="auto"
+                onPress={() => setEditando(false)}
+              />
+              <Boton
+                titulo="Guardar"
+                ancho="auto"
+                onPress={guardarFecha}
+                cargando={guardando}
+              />
+            </View>
+          </>
+        ) : (
+          <View>
+            <Text style={styles.datoEtiqueta}>Fecha de nacimiento</Text>
+            <Text style={styles.datoValor}>
+              {usuario?.fecha_nacimiento
+                ? fechaConAnio(usuario.fecha_nacimiento)
+                : "Sin completar"}
+            </Text>
+            {edad !== null && <Text style={styles.datoEdad}>{edad} años</Text>}
+
+            {/* El boton va ABAJO y a lo ancho, no al lado.
+                Al lado apretaba el texto y la fecha se partia en dos lineas
+                ("3 de noviembre de / 1956"), que es justo lo que no hay que
+                hacerle a un dato que se lee de un vistazo. Ademas a lo ancho
+                es mas facil de tocar, que es como se usa esto. */}
+            <Boton
+              titulo="Cambiar la fecha"
+              variante="secundario"
+              icono="create-outline"
+              onPress={empezarAEditar}
+              ayuda="Editar tu fecha de nacimiento"
+              estilo={styles.botonCambiar}
+            />
+          </View>
+        )}
+      </Tarjeta>
+
+      {/* LAS DOS SALIDAS, AL FINAL Y SEPARADAS DEL RESTO. */}
+      <Text style={styles.seccion}>Tu cuenta</Text>
+
       <View style={styles.salidas}>
         <Boton
           titulo="Cerrar sesión"
@@ -242,39 +343,51 @@ export default function Perfil() {
   );
 }
 
-// Una etiqueta con su valor debajo. La etiqueta va escrita siempre, nunca
-// deducida de la forma del dato: "1986-09-16" solo no dice que es.
-function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  const styles = useEstilos();
-  return (
-    <View style={styles.dato}>
-      <Text style={styles.datoEtiqueta}>{etiqueta}</Text>
-      <Text style={styles.datoValor} selectable>
-        {valor}
-      </Text>
-    </View>
-  );
-}
+// Las iniciales para el circulito. Es decoracion: el nombre esta escrito al
+// lado, asi que si sale vacio no se pierde nada.
+const inicialesDe = (u: Usuario | null): string => {
+  if (!u) return "?";
+  const a = u.nombre?.trim()?.[0] ?? "";
+  const b = u.apellido?.trim()?.[0] ?? "";
+  return (a + b).toUpperCase() || "?";
+};
 
 const useEstilos = crearEstilos((colores) => ({
+  identidad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.md,
+    marginBottom: espacio.lg,
+  },
+
+  inicial: {
+    width: 52,
+    height: 52,
+    borderRadius: radio.redondo,
+    backgroundColor: colores.superficieAlta,
+    borderWidth: 2,
+    borderColor: colores.bordeFuerte,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  inicialTexto: {
+    ...texto.item,
+    color: colores.acento,
+  },
+
+  identidadTextos: {
+    flex: 1,
+  },
+
   nombre: {
-    ...texto.titulo,
+    ...texto.item,
     color: colores.texto,
-    marginBottom: espacio.md,
   },
 
-  dato: {
-    marginTop: espacio.md,
-  },
-
-  datoEtiqueta: {
-    ...texto.etiqueta,
+  mail: {
+    ...texto.dato,
     color: colores.textoTenue,
-  },
-
-  datoValor: {
-    ...texto.cuerpo,
-    color: colores.texto,
   },
 
   proxima: {
@@ -306,10 +419,35 @@ const useEstilos = crearEstilos((colores) => ({
     gap: espacio.sm,
   },
 
-  // Separadas del resto con aire: son las dos cosas de esta pantalla que no
-  // se pueden deshacer de un toque.
-  salidas: {
-    marginTop: espacio.xxxl,
+  datoEtiqueta: {
+    ...texto.etiqueta,
+    color: colores.textoTenue,
+  },
+
+  datoValor: {
+    ...texto.cuerpo,
+    color: colores.texto,
+  },
+
+  datoEdad: {
+    ...texto.dato,
+    color: colores.textoSuave,
+  },
+
+  botonCambiar: {
+    marginTop: espacio.lg,
+  },
+
+  filaBotones: {
+    flexDirection: "row",
     gap: espacio.md,
+    marginTop: espacio.lg,
+  },
+
+  // Separadas del resto con aire: son las dos cosas de esta pantalla que no se
+  // pueden deshacer de un toque.
+  salidas: {
+    gap: espacio.md,
+    marginBottom: espacio.xl,
   },
 }));

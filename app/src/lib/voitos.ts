@@ -57,6 +57,25 @@ export const confirmarRecuperacion = async (
 
 export const cerrarSesion = () => sesion.cerrar();
 
+// Cambia la fecha de nacimiento.
+//
+// El backend solo deja editar el PROPIO usuario: compara el id de la URL contra
+// el del token y responde 404 si no coinciden. Por eso el id sale de la sesion.
+//
+// Devuelve el usuario actualizado y lo guarda en la sesion, asi la pantalla no
+// tiene que volver a pedirlo para mostrar el dato nuevo.
+export const cambiarFechaNacimiento = async (iso: string): Promise<Usuario> => {
+  const actual = sesion.getUsuario();
+  if (!actual) throw new Error("No hay sesion iniciada");
+
+  const usuario = await api.put<Usuario>(`/api/usuarios/${actual.id}`, {
+    fecha_nacimiento: iso,
+  });
+
+  sesion.guardarUsuario(usuario);
+  return usuario;
+};
+
 // Borra la cuenta entera: el perfil y la cuenta de Auth.
 //
 // El backend solo deja borrar la PROPIA: compara el id de la URL contra el del

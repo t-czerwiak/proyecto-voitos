@@ -87,7 +87,17 @@ export const dibujarBotonGoogle = async (
     // apagado, y no se leia como algo que se puede tocar.
     theme: "outline",
     size: "large",
-    shape: "pill",
+    // RECTANGULAR, AUNQUE EN PANTALLA SE VEA REDONDEADO.
+    //
+    // El boton lo dibuja Google adentro de un iframe propio, y ese iframe tiene
+    // fondo blanco y esquinas rectas. Con shape "pill" el boton salia
+    // redondeado pero el iframe no, asi que quedaban cuatro cuadraditos
+    // blancos en las esquinas: se veia como un boton pegado sobre un papel.
+    //
+    // Ahora el boton es recto y el redondeo lo pone NUESTRO contenedor, que
+    // recorta el iframe entero. De paso queda del mismo radio que los demas
+    // botones de la aplicacion, en vez de ser el unico con forma de pastilla.
+    shape: "rectangular",
     text: "continue_with",
     logo_alignment: "left",
     locale: "es-419",
