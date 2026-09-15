@@ -21,21 +21,44 @@ export const getUsuarios = async () => {
 
   if (error) throw new Error(error.message);
 
-  // Cuantos datos tiene cada uno, para saber a quien se estaria borrando algo
+  // QUE PASTILLAS TIENE CADA UNO, POR NOMBRE.
+  //
+  // Antes esto devolvia solo el numero: "4 pastillas". Mirando el panel no
+  // habia forma de saber de quien era cada pastilla sin ir a la base y cruzar
+  // usuario_id, que es un UUID. Ahora vienen los nombres.
+  //
+  // Se traen TODAS de una y se agrupan en memoria en vez de consultar por
+  // usuario: son pocas, y una consulta por cuenta es la forma clasica de que
+  // un panel de seis usuarios haga trece consultas.
+  const { data: todasLasPastillas, error: errorPastillas } = await supabase
+    .from("pastillas")
+    .select("id, nombre, usuario_id")
+    .order("nombre", { ascending: true });
+
+  if (errorPastillas) throw new Error(errorPastillas.message);
+
+  const pastillasPorUsuario = new Map<string, { id: string; nombre: string }[]>();
+  for (const p of todasLasPastillas ?? []) {
+    const suyas = pastillasPorUsuario.get(p.usuario_id) ?? [];
+    suyas.push({ id: p.id, nombre: p.nombre });
+    pastillasPorUsuario.set(p.usuario_id, suyas);
+  }
+
+  // Cuantas dosis tiene cada uno, para saber a quien se estaria borrando algo
   const conResumen = await Promise.all(
     (data ?? []).map(async (u) => {
-      const [pastillas, horarios] = await Promise.all([
-        supabase.from("pastillas").select("id", { count: "exact", head: true }).eq("usuario_id", u.id),
-        supabase
-          .from("horarios")
-          .select("id, pastillas!inner(usuario_id)", { count: "exact", head: true })
-          .eq("pastillas.usuario_id", u.id),
-      ]);
+      const { count } = await supabase
+        .from("horarios")
+        .select("id, pastillas!inner(usuario_id)", { count: "exact", head: true })
+        .eq("pastillas.usuario_id", u.id);
+
+      const susPastillas = pastillasPorUsuario.get(u.id) ?? [];
 
       return {
         ...u,
-        pastillas: pastillas.count ?? 0,
-        horarios: horarios.count ?? 0,
+        pastillas: susPastillas.length,
+        listaPastillas: susPastillas,
+        horarios: count ?? 0,
       };
     })
   );
