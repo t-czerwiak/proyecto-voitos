@@ -127,6 +127,34 @@ y esa fricción es sana: obliga a volver a correr la verificación.
 | `Vacio` | Lista sin nada: dice qué pasa **y** qué hacer |
 | `Cargando` | Espera con texto y `accessibilityLiveRegion`, no un circulito mudo |
 | `CazaErrores` | Atrapa lo que se rompe fuera del renderizado y lo hace visible |
+| `Dialogo` | Las confirmaciones. Montado una vez en el layout raíz; las pantallas no lo dibujan |
+| `CampoFechaNacimiento` | Día / mes / año en tres desplegables, con el mes escrito |
+| `AvisoDespertando` | La franja de "el servidor está arrancando" |
+
+### Nada de `alert`, `confirm` ni `prompt`
+
+**Está prohibido**, y no es una preferencia de estilo. El diálogo del navegador
+lo dibuja el sistema con el título "voitos.vercel.app dice", que es exactamente
+la forma de los avisos falsos; arriba de un texto sobre medicación, eso es lo
+peor que puede aparecer. Además no respeta ningún color ni tamaño de acá, y
+bloquea el hilo mientras está abierto.
+
+Para preguntar algo:
+
+```ts
+const seguir = await confirmar(
+  "Eliminar la cuenta de Timoteo",
+  "Se borra con todo su historial.\n\nEsto no se puede deshacer. ¿Seguro?",
+  "Eliminar cuenta",
+  "peligro"   // pinta el botón en rojo
+);
+```
+
+`confirmar()` vive en `lib/avisos.ts` y solo guarda cuál es la pregunta
+pendiente; `ui/Dialogo.tsx` la dibuja. Están separados porque `lib/` no tiene
+nada visual.
+
+Para avisar sin preguntar: `Aviso` o `Estado`, dentro de la pantalla.
 
 ---
 
