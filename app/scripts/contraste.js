@@ -1,4 +1,4 @@
-// Verificación de contraste de las dos paletas.
+// Verificación de contraste de la paleta.
 //
 // No es un adorno: es la única forma de saber si un color "se ve bien" o si
 // sólo se ve bien en el monitor de quien lo eligió. Calcula el contraste de
@@ -6,10 +6,6 @@
 // no llega al mínimo.
 //
 //   node scripts/contraste.js      (o npm run contraste)
-//
-// Corre sobre LAS DOS paletas con la misma lista de pares. El modo claro es el
-// que más fácil se rompe —gris claro sobre blanco es el error clásico— así que
-// no alcanza con mirarlo: hay que medirlo igual que el oscuro.
 //
 // Mínimos de WCAG AA:
 //   4.5:1  texto normal
@@ -55,11 +51,10 @@ const componer = (encima, debajo, alfa) => {
   return "#" + mezcla.map((v) => v.toString(16).padStart(2, "0")).join("");
 };
 
-// Las paletas, repetidas acá a propósito: este script corre con node pelado,
-// sin TypeScript ni bundler. Si cambia src/tema/paletas.ts hay que cambiarlas
-// acá, y esa fricción es sana, porque obliga a volver a correr la verificación.
-const OSCURA = {
-  nombre: "oscura",
+// La paleta, repetida acá a propósito: este script corre con node pelado, sin
+// TypeScript ni bundler. Si cambia src/tema/paletas.ts hay que cambiarla acá, y
+// esa fricción es sana, porque obliga a volver a correr la verificación.
+const PALETA = {
   fondo: "#010D07",
   superficie: "#04200F",
   superficieAlta: "#073019",
@@ -81,28 +76,6 @@ const OSCURA = {
   sobreRutina: "#0A0A0A",
 };
 
-const CLARA = {
-  nombre: "clara",
-  fondo: "#F1F5F1",
-  superficie: "#FFFFFF",
-  superficieAlta: "#EAF2EC",
-  borde: "#6E8F7B",
-  bordeFuerte: "#5F8670",
-  acento: "#0A6631",
-  acentoSuave: "#0C7E3B",
-  sobreAcento: "#FFFFFF",
-  texto: "#0A1912",
-  textoSuave: "#33463C",
-  textoTenue: "#4E6157",
-  ok: { fondo: "#E3F2E8", texto: "#0A5729" },
-  atencion: { fondo: "#FDF2DC", texto: "#6B4404" },
-  peligro: { fondo: "#FCEBEB", texto: "#8C1D1D" },
-  neutro: { fondo: "#EAF0EC", texto: "#33463C" },
-  burbujas: ["#0A6631", "#2E8B57", "#1E7A42"],
-  opacidadBurbuja: 0.1,
-  rutinas: ["#B01F42", "#12579E", "#8A5B00", "#5B36A8", "#0B6A80", "#9A4A00"],
-  sobreRutina: "#FFFFFF",
-};
 
 // [descripcion, texto, fondo, minimo]
 const paresDe = (C) => {
@@ -154,18 +127,14 @@ const paresDe = (C) => {
 let fallos = 0;
 let total = 0;
 
-for (const C of [OSCURA, CLARA]) {
-  console.log(`\n=== PALETA ${C.nombre.toUpperCase()} ===\n`);
-
-  for (const [nombre, frente, fondo, minimo] of paresDe(C)) {
-    const valor = contraste(frente, fondo);
-    const pasa = valor >= minimo;
-    total++;
-    if (!pasa) fallos++;
-    console.log(
-      `${pasa ? "OK  " : "MAL "} ${valor.toFixed(2).padStart(6)}:1  (min ${minimo})  ${nombre}`
-    );
-  }
+for (const [nombre, frente, fondo, minimo] of paresDe(PALETA)) {
+  const valor = contraste(frente, fondo);
+  const pasa = valor >= minimo;
+  total++;
+  if (!pasa) fallos++;
+  console.log(
+    `${pasa ? "OK  " : "MAL "} ${valor.toFixed(2).padStart(6)}:1  (min ${minimo})  ${nombre}`
+  );
 }
 
 console.log("");
@@ -173,4 +142,4 @@ if (fallos) {
   console.log(`${fallos} de ${total} ${fallos === 1 ? "par no llega" : "pares no llegan"} al minimo.`);
   process.exit(1);
 }
-console.log(`Los ${total} pares de las dos paletas cumplen WCAG AA.`);
+console.log(`Los ${total} pares de la paleta cumplen WCAG AA.`);

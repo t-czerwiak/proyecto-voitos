@@ -82,9 +82,10 @@ type Receta = {
   demora: number;
 };
 
-// Las duraciones no son múltiplos entre sí a propósito. El color no está acá:
-// lo pone la paleta activa, porque el verde neón sobre un fondo claro no se ve
-// y el modo claro necesita verdes profundos.
+// Las duraciones no son múltiplos entre sí a propósito: si lo fueran, cada
+// tanto las burbujas se alinearían y se notaría el bucle. El color no está
+// acá, lo pone la paleta, para que el fondo no pueda quedar de un verde
+// distinto al del resto de la aplicación.
 const BURBUJAS: Receta[] = [
   {
     tam: 320,

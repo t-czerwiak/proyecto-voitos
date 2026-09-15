@@ -17,7 +17,7 @@ import {
   Nunito_400Regular,
   Nunito_700Bold,
 } from "@expo-google-fonts/nunito";
-import { crearEstilos, TemaProvider, useColores, useTema } from "../tema";
+import { crearEstilos, useColores } from "../tema";
 import CazaErrores from "../ui/CazaErrores";
 
 export default function RootLayout() {
@@ -26,38 +26,30 @@ export default function RootLayout() {
     Nunito_700Bold,
   });
 
-  // El proveedor del tema envuelve TODO, incluso la pantalla de espera: si no,
-  // el primer cuadro de la aplicacion se dibujaria con colores que no son los
-  // que la persona eligio y se veria un parpadeo al entrar.
+  // SafeAreaProvider tiene que envolver todo: es de donde salen los margenes
+  // que evitan que el contenido quede abajo del notch o de la barra de gestos.
+  //
+  // initialMetrics no es opcional aca. La web de esta aplicacion se
+  // prerenderiza (app.json, web.output "static"): el HTML se arma en el
+  // servidor y despues el navegador lo hidrata. Sin metricas iniciales el
+  // SafeAreaProvider no dibuja a sus hijos hasta medir, asi que el servidor
+  // producia un arbol y el navegador otro. React lo detectaba en plena
+  // hidratacion —"Rendered fewer hooks than expected"—, tiraba el HTML
+  // prerenderizado y volvia a dibujar todo del lado del cliente.
+  //
+  // La pagina igual se veia bien, que es lo que hace dificil de encontrar el
+  // problema: lo unico que se perdia era la primera pintada rapida.
   return (
-    <TemaProvider>
-      {/* SafeAreaProvider tiene que envolver todo: es de donde salen los
-          margenes que evitan que el contenido quede abajo del notch o de la
-          barra de gestos.
-
-          initialMetrics no es opcional aca. La web de esta aplicacion se
-          prerenderiza (app.json, web.output "static"): el HTML se arma en el
-          servidor y despues el navegador lo hidrata. Sin metricas iniciales el
-          SafeAreaProvider no dibuja a sus hijos hasta medir, asi que el
-          servidor producia un arbol y el navegador otro. React lo detectaba en
-          plena hidratacion —"Rendered fewer hooks than expected"—, tiraba el
-          HTML prerenderizado y volvia a dibujar todo del lado del cliente.
-
-          La pagina igual se veia bien, que es lo que hace dificil de encontrar
-          el problema: lo unico que se perdia era la primera pintada rapida. */}
-      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <Navegacion fuentesListas={fuentesListas} />
-      </SafeAreaProvider>
-    </TemaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <Navegacion fuentesListas={fuentesListas} />
+    </SafeAreaProvider>
   );
 }
 
-// Va aparte del componente de arriba porque un hook no puede leer un contexto
-// que se crea en el mismo componente: useColores tiene que correr POR DEBAJO
-// del TemaProvider.
+// Va aparte del componente de arriba para que la espera de las fuentes no
+// obligue a redibujar el SafeAreaProvider, que es lo caro de montar.
 function Navegacion({ fuentesListas }: { fuentesListas: boolean }) {
   const colores = useColores();
-  const { esOscuro } = useTema();
   const styles = useEstilos();
 
   // Mientras carga la fuente se muestra el fondo de la aplicacion con un
@@ -66,7 +58,7 @@ function Navegacion({ fuentesListas }: { fuentesListas: boolean }) {
   if (!fuentesListas) {
     return (
       <View style={styles.espera}>
-        <StatusBar style={esOscuro ? "light" : "dark"} />
+        <StatusBar style="light" />
         <ActivityIndicator color={colores.acento} size="large" />
       </View>
     );
@@ -74,9 +66,8 @@ function Navegacion({ fuentesListas }: { fuentesListas: boolean }) {
 
   return (
     <>
-      {/* La barra de estado sigue al tema: con la barra clara sobre un fondo
-          claro, los iconos del sistema desaparecen. */}
-      <StatusBar style={esOscuro ? "light" : "dark"} />
+      {/* Iconos claros: el fondo de la aplicacion siempre es oscuro. */}
+      <StatusBar style="light" />
 
       {/* Encima de cualquier pantalla: si algo se rompe, esto tiene que quedar
           visible aunque el resto no se dibuje. */}
@@ -88,7 +79,7 @@ function Navegacion({ fuentesListas }: { fuentesListas: boolean }) {
         screenOptions={{
           headerShown: false,
           // El fondo de la transicion entre pantallas. Sin esto se ve un
-          // destello del color contrario al navegar.
+          // destello blanco al navegar.
           contentStyle: { backgroundColor: colores.fondo },
         }}
       />
@@ -116,10 +107,9 @@ const useEstilos = crearEstilos((colores) => ({
 // rompe sin catch, nunca llega hasta aca. De eso se ocupa CazaErrores, que
 // escucha los eventos del navegador.
 //
-// Los colores van escritos a mano y no salen del tema a proposito. Este
-// componente reemplaza al layout entero, asi que corre POR FUERA del
-// TemaProvider y useColores explotaria. Y aunque se pudiera: una pantalla de
-// error no deberia depender del sistema que quizas sea el que fallo.
+// Los colores van escritos a mano y no salen del tema a proposito: una
+// pantalla de error no deberia depender de ningun otro modulo, porque
+// cualquiera de ellos puede ser el que fallo.
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (
     <View style={estilosError.caja}>

@@ -1,7 +1,7 @@
 import React from "react";
 import { Image, Text, View } from "react-native";
 import { router } from "expo-router";
-import { Pantalla, Boton, BotonTema } from "../ui";
+import { Pantalla, Boton } from "../ui";
 import { crearEstilos, espacio, texto } from "../tema";
 
 // La portada.
@@ -19,8 +19,6 @@ export default function Portada() {
 
   return (
     <Pantalla scroll={false} centrado angosta>
-      <BotonTema />
-
       <View style={styles.centro}>
         <Image
           source={require("../../assets/images/logoClaro.png")}

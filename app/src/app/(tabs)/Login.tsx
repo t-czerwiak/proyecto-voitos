@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { iniciarSesion } from "../../lib/voitos";
 import BotonGoogle from "../../components/BotonGoogle";
-import { Pantalla, Encabezado, Campo, Boton, Aviso, BotonTema } from "../../ui";
+import { Pantalla, Encabezado, Campo, Boton, Aviso } from "../../ui";
 import { espacio } from "../../tema";
 
 export default function Login() {
@@ -33,8 +33,6 @@ export default function Login() {
 
   return (
     <Pantalla angosta>
-      <BotonTema />
-
       <Encabezado
         titulo="Entrar a tu cuenta"
         bajada="Con el mail y la contraseña con los que te registraste."
