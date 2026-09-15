@@ -1,6 +1,6 @@
 # Estado del proyecto y próximos pasos
 
-Última actualización: **21 de agosto de 2026**
+Última actualización: **15 de septiembre de 2026**
 
 Este documento existe para que cualquiera —incluido el equipo dentro de un mes—
 pueda retomar el proyecto sin reconstruir el contexto desde cero.
@@ -26,6 +26,9 @@ Lo que sí conviene saber antes de tocar nada:
 - **Las suites corren contra la base de producción.** Se limpian solas, pero si
   una corrida queda a medias conviene chequear que no haya filas `@voitos.test`
   ni en `public.usuarios` ni en `auth.users`.
+- **La app tiene un solo tema y no lleva interruptor.** Si aparece un color
+  escrito a mano en una pantalla, es un error: todo sale de `src/tema/paletas.ts`
+  y se verifica con `npm run contraste`. Ver [`FRONTEND.md`](FRONTEND.md).
 
 ---
 
@@ -43,8 +46,9 @@ al backend en internet, así que puede estar en cualquier casa.
 | App | Desplegada y apuntando sola a Render | `voitos.vercel.app` |
 | Base de datos | En uso | Supabase |
 | Firmware polling | **Probado en hardware** | rama `naiderman/hardware` |
-| Mails | **Falta la clave de Brevo** (ver arriba) | Brevo → Resend → SMTP |
+| Mails | Enviando a cualquier destinatario | Brevo (API HTTPS) |
 | Panel de admin | Funcionando | `/admin` en la app |
+| Diseño de la app | **Rediseño completo, una sola paleta** | rama `ojman/frontend` |
 
 **Probado el 21/08 de punta a punta:** se agendó una dosis desde el celular, la
 placa la detectó consultando sola, sonó, se apretó el botón, dispensó 3
@@ -53,6 +57,35 @@ llega.
 
 **Punto de retorno:** el tag `demo-push-funcionando` tiene el estado del 19 con
 el modelo push, por si hiciera falta volver.
+
+### Lo que pasó entre el 21 de agosto y el 15 de septiembre
+
+El sistema no cambió: lo que se movió fue **todo lo que se ve**. El backend, el
+firmware y la base siguen exactamente como quedaron el 21.
+
+| Fecha | Qué |
+| --- | --- |
+| 22/08 | **Rediseño completo del front**, pensado para quien cuida: escala tipográfica nueva, áreas de toque de 48px mínimo, ningún estado señalado solo por color |
+| 22/08 | **Calendario general en el panel de administración** |
+| 24/08 | **Se arregló el pantallazo blanco** al enfocar un campo en el celular. Se agregó `+html.tsx` para pintar el documento, que no se alcanza desde React Native |
+| 25/08 | **Los mails pasaron al diseño de la aplicación** |
+| 26/08 | **Entrar con Google ya no pide contraseña**, la ofrece |
+| 28/08 | **Modo claro y oscuro** con interruptor a mano desde la entrada |
+| 30/08 | **El error se hace visible** en vez de dejar una pantalla negra |
+| 15/09 | **Se sacó el modo claro y el interruptor de tema.** Queda una sola paleta |
+
+Sobre lo último, porque es lo que más va a llamar la atención al leer el
+historial: el modo claro se agregó y se sacó en tres semanas. El motivo está
+escrito en detalle en [`FRONTEND.md`](FRONTEND.md), sección 2, y se resume en
+que dos paletas obligan a revisar dos veces cada pantalla y cada contraste, y
+el tema era el único estado de la aplicación que vivía en `localStorage` y
+tenía que sobrevivir a la hidratación del prerender. Para un equipo de tres,
+eso se paga en pantallas a medio revisar. La paleta que queda es la de la
+marca, y sus 40 pares de contraste se verifican con `npm run contraste`.
+
+**Cómo está documentado el front:** [`docs/FRONTEND.md`](FRONTEND.md) cuenta la
+estructura de `app/src`, las reglas del diseño, el kit de `ui/` y lo que es
+exclusivo de la versión web.
 
 ---
 
@@ -397,14 +430,19 @@ confundirse creyendo que RLS está protegiendo algo que en realidad no protege.
 
 ## 6. Qué hacer en la próxima sesión
 
-1. **Cargar `BREVO_API_KEY` en Render** (ver sección 0). Es lo único que
-   bloquea algo hoy.
-2. **Pantalla de historial**: las dispensaciones se registran desde el primer
-   día, ahora con el usuario incluido, y ninguna vista las muestra.
-3. Pantallas de configuración, emergencia y detalle del día, que siguen vacías.
-4. Un dominio propio, si se quiere sacar las advertencias de DKIM y DMARC y
+No queda nada bloqueante. Por orden de lo que más falta hace:
+
+1. **Pantalla de historial**: las dispensaciones se registran desde el primer
+   día, con el usuario incluido, y ninguna vista las muestra. Es el hueco más
+   grande que queda entre lo que el sistema sabe y lo que el cuidador ve.
+2. **Pantallas de configuración, emergencia y detalle del día**, que siguen
+   vacías. Las piezas de `ui/` ya están, así que es armarlas, no diseñarlas.
+3. **Mergear la rama `ojman/frontend` a `develop` y de ahí a `main`**, que es
+   lo que dispara el deploy de producción en Vercel.
+4. **El feature `modulos`**, que sigue sin mergear en `czerwiak/backend`.
+5. Un dominio propio, si se quiere sacar las advertencias de DKIM y DMARC y
    mejorar la entregabilidad.
-5. Sensor que confirme cuántas pastillas salieron de verdad. Hoy se asume que
+6. Sensor que confirme cuántas pastillas salieron de verdad. Hoy se asume que
    salieron las que se pidieron.
 
 ---
