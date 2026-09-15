@@ -14,6 +14,8 @@ export const registrarse = async (datos: {
   apellido: string;
   mail: string;
   password: string;
+  // Opcional: el formulario la pide pero deja seguir sin ella.
+  fecha_nacimiento?: string;
 }): Promise<Usuario | null> => {
   const r = await api.postPublico<Sesion>("/api/auth/registro", datos);
   sesion.guardar(r.token, r.usuario);

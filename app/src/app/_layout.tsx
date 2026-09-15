@@ -19,6 +19,8 @@ import {
 } from "@expo-google-fonts/nunito";
 import { crearEstilos, useColores } from "../tema";
 import CazaErrores from "../ui/CazaErrores";
+import Dialogo from "../ui/Dialogo";
+import AvisoDespertando from "../ui/AvisoDespertando";
 
 export default function RootLayout() {
   const [fuentesListas] = useFonts({
@@ -65,7 +67,7 @@ function Navegacion({ fuentesListas }: { fuentesListas: boolean }) {
   }
 
   return (
-    <>
+    <View style={styles.raiz}>
       {/* Iconos claros: el fondo de la aplicacion siempre es oscuro. */}
       <StatusBar style="light" />
 
@@ -73,21 +75,47 @@ function Navegacion({ fuentesListas }: { fuentesListas: boolean }) {
           visible aunque el resto no se dibuje. */}
       <CazaErrores />
 
+      {/* Las dos van montadas UNA vez, aca, y escuchan si tienen algo que
+          mostrar. Las pantallas no las dibujan ni las conocen: el dialogo se
+          pide con confirmar() y el aviso lo prende solo el cliente de la API
+          cuando esta esperando a que el backend despierte.
+
+          El aviso va ANTES del Stack y en el flujo normal, no flotando encima:
+          empuja las pantallas hacia abajo mientras esta, y cuando se va las
+          devuelve a su lugar. Flotando tapaba el titulo de la pantalla, que es
+          justo lo que hay que poder leer para saber donde esta uno. */}
+      <Dialogo />
+      <AvisoDespertando />
+
       {/* Sin <Stack.Screen> a mano: expo-router arma las rutas leyendo los
           archivos de src/app. */}
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          // El fondo de la transicion entre pantallas. Sin esto se ve un
-          // destello blanco al navegar.
-          contentStyle: { backgroundColor: colores.fondo },
-        }}
-      />
-    </>
+      <View style={styles.pantallas}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            // El fondo de la transicion entre pantallas. Sin esto se ve un
+            // destello blanco al navegar.
+            contentStyle: { backgroundColor: colores.fondo },
+          }}
+        />
+      </View>
+    </View>
   );
 }
 
 const useEstilos = crearEstilos((colores) => ({
+  raiz: {
+    flex: 1,
+    backgroundColor: colores.fondo,
+  },
+
+  // El Stack necesita su propio flex: 1. Sin esta caja, con el aviso arriba en
+  // el flujo, las pantallas se dibujarian con el alto de su contenido en vez
+  // del alto que sobra.
+  pantallas: {
+    flex: 1,
+  },
+
   espera: {
     flex: 1,
     backgroundColor: colores.fondo,

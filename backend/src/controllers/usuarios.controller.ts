@@ -5,8 +5,8 @@ import { idDelUsuario } from "../utils/sesion";
 
 // Devuelve solo al usuario del token, no la lista completa.
 //
-// Antes cualquiera con sesion podia leer el nombre, apellido, mail y edad de
-// todos los usuarios del sistema. La app nunca uso este endpoint, asi que
+// Antes cualquiera con sesion podia leer el nombre, apellido, mail y fecha de
+// nacimiento de todos los usuarios del sistema. La app nunca uso este endpoint, asi que
 // acotarlo no rompe nada.
 //
 // Se mantiene como lista (un arreglo de un elemento) para no cambiar la forma

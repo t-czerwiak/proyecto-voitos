@@ -33,3 +33,21 @@ compila con cada push. De ahi salen dos clases de direccion:
 
 Detalle completo en `docs/ESTADO-Y-PROXIMOS-PASOS.md`, seccion 7, y en
 `docs/FRONTEND.md`, seccion 5.
+
+### Nada de alert, confirm ni prompt
+
+**Nunca usar `window.alert`, `window.confirm`, `window.prompt` ni `Alert.alert`.**
+Ni en una pantalla, ni "provisorio", ni para depurar.
+
+El dialogo del navegador no es parte de la aplicacion: lo dibuja el sistema con
+un titulo que dice "voitos.vercel.app dice", que es exactamente la forma que
+tienen los avisos falsos del navegador. Arriba de un texto sobre medicacion,
+eso es lo peor que puede aparecer. Ademas no respeta ningun color ni tamano del
+diseno, y bloquea el hilo mientras esta abierto.
+
+Para preguntar algo: `confirmar()` de `app/src/lib/avisos.ts`, que devuelve una
+promesa de true/false y lo dibuja `app/src/ui/Dialogo.tsx`, adentro de la
+pagina y con la paleta de la aplicacion.
+
+Para avisar algo sin preguntar: los componentes `Aviso` o `Estado` de
+`app/src/ui/`, dentro de la pantalla que corresponda.
