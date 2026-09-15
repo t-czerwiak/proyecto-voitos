@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { router } from "expo-router";
 import { registrarse } from "../../lib/voitos";
 import BotonGoogle from "../../components/BotonGoogle";
-import { Pantalla, Encabezado, Campo, Boton, Aviso, BotonTema } from "../../ui";
+import { Pantalla, Encabezado, Campo, Boton, Aviso } from "../../ui";
 
 export default function CrearCuenta() {
   const [nombre, setNombre] = useState("");
@@ -50,8 +50,6 @@ export default function CrearCuenta() {
 
   return (
     <Pantalla angosta>
-      <BotonTema />
-
       <Encabezado
         titulo="Crear una cuenta"
         bajada="La cuenta es de quien cuida. El pastillero se agenda desde acá."

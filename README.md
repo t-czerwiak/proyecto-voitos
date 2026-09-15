@@ -6,6 +6,8 @@
 
 `Node.js` · `TypeScript` · `Express` · `Supabase` · `React Native` · `Expo` · `ESP32`
 
+**La aplicación está en [voitos.vercel.app](https://voitos.vercel.app)**
+
 </div>
 
 ---
@@ -68,6 +70,8 @@ intervención manual en ningún paso.
 | 📧 **Mails** | Enviando a cualquier destinatario, por la API de Brevo |
 | 🔐 **Cuentas** | Con contraseña o con Google, y recuperación por mail |
 | 🗄️ **Base** | Supabase, con el registro completo de cada dispensación |
+| 🌐 **Deploy** | Automático en [voitos.vercel.app](https://voitos.vercel.app) con cada push a `main` |
+| 🎨 **Diseño** | Rediseñada para quien cuida, con una sola paleta verificada contra WCAG AA |
 
 **El recorrido que se probó:** se agenda una dosis desde el celular, llega la
 hora, el pastillero suena **solo**, alguien aprieta el botón, el servo libera
@@ -160,15 +164,20 @@ proyecto-voitos/
 ├── app/              Expo Router (React Native + web)
 │   └── src/
 │       ├── app/          pantallas
+│       ├── ui/           piezas compartidas (Boton, Campo, Tarjeta, ...)
+│       ├── tema/         colores, tipografia, espaciado
 │       └── lib/          cliente de API y funciones de dominio
-└── docs/API.md       referencia completa de la API
+└── docs/
+    ├── API.md            referencia completa de la API
+    ├── FRONTEND.md       como esta armada la app y por que
+    └── ESTADO-Y-PROXIMOS-PASOS.md
 ```
 
 Son **dos proyectos separados a propósito**, cada uno con su `package.json`:
 Expo necesita `main: expo-router/entry` y el backend `main: dist/index.js`. En
 un solo archivo no entran.
 
-### Las tres reglas del diseño
+### Las cuatro reglas del diseño
 
 1. **Nadie habla con Supabase directo.** Ni la app ni la ESP32. Todo pasa por
    el backend, que es el único que tiene la `service_role key`.
@@ -176,6 +185,10 @@ un solo archivo no entran.
    `horarios`.
 3. **La alarma insiste sola.** El re-sonado vive en el firmware, no en el
    backend: la ESP32 sigue avisando aunque se corte el WiFi.
+4. **Ninguna pantalla escribe un color a mano.** Todo sale de una sola paleta,
+   y los 40 pares de contraste se verifican con `npm run contraste`. La app no
+   tiene modo claro ni interruptor de tema, y el motivo está escrito en
+   [`docs/FRONTEND.md`](docs/FRONTEND.md).
 
 ---
 
