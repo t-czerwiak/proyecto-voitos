@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import AvisoVerificacion from "../../components/AvisoVerificacion";
 import FilaDosis from "../../components/FilaDosis";
+import TarjetaLanding from "../../components/TarjetaLanding";
 import {
   soyAdmin,
   getUsuarioActual,
@@ -289,6 +290,10 @@ export default function Hoy() {
           ayuda="Tus datos, tus pastillas, y cerrar sesión"
         />
       </View>
+
+      {/* Abajo de todo: es para quien quiera conocer el proyecto, no algo que
+          se use a diario. */}
+      <TarjetaLanding />
     </Pantalla>
   );
 }
