@@ -8,3 +8,12 @@ lucide.createIcons({icons});\``);if(r===void 0)throw Error("`createIcons()` only
    en pointercancel y nunca llega a click. Respetan "movimiento reducido" igual
    que el resto de las animaciones. */
 {let t=!1;document.addEventListener(`pointerdown`,e=>{t=e.pointerType===`touch`},{passive:!0});document.addEventListener(`click`,e=>{t&&!x.matches&&M(e.clientX,e.clientY)})}
+
+/* Voitos: el logo del encabezado vuelve a la aplicacion.
+   Es un objeto que la landing ya tenia, asi que no se agrega nada nuevo. Sin
+   JS el enlace va a "/" (la portada). Con sesion abierta va a "/home": la
+   landing esta en el mismo dominio que la app y puede ver la sesion.
+   Se espera a que termine la explosion del logo antes de salir, para no
+   cortarle el efecto; con "movimiento reducido" no hay efecto y sale en el
+   acto. Ctrl/Cmd+click abre en otra pestana, como cualquier enlace. */
+{let l=document.querySelector(`.voitos-logo--header`);if(l){let d=`/`;try{localStorage.getItem(`voitos_token`)&&(d=`/home`)}catch{}l.href=d;l.addEventListener(`click`,e=>{if(e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();setTimeout(()=>location.assign(d),x.matches?0:550)})}}
