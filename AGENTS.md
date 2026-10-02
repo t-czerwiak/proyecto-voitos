@@ -51,3 +51,19 @@ pagina y con la paleta de la aplicacion.
 
 Para avisar algo sin preguntar: los componentes `Aviso` o `Estado` de
 `app/src/ui/`, dentro de la pantalla que corresponda.
+
+### La landing es una copia: no se reescribe
+
+`app/public/landing` es la landing del equipo, el build de Vite copiado tal
+cual. **No portarla a React Native ni reescribirla**: se pierden sus
+animaciones, que es lo que la hace. Cualquier cambio va en los bloques
+agregados al final de su CSS y su JS, y lo que sea para celular, adentro del
+`@media (width<=760px)` de ese bloque, para no tocar escritorio. Detalle en
+`docs/FRONTEND.md`, seccion 6.
+
+### Los modulos no se crean desde el codigo
+
+Un modulo es una pieza de hardware (un servo con su tolva). El backend **nunca**
+inserta filas en `modulos`: se dan de alta a mano cuando se arma el hardware.
+Si no hay modulo libre, la pastilla queda sin cargar; eso es correcto. Detalle
+en `docs/ESTADO-Y-PROXIMOS-PASOS.md`, seccion 1.
