@@ -1,6 +1,6 @@
 # Estado del proyecto y próximos pasos
 
-Última actualización: **15 de septiembre de 2026**
+Última actualización: **2 de octubre de 2026**
 
 Este documento existe para que cualquiera —incluido el equipo dentro de un mes—
 pueda retomar el proyecto sin reconstruir el contexto desde cero.
@@ -32,6 +32,13 @@ Lo que sí conviene saber antes de tocar nada:
 - **Nada de `alert`, `confirm` ni `prompt` del navegador**, ni `Alert.alert`.
   Para preguntar algo está `confirmar()` de `app/src/lib/avisos.ts`, que lo
   dibuja adentro de la página. El motivo está en la sección 1.
+- **Los módulos no se crean desde el código.** Un módulo es una pieza de
+  hardware; se da de alta a mano en la base cuando se arma. Hoy hay uno solo,
+  `voitos_1`, y la app **no tiene ninguna pantalla** para cambiar qué pastilla
+  tiene cargada. Ver la sección 1 y la 6.
+- **La landing es una copia, no se reescribe.** Está en `app/public/landing`
+  tal cual la hizo su autor. Cualquier cambio va en los bloques agregados al
+  final de su CSS y su JS. Ver [`FRONTEND.md`](FRONTEND.md), sección 6.
 - **El backend se duerme si el pastillero está apagado.** Render apaga el plan
   free a los 15 minutos sin tráfico y tarda hasta un minuto en despertar. La app
   ya lo espera sola, pero si algo "no anda" y la ESP32 está desenchufada, ese es
@@ -56,6 +63,8 @@ al backend en internet, así que puede estar en cualquier casa.
 | Mails | Enviando a cualquier destinatario | Brevo (API HTTPS) |
 | Panel de admin | Funcionando | `/admin` en la app |
 | Diseño de la app | **Rediseño completo, una sola paleta** | rama `ojman/frontend` |
+| Landing | La del equipo, integrada | `voitos.vercel.app/landing` |
+| Módulos | **Uno solo**, `voitos_1`, con la Aspirina cargada | tabla `modulos` |
 
 **Probado el 21/08 de punta a punta:** se agendó una dosis desde el celular, la
 placa la detectó consultando sola, sonó, se apretó el botón, dispensó 3
@@ -143,6 +152,79 @@ agregó `fecha_nacimiento`; después se desplegó el backend que deja de nombrar
 `edad` en su `SELECT`; recién entonces se borró la columna. Al revés, el backend
 que estaba corriendo se habría roto en el acto. Si alguna vez hay que sacar otra
 columna, ese es el orden.
+
+### Lo que pasó entre el 15 de septiembre y el 2 de octubre
+
+| Fecha | Qué |
+| --- | --- |
+| 15/09 | **Pantalla de perfil** (`/perfil`): tus datos, tus pastillas con su próxima dosis, y las dos salidas. Cerrar sesión deja de estar en el inicio |
+| 15/09 | **La fecha de nacimiento se puede cambiar** desde el perfil |
+| 15/09 | **Borrar la cuenta la borra de verdad**: antes quedaba viva en Supabase Auth |
+| 15/09 | **Sin fecha de nacimiento se guarda la de hoy**, a pedido del equipo |
+| 15/09 | **Se va `caracteristicas`** de `pastillas`: no la leía nadie |
+| 15/09 | **El backend deja de inventar módulos.** La tabla tenía 8 para una máquina con uno |
+| 15/09 | **El panel de admin muestra el nombre** de las pastillas de cada cuenta |
+| 15/09 | **El botón de Google** toma el radio de los demás botones |
+| 15/09 | **Se borraron las previews de Vercel** de todas las ramas: queda solo `main` |
+| 30/09 | **La landing del equipo, adentro de la app**, con una tarjeta al final del inicio |
+| 30/09 | **La landing ordenada en celular**, y su logo vuelve a la app |
+
+### Los módulos: un módulo es hardware
+
+**Una ESP32 puede manejar varios módulos.** Cada módulo es un servo con su
+tolva y su filtro, y el filtro es específico de una pastilla: por eso un módulo
+dispensa una sola. Hoy hay un solo módulo armado, `voitos_1`.
+
+**El bug:** al crear una pastilla, el backend buscaba un módulo libre y, si no
+había, **creaba uno nuevo** con el número siguiente. Como ninguno se liberaba
+nunca, cada pastilla daba de alta una pieza de hardware que no existe. La tabla
+llegó a 8 módulos, y el número que se le manda a la ESP32 —el que usa para
+elegir el servo— podía ser el 7 en una placa que solo tiene el 1.
+
+**Ahora el backend no crea módulos nunca:**
+
+- Sin módulo libre, la pastilla se guarda igual pero **sin cargar**. Se puede
+  agendar; el pastillero no la va a dispensar hasta que se la cargue.
+- Pedir un número de módulo que no existe responde 409.
+
+**Un desvío que conviene conocer.** En el historial se ve `modulos.pastilla_id`
+irse y volver el mismo día. Lo saqué yo, por entender "hay una sola ESP32" como
+"hay un solo módulo compartido por todas las pastillas", y lo restauré cuando el
+equipo aclaró que la placa maneja varios. Se recuperó la carga del módulo 1 (la
+Aspirina). Los módulos 2 a 8 se borraron a propósito: no existían.
+
+**Para dar de alta un módulo cuando se arme el hardware:**
+
+```sql
+insert into public.modulos (numero, nombre, dispositivo_id)
+values (2, 'voitos_2', 'ESP32-001');
+```
+
+`numero` es el servo que la ESP32 va a mover y `dispositivo_id` tiene que
+coincidir con lo que el firmware tiene escrito (`DISPOSITIVO_ID`).
+`cantidad_actual` arranca en 0 y `pastilla_id` en `null`: módulo vacío.
+
+### Borrar la cuenta
+
+`DELETE /api/usuarios/:id` borraba **solo** la fila de `usuarios`; la cuenta de
+Supabase Auth quedaba viva. Quien "borraba su cuenta" seguía pudiendo iniciar
+sesión, entraba sin perfil, y el mail quedaba tomado para siempre. Lo reproduje
+desde la app antes de arreglarlo. Ahora borra las dos cosas, en el mismo orden
+que el panel de admin.
+
+### La fecha de hoy cuando no completan la de nacimiento
+
+Fue un pedido del equipo, y conviene que quede escrito lo que implica: **esas
+cuentas quedan con 0 años, no con "no sabemos"**. El dato deja de distinguir
+entre "no lo puso" y "nació hoy". Si algún día la edad se usa para algo, esos
+registros van a mentir en silencio.
+
+### La landing
+
+La landing que hizo el equipo está en `/landing`, copiada exacta y servida
+desde la misma app. Se entra con una tarjeta al final del inicio y se vuelve
+tocando su logo. Cómo está armada y qué se le tocó está en
+[`FRONTEND.md`](FRONTEND.md), sección 6.
 
 **Cómo está documentado el front:** [`docs/FRONTEND.md`](FRONTEND.md) cuenta la
 estructura de `app/src`, las reglas del diseño, el kit de `ui/` y lo que es
@@ -493,19 +575,23 @@ confundirse creyendo que RLS está protegiendo algo que en realidad no protege.
 
 No queda nada bloqueante. Por orden de lo que más falta hace:
 
-1. **Pantalla de historial**: las dispensaciones se registran desde el primer
-   día, con el usuario incluido, y ninguna vista las muestra. Es el hueco más
-   grande que queda entre lo que el sistema sabe y lo que el cuidador ve.
-2. **Pantallas de configuración, emergencia y detalle del día**, que siguen
+1. **Una pantalla para cargar un módulo.** Hoy la app no usa `/api/modulos`
+   en ningún lado, así que no hay forma de cambiar qué pastilla tiene cargada
+   `voitos_1`. Como el único módulo está ocupado, toda pastilla nueva queda
+   **sin cargar**, y para dispensarla hay que ir a la base o a la API. La ruta
+   ya existe (`PUT /api/modulos/:id` con `pastilla_id` y `cantidad_actual`);
+   falta la pantalla.
+2. **Pantalla de historial**: las dispensaciones se registran desde el primer
+   día, con el usuario incluido, y ninguna vista las muestra.
+3. **Pantallas de configuración, emergencia y detalle del día**, que siguen
    vacías. Las piezas de `ui/` ya están, así que es armarlas, no diseñarlas.
-3. **El feature `modulos`**, que sigue sin mergear en `czerwiak/backend`.
 4. Un dominio propio, si se quiere sacar las advertencias de DKIM y DMARC y
    mejorar la entregabilidad.
 5. Sensor que confirme cuántas pastillas salieron de verdad. Hoy se asume que
    salieron las que se pidieron.
 
-Nada de esto está bloqueado por otra cosa. Todo lo del 15/09 ya está en `main` y
-desplegado.
+Nada de esto está bloqueado por otra cosa. Todo lo anterior al 2/10 ya está en
+`main` y desplegado.
 
 ---
 
@@ -517,6 +603,7 @@ Ramas: `main` (producción) ← `develop` ← `czerwiak/backend`, `ojman/fronten
 **Servicios:**
 - Backend: `https://voitos-backend.onrender.com` (Render, plan free)
 - **App: `https://voitos.vercel.app`** ← esta es la dirección de la aplicación
+- Landing: `https://voitos.vercel.app/landing` (adentro de la misma app)
 - Base: Supabase, proyecto `pshejdspqqhuhyjbzslx`
 
 ### Cómo se despliega la app
