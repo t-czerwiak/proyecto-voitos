@@ -1,6 +1,6 @@
 # El front de Voitos
 
-Última actualización: **15 de septiembre de 2026** · rama `ojman/frontend`
+Última actualización: **2 de octubre de 2026** · rama `ojman/frontend`
 
 Este documento cuenta cómo está armada la aplicación y, sobre todo, **por qué**
 está armada así. La app la usa quien cuida a otro: muchas veces un hijo de más
@@ -16,6 +16,7 @@ app/
 ├── app.json              configuración de Expo (tema fijo en oscuro)
 ├── vercel.json           cómo compila y se sirve la versión web
 ├── scripts/contraste.js  verificación de contraste WCAG (npm run contraste)
+├── public/landing/       la landing del equipo, copiada tal cual (sección 6)
 └── src/
     ├── app/        las pantallas. expo-router arma las rutas leyendo esta carpeta
     ├── ui/         el kit de piezas compartidas (Boton, Campo, Tarjeta, ...)
@@ -205,7 +206,92 @@ como si fuera la aplicación. **Un cambio no está publicado hasta que llegó a
 
 ---
 
-## 6. Un detalle que cuesta caro olvidar
+## 6. La landing
+
+La landing que hizo el equipo vive en **`voitos.vercel.app/landing`**, adentro
+de la misma app. Se entra desde una tarjeta al final del inicio
+(`components/TarjetaLanding.tsx`) y se vuelve tocando su logo.
+
+### Es una copia, y no se reescribe
+
+`app/public/landing` es el **build de Vite tal cual lo publicó su autor**: un
+HTML, un CSS, un JS y las imágenes. Expo copia `public/` al build sin tocarlo.
+
+No se portó a React Native a propósito. Se perderían justamente las cosas que
+la hacen: el cursor-pastilla, las chispas, la explosión del logo, las tarjetas
+que se inclinan y las secciones que aparecen al scrollear. Copiada así, en
+escritorio es idéntica a la original: medida elemento por elemento, los 200
+tienen la misma posición, tamaño, letra y color.
+
+Por la misma razón, la tarjeta entra con una navegación completa
+(`window.location`) y no con `router.push`: el router no la conoce.
+
+### Lo único que se le tocó
+
+Todo está a la vista y separado del código del autor:
+
+| Qué | Dónde | Por qué |
+| --- | --- | --- |
+| Rutas `/assets/` → `/landing/assets/` | `index.html` | Ahora vive en una subcarpeta. Absolutas, así andan con o sin barra final |
+| El logo apunta a la app | `index.html` (`href` y etiqueta) + final del JS | Para volver. A `/home` si hay sesión, a la portada si no. Espera a que termine la explosión del logo |
+| Chispas al tocar en celular | Final del JS | El original las limita a mouse. Van en `click`, así arrastrar para scrollear no las dispara |
+| Diseño de celular | Final del CSS | Ver abajo |
+
+Los agregados al JS y al CSS están **al final de cada archivo**, cada uno con
+su comentario. El código original no se modificó.
+
+### El diseño de celular
+
+La landing ya venía preparada para celular, pero todo era enorme: los bloques
+de "¿Qué resuelve?" medían 250px cada uno y el teléfono ocupaba tres
+pantallas. La página medía 6313px de alto a 375px de ancho; ahora 4155px.
+
+Solo cambian tamaños y posiciones: mismo contenido, mismos colores, mismas
+animaciones. Todo va en un único `@media (width<=760px)` al final del CSS, así
+que **escritorio no se entera**.
+
+Dos cosas que no funcionaron, para no volver a probarlas:
+
+- **Ocultar los `<br>`** para que el texto fluya: en el HTML no hay espacio
+  alrededor del salto, así que pegaba palabras ("unadosis", "necesitansaber").
+- **Tarjetas en 2x2:** quedaban angostas, y los cortes de línea del autor
+  dejaban palabras solas en un renglón ("está", "su"). Por eso una columna.
+
+### Si el autor publica una versión nueva
+
+1. Bajar el HTML, el CSS, el JS y las imágenes nuevos a `app/public/landing`.
+2. Volver a aplicar lo de la tabla de arriba: las rutas y el logo en el HTML, y
+   los bloques del final del CSS y del JS (están en el historial de git).
+3. Actualizar en `TarjetaLanding.tsx` los nombres de la foto y el logo: llevan
+   el hash del build de Vite y cambian con cada build.
+
+### En Vercel
+
+`vercel.json` manda todas las rutas a la app (`/(.*)` → `/index.html`). Los
+archivos reales ganan igual, que es por lo que cargan los `.js` de `/_expo`.
+Pero `/landing` es una carpeta y no un archivo, así que tiene sus propias reglas
+explícitas antes de la general.
+
+En local, `npx serve` no sirve para probarla: con `--single` devuelve la app en
+`/landing/`, y sin él redirige `index.html` por las "URLs limpias". Con
+`npx http-server app/dist` se comporta como Vercel.
+
+### La tarjeta del inicio
+
+Usa la foto y el logo de la misma landing, así anticipa lo que se va a ver. El
+hover sigue el lenguaje de la app: el borde pasa al verde de la marca, como los
+botones; la foto se acerca y se aclara, la flecha avanza, y la tarjeta se
+levanta con el mismo brillo verde que usa la landing. Con teclado aparece el
+anillo de foco; con movimiento reducido solo cambian los colores.
+
+La foto va **pegada arriba con su proporción (4:3)** y la tarjeta recorta lo
+que sobra. react-native-web la dibuja como fondo CSS centrado y no deja mover
+esa posición (`objectPosition` no hace nada), así que centrada cortaba las caras
+en escritorio.
+
+---
+
+## 7. Un detalle que cuesta caro olvidar
 
 Los hooks se llaman `useAlgo` y no `usarAlgo`, aunque el resto del código está
 en castellano. El prefijo `use` no es estilo: es cómo React reconoce un hook, y
