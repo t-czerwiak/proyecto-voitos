@@ -713,6 +713,7 @@ Otros comandos:
 | `npm run lint` | `tsc --noEmit`, chequeo de tipos |
 | `npm run dosis` | Crea una dosis para **ahora mismo**, para probar el circuito sin esperar. `npm run dosis -- 5 <pastilla_id>` |
 | `npm run simulador` | Simula el firmware de polling en Node: consulta, "suena", "dispensa" y confirma |
+| `npm run docs:check` | Falla si alguna ruta del código no está en este documento. Correrlo antes de commitear cambios de endpoints |
 
 ### Variables de entorno (`backend/.env`)
 
