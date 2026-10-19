@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { uuid } from "./uuid";
+import { RecordatorioSchema } from "./recordatorio";
 
 export const HorarioCreateSchema = z.object({
   pastilla_id: uuid("pastilla_id debe ser UUID"),
@@ -13,6 +14,7 @@ export const HorarioCreateSchema = z.object({
     .min(1, "cantidad debe ser al menos 1")
     .max(20, "cantidad no puede ser mayor a 20")
     .optional(),
+  recordatorio_min: RecordatorioSchema,
 });
 
 export const HorarioUpdateSchema = HorarioCreateSchema.partial();

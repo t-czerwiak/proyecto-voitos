@@ -31,6 +31,12 @@ export const restarUnDia = (fecha: string): string => {
   return d.toISOString().split("T")[0];
 };
 
+export const sumarUnDia = (fecha: string): string => {
+  const d = new Date(`${fecha}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().split("T")[0];
+};
+
 export interface TramoVentana {
   dia: string;
   hora: number;

@@ -285,7 +285,11 @@ En los dos casos la dispensación se registra igual: por
     "pendiente": true,
     "horario": { "id": "uuid", "pastilla_id": "uuid", "hora": 15, "minuto": 31, "cantidad": 2 },
     "modulo": 1,
-    "disponibles": 27
+    "disponibles": 27,
+    "recordatorios": [
+      { "hora": "16:00", "texto": "Kinesiologia", "tipo": "actividad", "faltan_min": 12 },
+      { "hora": "16:30", "texto": "Aspirina x2", "tipo": "dosis", "faltan_min": 42 }
+    ]
   }
 }
 ```
@@ -295,6 +299,29 @@ En los dos casos la dispensación se registra igual: por
 - `disponibles`: cuántas pastillas quedan en ese módulo, para que el firmware
   no intente dispensar más de las que hay.
 - Si no hay nada pendiente, `pendiente` es `false` y el resto `null`.
+- `recordatorios`: lo que el **display OLED** del pastillero tiene que mostrar
+  ahora (ver abajo). Viene siempre, haya dosis pendiente o no.
+
+#### Recordatorios en el display
+
+Al agendar una dosis o crear una actividad, el usuario puede pedir que aparezca
+en la pantalla del pastillero y elegir cuánto antes: 5, 10, 15, 30 o 60
+minutos (`recordatorio_min`; `null` = sin recordatorio). El recordatorio se ve
+desde ese momento **hasta la hora** del evento: si es una dosis, a esa hora ya
+la toma la alarma.
+
+- Viajan en la misma respuesta de `pendiente` para que la placa no haga un
+  pedido HTTP más. Si calcularlos falla, la respuesta sale igual con `[]`: la
+  dosis no puede caerse por el display.
+- Como mucho 3, ordenados por el que falta menos: es lo que entra en 128x64.
+- `texto` llega **sin acentos** ("Kinesiología" → "Kinesiologia") porque la
+  fuente del display es ASCII.
+- Se miran hoy y mañana, para que una dosis de las 00:30 con 1 hora de
+  anticipación aparezca a las 23:30.
+- Una dosis ya dispensada no se muestra.
+- No se filtran por cuenta: en el MVP todas comparten el pastillero.
+
+Código: `services/recordatorios.service.ts`.
 
 Una dosis aparece como pendiente desde su hora hasta **15 minutos después**.
 Ese número coincide a propósito con los otros dos plazos del sistema (la
@@ -476,8 +503,11 @@ dispensaciones; el módulo queda libre (`pastilla_id = null`).
 
 **Body de `POST /api/horarios`:**
 ```json
-{ "pastilla_id": "uuid", "dia": "2026-10-20", "hora": 8, "minuto": 30, "cantidad": 2 }
+{ "pastilla_id": "uuid", "dia": "2026-10-20", "hora": 8, "minuto": 30, "cantidad": 2, "recordatorio_min": 15 }
 ```
+
+`recordatorio_min` es opcional: 5, 10, 15, 30 o 60 minutos antes en el display
+del pastillero, o `null` para no mostrarlo. Otro valor responde 400.
 
 Cada fila es **una dosis puntual**: `dia` es una fecha (`YYYY-MM-DD`), no un día
 de la semana. Una rutina de 4 semanas son 28 filas, que la app crea de una.
@@ -530,6 +560,7 @@ relación con el pastillero ni con la ESP32.
   semana, así que manda `fecha: ""` y al menos un día en `dias`
   (`L M X J V S D`).
 - `hora` es texto `"HH:MM"`, no dos números como en horarios.
+- `recordatorio_min`: igual que en horarios (5, 10, 15, 30, 60 o `null`).
 
 ### Dispensaciones (protegido)
 
@@ -701,11 +732,11 @@ Supabase (PostgreSQL), proyecto `pshejdspqqhuhyjbzslx`.
 | ----- | -------------------- |
 | `usuarios` | `id` (= id de Supabase Auth), `nombre`, `apellido`, `mail`, `fecha_nacimiento`, `rol` (`cuidador`/`admin`), `verificado`, `token_verificacion` + `token_expira`, `token_reset` + `token_reset_expira` |
 | `pastillas` | `id`, `usuario_id`, `nombre`, `tipo` |
-| `horarios` | `id`, `pastilla_id`, `dia`, `hora`, `minuto`, `cantidad` (1-20), `dispensado`, `senal_enviada`, `notificado` |
+| `horarios` | `id`, `pastilla_id`, `dia`, `hora`, `minuto`, `cantidad` (1-20), `dispensado`, `senal_enviada`, `notificado`, `recordatorio_min` |
 | `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `timestamp` |
 | `modulos` | `id`, `numero`, `nombre`, `dispositivo_id`, `pastilla_id` (null = vacío), `cantidad_actual`. Único por (`dispositivo_id`, `numero`) |
 | `contactos_emergencia` | `id`, `usuario_id`, `nombre`, `apellido`, `numero`, `dni` |
-| `actividades` | `id`, `usuario_id`, `nombre`, `fecha`, `hora`, `tipo`, `dias` |
+| `actividades` | `id`, `usuario_id`, `nombre`, `fecha`, `hora`, `tipo`, `dias`, `recordatorio_min` |
 
 **Qué pasa al borrar** (FK verificadas):
 
