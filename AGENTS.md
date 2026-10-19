@@ -67,3 +67,13 @@ Un modulo es una pieza de hardware (un servo con su tolva). El backend **nunca**
 inserta filas en `modulos`: se dan de alta a mano cuando se arma el hardware.
 Si no hay modulo libre, la pastilla queda sin cargar; eso es correcto. Detalle
 en `docs/ESTADO-Y-PROXIMOS-PASOS.md`, seccion 1.
+
+### Cada cambio de endpoint actualiza docs/API.md en el mismo commit
+
+Agregar, sacar o cambiar una ruta, su body o su respuesta **incluye** actualizar
+`docs/API.md`. No es una tarea aparte para despues: entre el 10/8 y el 15/9
+entraron 19 rutas (actividades, verificacion, stock, admin) sin que la doc
+las sumara, y un mes despues nadie sabia que estaba documentado y que no.
+
+Antes de commitear un cambio del backend: `cd backend && npm run docs:check`.
+Falla si alguna ruta del codigo no esta en la doc.
