@@ -54,8 +54,44 @@ const char* password = "PONER_LA_CLAVE";
 
 El `BACKEND` ya está puesto y no se toca: apunta al servidor en internet.
 
-**Requiere la librería ArduinoJson**, que se instala desde
-*Herramientas → Administrar bibliotecas → buscar "ArduinoJson" → Instalar*.
+**Requiere tres librerías**, que se instalan desde
+*Herramientas → Administrar bibliotecas → buscar → Instalar*:
+
+- **ArduinoJson**
+- **Adafruit SSD1306** (al instalarla ofrece sumar **Adafruit GFX** y
+  **Adafruit BusIO**: aceptar)
+
+---
+
+## Display OLED (recordatorios)
+
+Pantalla de 0.96" SSD1306, 128x64, por I2C (cuatro pines: VCC, GND, SCL, SDA).
+
+| Pantalla | ESP32 |
+| --- | --- |
+| VCC | 3V3 |
+| GND | GND |
+| SCL | GPIO 22 |
+| SDA | GPIO **23** |
+
+**SDA no va al 21** (el pin I2C por defecto) porque el 21 ya es el botón. Si se
+cablea en otros pines, se cambian `OLED_SDA` y `OLED_SCL` arriba del sketch.
+
+Qué muestra:
+
+- **Hay una dosis esperando el botón:** "TU DOSIS", cuántas pastillas salen y
+  "Apreta el boton". Tapa todo lo demás.
+- **Hay recordatorios:** hasta 3, con la hora, cuánto falta y el texto. Los
+  manda el backend en la misma consulta de cada 30 segundos
+  (`recordatorios` en `GET /api/sensor/pendiente`): el usuario los pide desde
+  la app al agendar una dosis o crear una actividad, y elige cuánto antes
+  aparecen. La placa no calcula horarios, solo dibuja la lista.
+- **Nada:** "VOITOS", corrido unos píxeles por minuto para que el OLED no se
+  marque con una imagen fija.
+
+**Si la pantalla no está conectada el pastillero anda igual:** el monitor serie
+dice "No se encontro la pantalla OLED" y sigue. Si está conectada y no prende,
+probar `OLED_DIRECCION = 0x3D` (la mayoría viene en `0x3C`).
 
 ---
 

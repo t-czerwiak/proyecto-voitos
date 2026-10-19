@@ -18,14 +18,18 @@
 //   - ESP32PWM::allocateTimer(0..3) antes del attach del servo
 //   - WiFi.setSleep(false)
 //
-// REQUIERE la libreria ArduinoJson. Se instala del Library Manager del IDE:
-// Herramientas > Administrar bibliotecas > buscar "ArduinoJson" > Instalar.
+// REQUIERE las librerias ArduinoJson, Adafruit SSD1306 y Adafruit GFX. Se
+// instalan del Library Manager del IDE: Herramientas > Administrar bibliotecas
+// > buscar cada una > Instalar (Adafruit SSD1306 ofrece instalar GFX sola).
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ESP32Servo.h>
 #include <ArduinoJson.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 const char* ssid = "Proyecto L5";
 const char* password = "preguntaleamaxi";
@@ -40,6 +44,23 @@ const int SERVO_PIN = 18;
 const int BUZZER_PIN = 19;
 const int BUTTON_PIN = 21;
 
+// Display OLED 0.96" (SSD1306, 128x64, I2C).
+//
+// Los pines I2C por defecto de la ESP32 son SDA=21 y SCL=22, pero el 21 ya es
+// el boton. Por eso SDA va al 23. Si se cablea en otros pines, se cambia aca.
+const int OLED_SDA = 23;
+const int OLED_SCL = 22;
+
+// La mayoria de estos modulos vienen en 0x3C. Si la pantalla no prende y el
+// monitor serie dice "No se encontro la pantalla", probar con 0x3D.
+const uint8_t OLED_DIRECCION = 0x3C;
+
+Adafruit_SSD1306 pantalla(128, 64, &Wire, -1);
+
+// Si la pantalla no esta conectada el pastillero tiene que seguir andando
+// igual: dispensar es lo importante, el display es un extra.
+bool hayPantalla = false;
+
 // Tiene que coincidir con el dispositivo_id de la tabla modulos
 const char* DISPOSITIVO_ID = "ESP32-001";
 
@@ -51,7 +72,7 @@ const int PAUSA_ENTRE_PASTILLAS = 500;
 
 // Cada cuanto le pregunta al backend si hay algo que dispensar.
 //
-// El backend busca dosis en una ventana de 5 minutos alrededor de la hora, asi
+// El backend busca dosis en una ventana de 15 minutos desde la hora, asi
 // que 30 segundos deja margen de sobra para no perderse ninguna. Bajarlo mucho
 // solo gasta datos y bateria sin ganar nada.
 const unsigned long MS_ENTRE_CONSULTAS = 30000;
@@ -116,6 +137,107 @@ void sonarBuzzer() {
   digitalWrite(BUZZER_PIN, HIGH);
   delay(1000);
   digitalWrite(BUZZER_PIN, LOW);
+}
+
+
+//-----------------------------
+// Display: recordatorios y aviso de dosis
+//
+// El backend manda en cada consulta los recordatorios que tocan AHORA (cada uno
+// aparece los minutos antes que eligio el usuario y se va a la hora). La placa
+// solo los dibuja: no calcula nada de horarios.
+//-----------------------------
+
+const int MAX_RECORDATORIOS = 3;
+
+struct Recordatorio {
+  String hora;    // "08:30"
+  String texto;   // "Aspirina x2", ya sin acentos (la fuente es ASCII)
+  int faltan;     // minutos que faltaban en la ultima consulta
+};
+
+Recordatorio recordatorios[MAX_RECORDATORIOS];
+int cantRecordatorios = 0;
+
+// Un mensaje suelto, para el arranque.
+void mostrarMensaje(const char* texto) {
+  if (!hayPantalla) return;
+  pantalla.clearDisplay();
+  pantalla.setTextColor(SSD1306_WHITE);
+  pantalla.setTextSize(1);
+  pantalla.setCursor(0, 28);
+  pantalla.println(texto);
+  pantalla.display();
+}
+
+void dibujarPantalla() {
+  if (!hayPantalla) return;
+
+  pantalla.clearDisplay();
+  pantalla.setTextColor(SSD1306_WHITE);
+
+  // 1. Hay una dosis esperando el boton: eso tapa todo lo demas.
+  if (esperandoBoton) {
+    pantalla.setTextSize(2);
+    pantalla.setCursor(0, 0);
+    pantalla.println("TU DOSIS");
+
+    pantalla.setTextSize(1);
+    pantalla.setCursor(0, 26);
+    pantalla.print("Sale ");
+    pantalla.print(cantidadPendiente);
+    pantalla.println(cantidadPendiente == 1 ? " pastilla" : " pastillas");
+    pantalla.setCursor(0, 44);
+    pantalla.println("Apreta el boton");
+
+  // 2. Recordatorios: hasta 3, dos lineas cada uno.
+  } else if (cantRecordatorios > 0) {
+    pantalla.setTextSize(1);
+    pantalla.setCursor(0, 0);
+    pantalla.println("PROXIMO");
+    pantalla.drawFastHLine(0, 9, 128, SSD1306_WHITE);
+
+    for (int i = 0; i < cantRecordatorios; i++) {
+      int y = 12 + i * 17;
+      pantalla.setCursor(0, y);
+      pantalla.print(recordatorios[i].hora);
+      pantalla.print("  en ");
+      pantalla.print(recordatorios[i].faltan);
+      pantalla.print(" min");
+
+      // 21 caracteres es lo que entra en 128 px con la fuente de 6 px.
+      pantalla.setCursor(0, y + 8);
+      pantalla.print(recordatorios[i].texto.substring(0, 21));
+    }
+
+  // 3. Nada para mostrar.
+  } else {
+    // Un OLED con la misma imagen fija durante dias se marca (burn-in). Correr
+    // el texto unos pixeles por minuto alcanza para repartir el desgaste.
+    int corrimiento = (millis() / 60000) % 8;
+    pantalla.setTextSize(2);
+    pantalla.setCursor(28 + corrimiento, 20 + corrimiento);
+    pantalla.println("VOITOS");
+  }
+
+  pantalla.display();
+}
+
+// Lee la lista "recordatorios" de la respuesta del backend.
+//
+// ponytail: si una consulta falla (WiFi caido), queda la lista anterior y su
+// "en N min" se congela hasta la proxima consulta buena. Si molesta, descontar
+// los minutos con millis() entre consultas.
+void leerRecordatorios(JsonArray lista) {
+  cantRecordatorios = 0;
+
+  for (JsonObject r : lista) {
+    if (cantRecordatorios >= MAX_RECORDATORIOS) break;
+    recordatorios[cantRecordatorios].hora = String(r["hora"] | "");
+    recordatorios[cantRecordatorios].texto = String(r["texto"] | "");
+    recordatorios[cantRecordatorios].faltan = r["faltan_min"] | 0;
+    cantRecordatorios++;
+  }
 }
 
 
@@ -229,6 +351,10 @@ void consultarPendiente() {
 
   JsonObject data = doc["data"];
 
+  // Los recordatorios llegan siempre, haya dosis o no.
+  leerRecordatorios(data["recordatorios"]);
+  dibujarPantalla();
+
   if (!data["pendiente"].as<bool>()) return;
 
   const char* id = data["horario"]["id"];
@@ -270,6 +396,7 @@ void consultarPendiente() {
 
   esperandoBoton = true;
   empezoAEsperar = millis();
+  dibujarPantalla();
 
   Serial.println("Esperando que se presione el boton...");
 }
@@ -351,6 +478,15 @@ void setup() {
   servo.attach(SERVO_PIN, 500, 2400);
   servo.write(0);
 
+  // Display. Si no aparece, se sigue sin pantalla.
+  Wire.begin(OLED_SDA, OLED_SCL);
+  hayPantalla = pantalla.begin(SSD1306_SWITCHCAPVCC, OLED_DIRECCION);
+  if (hayPantalla) {
+    mostrarMensaje("Conectando WiFi...");
+  } else {
+    Serial.println("No se encontro la pantalla OLED. Sigue sin display.");
+  }
+
   // Buzzer
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
@@ -422,6 +558,7 @@ void loop() {
 
     Serial.println("Listo para la proxima dosis.");
     Serial.println();
+    dibujarPantalla();
     return;
   }
 
@@ -435,6 +572,7 @@ void loop() {
     horarioPendiente = "";
     cantidadPendiente = 1;
     botonApretado = false;
+    dibujarPantalla();
     return;
   }
 
