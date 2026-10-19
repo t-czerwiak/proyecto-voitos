@@ -167,6 +167,46 @@ const correr = async () => {
     esperar(mio.pastillas?.nombre === "Ibuprofeno", "no vino el nombre de la pastilla");
   });
 
+  console.log("\n=== CONFIRMACION DEL PASTILLERO ===");
+
+  // La pastilla de esta suite no tiene modulo cargado, asi que confirmar no
+  // le toca el stock al pastillero de verdad.
+  const confirmar = (horario_id) =>
+    pedir("/api/sensor/confirmacion", {
+      metodo: "POST",
+      conToken: false,
+      cuerpo: { dispositivo_id: "ESP32-TEST", horario_id, bateria: 100, cantidad: 2 },
+    });
+
+  await prueba("confirmar una dosis la registra", async () => {
+    const { status, json } = await confirmar(horarioId);
+    esperar(status === 201, `esperaba 201, vino ${status}: ${JSON.stringify(json.error)}`);
+  });
+
+  await prueba("confirmar dos veces la misma dosis da 409", async () => {
+    const { status } = await confirmar(horarioId);
+    esperar(status === 409, `esperaba 409, vino ${status}`);
+  });
+
+  await prueba("dos confirmaciones simultaneas registran una sola", async () => {
+    const { json } = await pedir("/api/horarios", {
+      metodo: "POST",
+      cuerpo: { pastilla_id: pastillaId, dia: hoy, hora: 10, minuto: 0 },
+    });
+    const otro = json.data.id;
+    const resultados = await Promise.all([confirmar(otro), confirmar(otro)]);
+    const estados = resultados.map((r) => r.status).sort();
+    esperar(estados.join() === "201,409", `esperaba 201 y 409, vinieron ${estados.join(" y ")}`);
+
+    const { data } = await supabase.from("dispensaciones").select("id").eq("horario_id", otro);
+    esperar(data.length === 1, `quedaron ${data.length} dispensaciones para un solo horario`);
+  });
+
+  await prueba("confirmar un horario que no existe da 404", async () => {
+    const { status } = await confirmar("00000000-0000-4000-8000-000000000000");
+    esperar(status === 404, `esperaba 404, vino ${status}`);
+  });
+
   console.log("\n=== ACTIVIDADES (tabla nueva) ===");
 
   let actividadId = null;
