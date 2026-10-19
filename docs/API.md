@@ -372,6 +372,21 @@ Al confirmar, el backend:
 aparte de `horarios.cantidad` a propósito: una es lo que se **pidió** y la otra
 lo que **pasó**.
 
+**Una dosis se confirma una sola vez.** El paso 1 solo marca el horario si
+todavía no estaba dispensado, en la misma operación de la base: si llega una
+segunda confirmación del mismo horario (o dos a la vez), solo una registra la
+dispensación y descuenta stock, y la otra recibe 409. Antes se registraban las
+dos y el stock bajaba dos veces.
+
+| Código | Cuándo |
+| ------ | ------ |
+| 201 | Dispensación registrada |
+| 404 | El `horario_id` no existe |
+| 409 | Esa dosis ya estaba registrada como dispensada |
+
+El firmware toma como éxito solo el 201; un 409 lo imprime en el monitor serie
+como "Fallo la confirmacion" sin hacer nada más.
+
 ### Usuarios (protegido)
 
 Cada usuario ve y edita **solo su propio perfil**. Cualquier id que no sea el
