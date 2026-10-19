@@ -26,6 +26,7 @@ export interface Horario {
   cantidad: number; // cuantas pastillas dispensar en esta dosis (1 a 20)
   dispensado: boolean;
   notificado: boolean; // si ya se le aviso al cuidador que no se tomo
+  recordatorio_min: number | null; // minutos antes en el display OLED (null = sin)
   created_at: string;
 }
 
@@ -72,5 +73,6 @@ export interface Actividad {
   hora: string; // "HH:MM"
   tipo: "rutina" | "una-vez";
   dias?: string[]; // ["L","X","V"] cuando tipo es "rutina"
+  recordatorio_min: number | null; // minutos antes en el display OLED (null = sin)
   created_at: string;
 }

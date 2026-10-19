@@ -1,11 +1,23 @@
 import { Request, Response, NextFunction } from "express";
 import { ConfirmacionSchema, DispensarSchema } from "../schemas/sensor.schema";
 import * as sensorService from "../services/sensor.service";
+import { getRecordatorios } from "../services/recordatorios.service";
 
 export const pendiente = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const data = await sensorService.getPendiente();
-    res.json({ success: true, data });
+    // Los recordatorios del display viajan en la misma consulta que la placa
+    // ya hace cada 30 s, asi el firmware no suma un pedido HTTP mas.
+    //
+    // Si los recordatorios fallan, la dosis igual tiene que llegar: el display
+    // es un extra, la alarma no. Por eso el error se loguea y se manda [].
+    const [pendiente, recordatorios] = await Promise.all([
+      sensorService.getPendiente(),
+      getRecordatorios().catch((e) => {
+        console.error(`No se pudieron calcular los recordatorios: ${e.message}`);
+        return [];
+      }),
+    ]);
+    res.json({ success: true, data: { ...pendiente, recordatorios } });
   } catch (error) {
     next(error);
   }

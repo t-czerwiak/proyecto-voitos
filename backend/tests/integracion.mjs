@@ -251,6 +251,62 @@ const correr = async () => {
     esperar(status === 400, `esperaba 400, vino ${status}`);
   });
 
+  console.log("\n=== RECORDATORIOS EN EL DISPLAY ===");
+
+  // La hora argentina dentro de N minutos, como la guarda la base.
+  const enArgentina = (minutos) => {
+    const d = new Date(Date.now() - 3 * 3600_000 + minutos * 60_000);
+    return {
+      dia: d.toISOString().split("T")[0],
+      hora: d.getUTCHours(),
+      minuto: d.getUTCMinutes(),
+      hhmm: d.toISOString().slice(11, 16),
+      letra: ["D", "L", "M", "X", "J", "V", "S"][d.getUTCDay()],
+    };
+  };
+  const marca = `Test${Date.now() % 100000}`;
+  const recordatoriosAhora = async () => (await pedir("/api/sensor/pendiente", { conToken: false })).json.data.recordatorios;
+
+  await prueba("una dosis con recordatorio aparece en el display", async () => {
+    const t = enArgentina(10);
+    const { status, json } = await pedir("/api/horarios", {
+      metodo: "POST",
+      cuerpo: { pastilla_id: pastillaId, dia: t.dia, hora: t.hora, minuto: t.minuto, cantidad: 3, recordatorio_min: 15 },
+    });
+    esperar(status === 201, `esperaba 201, vino ${status}: ${JSON.stringify(json.error)}`);
+    const r = (await recordatoriosAhora()).find((x) => x.texto === "Ibuprofeno x3");
+    esperar(r, "no aparece la dosis en los recordatorios");
+    esperar(r.hora === t.hhmm && r.tipo === "dosis", `vino ${JSON.stringify(r)}`);
+  });
+
+  await prueba("un recordatorio todavia no aparece si falta mas que su anticipacion", async () => {
+    const t = enArgentina(40);
+    const { status } = await pedir("/api/actividades", {
+      metodo: "POST",
+      cuerpo: { usuario_id: usuario.id, nombre: `${marca} tarde`, fecha: t.dia, hora: t.hhmm, tipo: "una-vez", recordatorio_min: 30 },
+    });
+    esperar(status === 201, `esperaba 201, vino ${status}`);
+    esperar(!(await recordatoriosAhora()).some((x) => x.texto === `${marca} tarde`), "aparecio antes de tiempo");
+  });
+
+  await prueba("una actividad de rutina con recordatorio aparece hoy", async () => {
+    const t = enArgentina(5);
+    const { status } = await pedir("/api/actividades", {
+      metodo: "POST",
+      cuerpo: { usuario_id: usuario.id, nombre: `${marca} kinesiología`, fecha: "", hora: t.hhmm, tipo: "rutina", dias: [t.letra], recordatorio_min: 10 },
+    });
+    esperar(status === 201, `esperaba 201, vino ${status}`);
+    esperar((await recordatoriosAhora()).some((x) => x.texto === `${marca} kinesiologia` && x.tipo === "actividad"), "no aparece la rutina, o vino con acento (el display no los dibuja)");
+  });
+
+  await prueba("recordatorio con minutos que no estan en la lista da 400", async () => {
+    const { status } = await pedir("/api/horarios", {
+      metodo: "POST",
+      cuerpo: { pastilla_id: pastillaId, dia: hoy, hora: 9, minuto: 0, recordatorio_min: 7 },
+    });
+    esperar(status === 400, `esperaba 400, vino ${status}`);
+  });
+
   console.log("\n=== MODULOS ===");
 
   await prueba("listar modulos con su stock", async () => {
