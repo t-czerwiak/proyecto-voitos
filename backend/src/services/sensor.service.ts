@@ -194,13 +194,28 @@ export const createConfirmacion = async (body: Confirmacion) => {
   // que dispenso las que pedia el horario.
   const cantidad = body.cantidad ?? horario?.cantidad ?? 1;
 
-  // Marcar horario como dispensado
-  const { error: updateError } = await supabase
+  if (!horario) {
+    throw new ErrorHttp(404, "Horario no encontrado");
+  }
+
+  // Marcar horario como dispensado, SOLO si todavia no lo estaba.
+  //
+  // Antes el update no miraba dispensado: una segunda confirmacion del mismo
+  // horario registraba otra dispensacion y descontaba el stock otra vez. El
+  // filtro va en el mismo update (y no en un chequeo previo) para que dos
+  // confirmaciones simultaneas no pasen las dos: la base deja ganar a una sola.
+  const { data: marcado, error: updateError } = await supabase
     .from("horarios")
     .update({ dispensado: true })
-    .eq("id", body.horario_id);
+    .eq("id", body.horario_id)
+    .eq("dispensado", false)
+    .select("id");
 
   if (updateError) throw new Error(updateError.message);
+
+  if (!marcado?.length) {
+    throw new ErrorHttp(409, "Esa dosis ya estaba registrada como dispensada");
+  }
 
   // Registrar la dispensacion
   const { data, error: insertError } = await supabase
