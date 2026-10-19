@@ -6,6 +6,7 @@ export { default as Campo } from "./Campo";
 export { default as CampoFechaNacimiento } from "./CampoFechaNacimiento";
 export { default as Selector } from "./Selector";
 export { default as Opciones } from "./Opciones";
+export { default as CampoRecordatorio, anticipacionEnPalabras } from "./CampoRecordatorio";
 export { default as Contador } from "./Contador";
 export { default as SelectorDias, DIAS } from "./SelectorDias";
 export { default as Tarjeta } from "./Tarjeta";

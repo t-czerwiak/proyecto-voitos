@@ -10,6 +10,7 @@ import {
   Selector,
   Opciones,
   SelectorDias,
+  CampoRecordatorio,
   Boton,
   Aviso,
 } from "../ui";
@@ -38,6 +39,7 @@ export default function AgregarActividad() {
   const [minuto, setMinuto] = useState(0);
   const [tipo, setTipo] = useState<"rutina" | "una-vez">("una-vez");
   const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([]);
+  const [recordatorio, setRecordatorio] = useState<number | null>(null);
 
   // La fecha viene del calendario, del día que estaba elegido.
   const [fecha] = useState(fechaParametro || "");
@@ -75,6 +77,7 @@ export default function AgregarActividad() {
         // tiene una fecha puntual. La base igual pide el campo.
         fecha: tipo === "una-vez" ? fecha : "",
         dias: tipo === "rutina" ? diasSeleccionados : [],
+        recordatorio_min: recordatorio,
       });
 
       router.back();
@@ -154,6 +157,8 @@ export default function AgregarActividad() {
           alCambiar={setDiasSeleccionados}
         />
       )}
+
+      <CampoRecordatorio valor={recordatorio} alCambiar={setRecordatorio} />
 
       <Boton
         titulo={guardando ? "Guardando..." : "Agregar la actividad"}
