@@ -17,6 +17,8 @@ import {
   Selector,
   Contador,
   SelectorDias,
+  CampoRecordatorio,
+  anticipacionEnPalabras,
   Boton,
   Aviso,
   Vacio,
@@ -57,6 +59,7 @@ export default function AgendarMedicacion() {
   const [minuto, setMinuto] = useState(0);
 
   const [semanas, setSemanas] = useState(4);
+  const [recordatorio, setRecordatorio] = useState<number | null>(null);
 
   const [pastillas, setPastillas] = useState<Pastilla[]>([]);
   const [pastillaSel, setPastillaSel] = useState("");
@@ -159,6 +162,7 @@ export default function AgendarMedicacion() {
         cantidad,
         dias: diasSeleccionados,
         semanas,
+        recordatorio_min: recordatorio,
       });
 
       // Si hoy era uno de los dias elegidos pero la hora ya paso, la rutina
@@ -292,6 +296,8 @@ export default function AgendarMedicacion() {
         enPalabras={(v) => (v === 1 ? "1 semana" : `${v} semanas`)}
       />
 
+      <CampoRecordatorio valor={recordatorio} alCambiar={setRecordatorio} />
+
       {/* EL RESUMEN
           Lo que se va a crear, escrito como lo diría una persona. Es la última
           oportunidad de darse cuenta de que dice "20:00" donde uno quiso poner
@@ -318,6 +324,12 @@ export default function AgendarMedicacion() {
               Son {fechas.length} {fechas.length === 1 ? "dosis" : "dosis"} en total
               {fechas.length > 0 && `, desde el ${comoFecha(fechas[0])}`}.
             </Text>
+
+            {recordatorio !== null && (
+              <Text style={styles.resumenTexto}>
+                Aparece en la pantalla del pastillero {anticipacionEnPalabras(recordatorio)}.
+              </Text>
+            )}
           </>
         )}
       </View>
