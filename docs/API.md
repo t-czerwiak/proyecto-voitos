@@ -544,9 +544,23 @@ el hardware. Una ESP32 maneja varios módulos; hoy hay uno solo, `voitos_1`
 al recargar, y el backend lo descuenta solo en cada dispensación confirmada. El
 `numero` y el `dispositivo_id` no se editan: describen hardware.
 
-Los módulos **no se filtran por dueño**: cualquier sesión ve y puede editar
-todos. Tiene sentido mientras haya un único pastillero compartido; con varios
-hogares habría que atar cada módulo a su usuario.
+Los módulos **no se filtran por dueño, a propósito**: cualquier sesión ve y
+puede editar todos. En el MVP hay un solo pastillero, y en la exhibición cada
+visitante se hace su propia cuenta y programa una dispensación en ese mismo
+aparato. Atar el módulo a una cuenta rompería justamente esa demo.
+
+**Idea para después (no implementada):** vincular cada pastillero a la cuenta
+del cuidador o familiar que lo usa, para que nadie más pueda cambiarle la
+pastilla, el stock ni dispensar en él. Formas posibles de hacer el vínculo:
+
+- un código de 8 dígitos que aparece en el display del pastillero y se ingresa
+  en la app;
+- un código QR pegado en el aparato o mostrado en el display;
+- un mail especial de activación que llega con el pastillero.
+
+Cualquiera de las tres termina en lo mismo en el backend: una columna de dueño
+en `modulos` (o en una tabla de dispositivos) y el mismo chequeo de propiedad
+que ya tienen pastillas y contactos (`puedeOperar`).
 
 ### Alertas (protegido)
 
