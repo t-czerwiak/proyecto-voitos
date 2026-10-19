@@ -269,6 +269,7 @@ export const crearHorario = (datos: {
   hora: number;
   minuto: number;
   cantidad?: number;
+  recordatorio_min?: number | null;
 }) => api.post<Horario>("/api/horarios", datos);
 
 export const borrarHorario = (id: string) => api.delete(`/api/horarios/${id}`);
@@ -393,6 +394,7 @@ export const agendarPastilla = async (datos: {
   cantidad: number;
   dias: string[]; // ["L","X","V"], vacio = solo hoy
   semanas: number;
+  recordatorio_min: number | null; // minutos antes en el display, null = sin
 }) => {
   const [horaTexto, minutoTexto] = datos.hora.split(":");
   const hora = Number(horaTexto);
@@ -417,6 +419,7 @@ export const agendarPastilla = async (datos: {
       hora,
       minuto,
       cantidad: datos.cantidad,
+      recordatorio_min: datos.recordatorio_min,
     });
   }
 
@@ -469,6 +472,7 @@ export const crearActividad = (datos: {
   hora: string;
   tipo: "rutina" | "una-vez";
   dias?: string[];
+  recordatorio_min?: number | null;
 }) => {
   const usuario = sesion.getUsuario();
   if (!usuario) throw new Error("No hay sesion iniciada");

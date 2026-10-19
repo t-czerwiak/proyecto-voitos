@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { uuid } from "./uuid";
+import { RecordatorioSchema } from "./recordatorio";
 
 // Los campos sueltos, sin las reglas cruzadas. De aca sale el schema de update,
 // porque .partial() no se puede usar sobre un schema que ya tiene .refine().
@@ -13,6 +14,7 @@ const camposActividad = z.object({
   tipo: z.enum(["rutina", "una-vez"]).default("una-vez"),
   // Solo tiene sentido cuando tipo es "rutina": ["L","M","X","J","V","S","D"]
   dias: z.array(z.string()).optional(),
+  recordatorio_min: RecordatorioSchema,
 });
 
 export const ActividadCreateSchema = camposActividad
