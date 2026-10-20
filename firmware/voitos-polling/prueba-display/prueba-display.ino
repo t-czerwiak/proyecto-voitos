@@ -14,7 +14,8 @@
 // ESTA carpeta, y completar la red WiFi.
 //
 // ponytail: es una copia del sketch principal. Si el principal cambia, esta
-// se regenera copiandolo y poniendo MODO_PRUEBA en 1; no editarla a mano.
+// se regenera copiandolo, poniendo MODO_PRUEBA en 1 y OLED_SDA en 21 (en la
+// placa de prueba el boton es el BOOT, asi que el 21 queda libre).
 // =====================================================================
 
 // Voitos - firmware de POLLING
@@ -51,8 +52,10 @@
 #include <Adafruit_SSD1306.h>
 #include <time.h>
 
-const char* ssid = "Proyecto L5";
-const char* password = "preguntaleamaxi";
+// La red WiFi va en credenciales.h, al lado de este archivo, que NO se sube
+// (el repositorio es publico). Copiar credenciales.h.ejemplo como
+// credenciales.h y completar la red y la clave.
+#include "credenciales.h"
 
 // Modo prueba: en el arranque muestra todas las pantallas del display una por
 // una, y usa el boton BOOT de la placa como boton de dispensar (asi se prueba
@@ -242,6 +245,7 @@ String horaActual() {
 const int MAX_RECORDATORIOS = 3;
 
 struct Recordatorio {
+  String id;      // para recordar si ya se marco como visto
   String hora;    // "08:30"
   String texto;   // "Aspirina x2", ya sin acentos (la fuente es ASCII)
   int faltan;     // minutos que faltaban en la ultima consulta
@@ -250,14 +254,88 @@ struct Recordatorio {
 Recordatorio recordatorios[MAX_RECORDATORIOS];
 int cantRecordatorios = 0;
 
+// Los que la persona ya marco como vistos con el boton, por id, para que la
+// proxima consulta no los vuelva a mostrar. Circular: cuando se llena pisa el
+// mas viejo, que para entonces ya paso.
+const int MAX_VISTOS = 10;
+String vistos[MAX_VISTOS];
+int proximoVisto = 0;
+
+bool fueVisto(const String& id) {
+  for (int i = 0; i < MAX_VISTOS; i++) {
+    if (vistos[i] == id) return true;
+  }
+  return false;
+}
+
+void marcarVisto(const String& id) {
+  vistos[proximoVisto] = id;
+  proximoVisto = (proximoVisto + 1) % MAX_VISTOS;
+}
+
+// Rotacion: se muestran de a uno, con letra grande, y van pasando en loop.
+int indiceRecordatorio = 0;
+unsigned long inicioRecordatorio = 0;
+
+// Texto grande que corre como una marquesina cuando no entra.
+//
+// La fuente que trae la libreria mide 6 px de ancho por caracter a tamano 1.
+// A tamano 3 son 18 px: entran 7 letras en los 128 px, asi que casi todo
+// corre. Es a proposito: es la letra mas grande que se puede leer de lejos, y
+// leer algo que pasa despacio es mas facil que leer letra chica.
+const int ANCHO = 128;
+const int PX_POR_SEGUNDO = 45;
+const unsigned long MS_POR_CUADRO = 50;
+
+int anchoTexto(const String& t, int tam) {
+  return t.length() * 6 * tam;
+}
+
+// Centrado si entra; si no, entra por la derecha y sale por la izquierda.
+// "desde" es cuando empezo a mostrarse, asi cada texto arranca del borde.
+void textoGrande(const String& t, int tam, int y, unsigned long desde) {
+  pantalla.setTextSize(tam);
+  int ancho = anchoTexto(t, tam);
+
+  if (ancho <= ANCHO) {
+    pantalla.setCursor((ANCHO - ancho) / 2, y);
+    pantalla.print(t);
+    return;
+  }
+
+  unsigned long recorrido = ancho + ANCHO;
+  unsigned long avance = (millis() - desde) * PX_POR_SEGUNDO / 1000;
+  pantalla.setCursor(ANCHO - (int)(avance % recorrido), y);
+  pantalla.print(t);
+}
+
+// Cuanto se muestra cada recordatorio antes de pasar al siguiente: una pasada
+// completa del texto, o 4 segundos si entra quieto.
+unsigned long duracionDe(const String& t, int tam) {
+  int ancho = anchoTexto(t, tam);
+  if (ancho <= ANCHO) return 4000;
+  return (unsigned long)(ancho + ANCHO) * 1000 / PX_POR_SEGUNDO;
+}
+
+void avanzarRotacion() {
+  if (cantRecordatorios == 0) return;
+  if (indiceRecordatorio >= cantRecordatorios) {
+    indiceRecordatorio = 0;
+    inicioRecordatorio = millis();
+  }
+  if (millis() - inicioRecordatorio >= duracionDe(recordatorios[indiceRecordatorio].texto, 3)) {
+    indiceRecordatorio = (indiceRecordatorio + 1) % cantRecordatorios;
+    inicioRecordatorio = millis();
+  }
+}
+
 // Un mensaje suelto, para el arranque.
 void mostrarMensaje(const char* texto) {
   if (!hayPantalla) return;
   pantalla.clearDisplay();
   pantalla.setTextColor(SSD1306_WHITE);
-  pantalla.setTextSize(1);
-  pantalla.setCursor(0, 28);
-  pantalla.println(texto);
+  pantalla.setTextWrap(false);
+  textoGrande(String(texto), 2, 24, millis());
   pantalla.display();
 }
 
@@ -266,66 +344,65 @@ void dibujarPantalla() {
 
   pantalla.clearDisplay();
   pantalla.setTextColor(SSD1306_WHITE);
+  pantalla.setTextWrap(false);
 
   // 1. Hay una dosis esperando el boton: eso tapa todo lo demas.
   if (esperandoBoton) {
+    textoGrande("TU DOSIS", 2, 4, 0);
+    String pedido = String("APRETA EL BOTON - SALE") + (cantidadPendiente == 1 ? " " : "N ")
+                  + cantidadPendiente + (cantidadPendiente == 1 ? " PASTILLA" : " PASTILLAS");
+    textoGrande(pedido, 3, 32, empezoAEsperar);
+
+  // 2. Recordatorios: de a uno y en loop, hasta que apreten el boton.
+  } else if (cantRecordatorios > 0) {
+    Recordatorio& r = recordatorios[indiceRecordatorio < cantRecordatorios ? indiceRecordatorio : 0];
+
+    // Arriba la hora del evento, grande.
     pantalla.setTextSize(2);
     pantalla.setCursor(0, 0);
-    pantalla.println("TU DOSIS");
+    pantalla.print(r.hora);
 
-    pantalla.setTextSize(1);
-    pantalla.setCursor(0, 26);
-    pantalla.print("Sale ");
-    pantalla.print(cantidadPendiente);
-    pantalla.println(cantidadPendiente == 1 ? " pastilla" : " pastillas");
-    pantalla.setCursor(0, 44);
-    pantalla.println("Apreta el boton");
-
-  // 2. Recordatorios: hasta 3, dos lineas cada uno.
-  } else if (cantRecordatorios > 0) {
-    pantalla.setTextSize(1);
-    pantalla.setCursor(0, 0);
-    pantalla.println("PROXIMO");
-
-    // La hora actual arriba a la derecha (5 caracteres de 6 px).
-    String hora = horaActual();
-    if (hora != "") {
-      pantalla.setCursor(128 - 30, 0);
-      pantalla.print(hora);
+    // "1/3" arriba a la derecha si hay mas de uno.
+    if (cantRecordatorios > 1) {
+      pantalla.setTextSize(1);
+      pantalla.setCursor(ANCHO - 18, 4);
+      pantalla.print(indiceRecordatorio + 1);
+      pantalla.print("/");
+      pantalla.print(cantRecordatorios);
     }
-    pantalla.drawFastHLine(0, 9, 128, SSD1306_WHITE);
 
-    for (int i = 0; i < cantRecordatorios; i++) {
-      int y = 12 + i * 17;
-      pantalla.setCursor(0, y);
-      pantalla.print(recordatorios[i].hora);
-      pantalla.print("  en ");
-      pantalla.print(recordatorios[i].faltan);
+    // En el medio el texto, lo mas grande posible.
+    textoGrande(r.texto, 3, 20, inicioRecordatorio);
+
+    // Abajo, alternando cada 3 s: cuanto falta y que hacer con el boton.
+    pantalla.setTextSize(1);
+    pantalla.setCursor(0, 54);
+    if ((millis() / 3000) % 2 == 0) {
+      pantalla.print("Faltan ");
+      pantalla.print(r.faltan);
       pantalla.print(" min");
-
-      // 21 caracteres es lo que entra en 128 px con la fuente de 6 px.
-      pantalla.setCursor(0, y + 8);
-      pantalla.print(recordatorios[i].texto.substring(0, 21));
+    } else {
+      pantalla.print("Boton = ya lo vi");
     }
 
-  // 3. Nada para mostrar: la hora grande y VOITOS abajo.
+  // 3. Nada para mostrar: la hora a todo el ancho y VOITOS abajo.
   } else {
     // Un OLED con la misma imagen fija durante dias se marca (burn-in). Correr
     // el contenido unos pixeles por minuto alcanza para repartir el desgaste.
-    int corrimiento = (millis() / 60000) % 6;
+    int corrimiento = (millis() / 60000) % 5;
     String hora = horaActual();
 
     if (hora != "") {
-      // Tamano 3: 18 px por caracter, "HH:MM" ocupa 90 de los 128.
-      pantalla.setTextSize(3);
-      pantalla.setCursor(16 + corrimiento, 8 + corrimiento);
+      // Tamano 4: 24 px por caracter, "HH:MM" ocupa 120 de los 128.
+      pantalla.setTextSize(4);
+      pantalla.setCursor(2 + corrimiento, 4 + corrimiento);
       pantalla.print(hora);
       pantalla.setTextSize(1);
-      pantalla.setCursor(46 + corrimiento, 44 + corrimiento);
+      pantalla.setCursor(46 + corrimiento, 46 + corrimiento);
       pantalla.print("VOITOS");
     } else {
-      pantalla.setTextSize(2);
-      pantalla.setCursor(28 + corrimiento, 20 + corrimiento);
+      pantalla.setTextSize(3);
+      pantalla.setCursor(10 + corrimiento, 20 + corrimiento);
       pantalla.print("VOITOS");
     }
   }
@@ -338,33 +415,34 @@ void dibujarPantalla() {
 // cuentas); esto es para que la persona mire la bandeja.
 void avisarFaltantes(int detectadas, int pedidas) {
   if (!hayPantalla) return;
-  pantalla.clearDisplay();
-  pantalla.setTextColor(SSD1306_WHITE);
-  pantalla.setTextSize(2);
-  pantalla.setCursor(0, 0);
-  pantalla.println("REVISAR");
-  pantalla.setTextSize(1);
-  pantalla.setCursor(0, 26);
-  pantalla.print("Salieron ");
-  pantalla.print(detectadas);
-  pantalla.print(" de ");
-  pantalla.println(pedidas);
-  pantalla.setCursor(0, 44);
-  pantalla.println("Mira la bandeja");
-  pantalla.display();
-  delay(5000);
+  unsigned long desde = millis();
+  String detalle = String("SALIERON ") + detectadas + " DE " + pedidas + " - MIRA LA BANDEJA";
+
+  while (millis() - desde < 6000) {
+    pantalla.clearDisplay();
+    pantalla.setTextColor(SSD1306_WHITE);
+    pantalla.setTextWrap(false);
+    textoGrande("REVISAR", 3, 2, desde);
+    textoGrande(detalle, 2, 40, desde);
+    pantalla.display();
+    delay(MS_POR_CUADRO);
+  }
 }
 
-// Lee la lista "recordatorios" de la respuesta del backend.
+// Lee la lista "recordatorios" de la respuesta del backend, salteando los que
+// ya se marcaron como vistos.
 //
 // ponytail: si una consulta falla (WiFi caido), queda la lista anterior y su
-// "en N min" se congela hasta la proxima consulta buena. Si molesta, descontar
-// los minutos con millis() entre consultas.
+// "faltan N min" se congela hasta la proxima consulta buena. Si molesta,
+// descontar los minutos con millis() entre consultas.
 void leerRecordatorios(JsonArray lista) {
   cantRecordatorios = 0;
 
   for (JsonObject r : lista) {
     if (cantRecordatorios >= MAX_RECORDATORIOS) break;
+    String id = String(r["id"] | "");
+    if (id != "" && fueVisto(id)) continue;
+    recordatorios[cantRecordatorios].id = id;
     recordatorios[cantRecordatorios].hora = String(r["hora"] | "");
     recordatorios[cantRecordatorios].texto = String(r["texto"] | "");
     recordatorios[cantRecordatorios].faltan = r["faltan_min"] | 0;
@@ -623,6 +701,10 @@ bool iniciarPantalla() {
       if (!hayDispositivoI2C(direcciones[j])) continue;
       if (!pantalla.begin(SSD1306_SWITCHCAPVCC, direcciones[j])) continue;
 
+      // 400 kHz: a 100 kHz cada cuadro tarda unos 100 ms y el texto que corre
+      // se ve a los saltos.
+      Wire.setClock(400000);
+
       Serial.print("Pantalla encontrada: SDA=");
       Serial.print(pines[i][0]);
       Serial.print(" SCL=");
@@ -644,8 +726,12 @@ bool iniciarPantalla() {
 void mostrarFase(const char* nombre, unsigned long ms) {
   Serial.print("[prueba] ");
   Serial.println(nombre);
-  dibujarPantalla();
-  delay(ms);
+  unsigned long desde = millis();
+  while (millis() - desde < ms) {
+    avanzarRotacion();
+    dibujarPantalla();
+    delay(MS_POR_CUADRO);
+  }
 }
 
 void probarPantallas() {
@@ -658,15 +744,18 @@ void probarPantallas() {
   mostrarFase("1. reposo: hora y VOITOS", 4000);
 
   cantRecordatorios = 3;
-  recordatorios[0] = { "16:00", "Kinesiologia", 12 };
-  recordatorios[1] = { "16:30", "Aspirina x2", 42 };
-  recordatorios[2] = { "17:15", "Turno con la doctora", 57 };
-  mostrarFase("2. recordatorios (de ejemplo)", 5000);
+  recordatorios[0] = { "demo-1", "16:00", "Kinesiologia", 12 };
+  recordatorios[1] = { "demo-2", "16:30", "Aspirina x2", 42 };
+  recordatorios[2] = { "demo-3", "17:15", "Turno con la doctora", 57 };
+  indiceRecordatorio = 0;
+  inicioRecordatorio = millis();
+  mostrarFase("2. recordatorios de ejemplo, de a uno y en loop", 20000);
 
   cantRecordatorios = 0;
   esperandoBoton = true;
+  empezoAEsperar = millis();
   cantidadPendiente = 2;
-  mostrarFase("3. dosis esperando el boton", 4000);
+  mostrarFase("3. dosis esperando el boton", 9000);
   esperandoBoton = false;
   cantidadPendiente = 1;
 
@@ -675,6 +764,7 @@ void probarPantallas() {
 
   Serial.println("=== FIN DE LA PRUEBA: ahora funciona en vivo con la app ===");
   Serial.println("Agenda una dosis o una actividad con recordatorio y espera.");
+  Serial.println("Con un recordatorio en pantalla, BOOT lo marca como visto.");
   Serial.println("Cuando aparezca TU DOSIS, apreta el boton BOOT de la placa.");
   Serial.println();
   dibujarPantalla();
@@ -775,6 +865,7 @@ void setup() {
 
 // Para redibujar el reloj cuando cambia el minuto.
 String ultimaHoraDibujada = "";
+unsigned long ultimoCuadro = 0;
 
 void loop() {
   // Un corte del sensor sin dosis en curso: se deja constancia y nada mas.
@@ -788,6 +879,27 @@ void loop() {
   if (hora != ultimaHoraDibujada) {
     ultimaHoraDibujada = hora;
     dibujarPantalla();
+  }
+
+  // El texto que corre y la rotacion de recordatorios necesitan redibujar
+  // seguido. En reposo (solo la hora) no hace falta.
+  if ((esperandoBoton || cantRecordatorios > 0) && millis() - ultimoCuadro >= MS_POR_CUADRO) {
+    ultimoCuadro = millis();
+    avanzarRotacion();
+    dibujarPantalla();
+  }
+
+  // Boton sin dosis esperando: "ya lo vi". Marca como vistos los
+  // recordatorios de la pantalla y vuelve a la hora. Si no habia ninguno, la
+  // apretada se descarta (no puede quedar guardada para una dosis futura).
+  if (!esperandoBoton && botonApretado) {
+    botonApretado = false;
+    if (cantRecordatorios > 0) {
+      for (int i = 0; i < cantRecordatorios; i++) marcarVisto(recordatorios[i].id);
+      cantRecordatorios = 0;
+      Serial.println("Recordatorios marcados como vistos.");
+      dibujarPantalla();
+    }
   }
 
   // Si se cayo el WiFi, reconectar. La placa puede quedar dias encendida.

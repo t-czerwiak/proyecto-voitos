@@ -82,20 +82,23 @@ Pantalla de 0.96" SSD1306, 128x64, por I2C (cuatro pines: VCC, GND, SCL, SDA).
 **SDA no va al 21** (el pin I2C por defecto) porque el 21 ya es el botón. Si se
 cablea en otros pines, se cambian `OLED_SDA` y `OLED_SCL` arriba del sketch.
 
-Qué muestra:
+Qué muestra, siempre con **la letra más grande que entra** (pensado para
+una persona mayor). Lo que no entra en el ancho corre de derecha a izquierda,
+como una marquesina:
 
-- **Hay una dosis esperando el botón:** "TU DOSIS", cuántas pastillas salen y
-  "Apreta el boton". Tapa todo lo demás.
-- **Hay recordatorios:** hasta 3, con la hora, cuánto falta y el texto. Los
-  manda el backend en la misma consulta de cada 30 segundos
-  (`recordatorios` en `GET /api/sensor/pendiente`): el usuario los pide desde
-  la app al agendar una dosis o crear una actividad, y elige cuánto antes
-  aparecen. La placa no calcula horarios, solo dibuja la lista.
-- **Nada:** la **hora actual** grande y "VOITOS" abajo, corridos unos píxeles
-  por minuto para que el OLED no se marque con una imagen fija. La hora sale
+- **Nada pendiente:** la **hora actual** a todo el ancho y "VOITOS" abajo,
+  corridos unos píxeles por minuto para que el OLED no se marque. La hora sale
   de internet (NTP) apenas hay WiFi; hasta que llega, se ve solo "VOITOS".
-- **El sensor no vio caer todas:** "REVISAR, salieron X de Y" durante 5
-  segundos (ver abajo).
+- **Recordatorios:** **de a uno y en loop**. Arriba la hora del evento, en el
+  medio el texto grande corriendo, y abajo alterna "Faltan N min" con
+  "Boton = ya lo vi". Si hay varios muestra "1/3" y van pasando solos.
+  **Apretar el botón los marca como vistos** y la pantalla vuelve a la hora;
+  no vuelven a aparecer. Si nadie aprieta, se van solos a la hora del evento.
+- **Hay una dosis esperando el botón:** "TU DOSIS" y abajo, corriendo, "APRETA
+  EL BOTON - SALEN 2 PASTILLAS". Tapa todo lo demás; después de dispensar
+  vuelve a lo que estaba.
+- **El sensor no vio caer todas:** "REVISAR" y "SALIERON X DE Y - MIRA LA
+  BANDEJA", 6 segundos.
 
 **Si la pantalla no está conectada el pastillero anda igual:** el monitor serie
 dice "No se encontro la pantalla OLED" y sigue. Si está conectada y no prende,
@@ -259,9 +262,9 @@ con la app de verdad sin tener el resto del hardware armado.
 
 **Qué hace:**
 
-1. Al arrancar recorre **todas las pantallas**, unos segundos cada una, y las
-   anuncia en el monitor serie (115200):
-   reposo con la hora → recordatorios de ejemplo → TU DOSIS → REVISAR.
+1. Al arrancar recorre **todas las pantallas** y las anuncia en el monitor
+   serie (115200): reposo con la hora → tres recordatorios de ejemplo rotando
+   (20 s) → TU DOSIS → REVISAR.
 2. Después queda **en vivo** contra el backend de producción: lo que se agende
    en https://voitos.vercel.app aparece en la pantalla.
 3. El botón de dispensar es el **BOOT** de la placa, así que no hace falta el
@@ -276,9 +279,14 @@ con la app de verdad sin tener el resto del hardware armado.
 3. Abrir `prueba-display.ino`, placa **DOIT ESP32 DEVKIT V1**, subir.
 4. Abrir el monitor serie a 115200 y mirar la pantalla.
 
-Cableado: VCC a 3V3, GND a GND, y los otros dos a **D22 y D23**. No importa
-cuál de los dos va a SDA: si están cruzados, lo detecta solo y lo avisa en el
+Cableado de la placa de prueba: VCC a 3V3, GND a GND, SCL a **D22** y SDA a
+**D21** (acá el botón es el BOOT, así que el 21 está libre; en el pastillero
+SDA va al 23). Si SDA y SCL quedaron cruzados lo detecta solo y lo avisa en el
 monitor serie. También prueba las direcciones 0x3C y 0x3D.
+
+**La red WiFi va en `credenciales.h`**, en la carpeta `prueba-display/`
+(copiar `credenciales.h.ejemplo`). No escribirla adentro del `.ino`: el
+repositorio es público y queda a la vista de cualquiera.
 
 **Para ver cada fase con la app:**
 
@@ -288,10 +296,12 @@ monitor serie. También prueba las direcciones 0x3C y 0x3D.
 | Recordatorio de dosis | Agendar una dosis para dentro de unos minutos con recordatorio |
 | TU DOSIS | Esperar a la hora de esa dosis (la placa consulta cada 30 s) |
 | Confirmar | Apretar BOOT: la dosis queda dispensada en la app |
+| Ya lo vi | Con un recordatorio en pantalla, apretar BOOT: vuelve a la hora y ese recordatorio no aparece más |
 | Reposo | Sin nada agendado: la hora grande y VOITOS |
 
 Si la pantalla queda negra: el monitor serie dice "No se encontro la pantalla
 OLED". Revisar VCC/GND y que los dos cables estén en D22 y D23.
 
 **Ojo:** es una copia del sketch principal. Si el principal cambia, se
-regenera copiándolo y poniendo `#define MODO_PRUEBA 1`; no editarla a mano.
+regenera copiándolo, con `#define MODO_PRUEBA 1` y `OLED_SDA = 21`; no
+editarla a mano.

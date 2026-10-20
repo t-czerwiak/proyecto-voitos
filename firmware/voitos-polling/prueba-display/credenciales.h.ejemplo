@@ -1,0 +1,5 @@
+// Copiar este archivo como credenciales.h (en esta misma carpeta) y completar.
+// credenciales.h NO se sube a git: el repositorio es publico.
+
+const char* ssid = "PONER_LA_RED";
+const char* password = "PONER_LA_CLAVE";
