@@ -177,6 +177,21 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
   };
 };
 
+// Hasta cuantos minutos despues de su hora se acepta confirmar una dosis.
+//
+// La dosis se ofrece durante 15 minutos (MINUTOS_VENTANA) y el firmware espera
+// el boton hasta 15 minutos mas desde que la recibio: en el peor caso apretan a
+// los 30. Lo que sobra cubre servo, reintentos de red y relojes desfasados.
+const MINUTOS_PARA_CONFIRMAR = 45;
+
+// Minutos entre la hora de la dosis (guardada en hora argentina) y ahora.
+// Negativo si todavia no llego.
+const minutosDesdeLaDosis = (dia: string, hora: number, minuto: number) => {
+  const dd = (n: number) => String(n).padStart(2, "0");
+  const momento = Date.parse(`${dia}T${dd(hora)}:${dd(minuto)}:00-03:00`);
+  return (Date.now() - momento) / 60000;
+};
+
 export const createConfirmacion = async (body: Confirmacion) => {
   // Se trae de una sola consulta todo lo que hace falta despues: la cantidad
   // pedida, la pastilla y el cuidador a quien avisarle.
@@ -196,6 +211,18 @@ export const createConfirmacion = async (body: Confirmacion) => {
 
   if (!horario) {
     throw new ErrorHttp(404, "Horario no encontrado");
+  }
+
+  // La dosis tiene que estar en su horario. Es la mitad del backend del
+  // "triple chequeo": el pastillero solo confirma lo que el backend le ofrecio
+  // en /pendiente, pero si por cualquier motivo llega la confirmacion de una
+  // dosis de manana, o de una de hace horas, no se marca nada.
+  const minutos = minutosDesdeLaDosis(horario.dia, horario.hora, horario.minuto);
+  if (minutos < 0) {
+    throw new ErrorHttp(409, "Esa dosis todavia no es: no se puede confirmar antes de su hora");
+  }
+  if (minutos > MINUTOS_PARA_CONFIRMAR) {
+    throw new ErrorHttp(409, "Esa dosis ya paso hace mucho para confirmarla");
   }
 
   // Marcar horario como dispensado, SOLO si todavia no lo estaba.
@@ -225,6 +252,8 @@ export const createConfirmacion = async (body: Confirmacion) => {
       dispositivo_id: body.dispositivo_id,
       bateria: body.bateria,
       cantidad,
+      // Cuantas vio caer el sensor. null si el firmware no tiene sensor.
+      detectadas: body.detectadas ?? null,
       // De quien era la dosis. Se guarda aca y no se deduce despues para que el
       // historial no dependa de que la cadena horarios -> pastillas -> usuarios
       // siga entera.
