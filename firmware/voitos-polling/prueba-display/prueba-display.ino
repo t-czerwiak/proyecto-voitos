@@ -51,10 +51,8 @@
 #include <Adafruit_SSD1306.h>
 #include <time.h>
 
-// La red WiFi va en credenciales.h, al lado de este archivo, que NO se sube
-// (el repositorio es publico). Copiar credenciales.h.ejemplo como
-// credenciales.h y completar la red y la clave.
-#include "credenciales.h"
+const char* ssid = "Proyecto L5";
+const char* password = "preguntaleamaxi";
 
 // Modo prueba: en el arranque muestra todas las pantallas del display una por
 // una, y usa el boton BOOT de la placa como boton de dispensar (asi se prueba
@@ -77,7 +75,7 @@ const int BUTTON_PIN = MODO_PRUEBA ? 0 : 21;
 //
 // Los pines I2C por defecto de la ESP32 son SDA=21 y SCL=22, pero el 21 ya es
 // el boton. Por eso SDA va al 23. Si se cablea en otros pines, se cambia aca.
-const int OLED_SDA = 23;
+const int OLED_SDA = 21;
 const int OLED_SCL = 22;
 
 // La mayoria de estos modulos vienen en 0x3C. Si la pantalla no prende y el
