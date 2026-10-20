@@ -4,6 +4,9 @@
 # El repositorio es publico, asi que esto no es prolijidad: es lo que evita que
 # un "git add -A" distraido publique un token o una clave.
 
+# La red WiFi del pastillero (ver credenciales.h.ejemplo)
+credenciales.h
+
 # Variables de entorno, en cualquiera de sus formas
 .env
 .env.*

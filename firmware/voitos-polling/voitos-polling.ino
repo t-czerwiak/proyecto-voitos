@@ -32,8 +32,18 @@
 #include <Adafruit_SSD1306.h>
 #include <time.h>
 
-const char* ssid = "Proyecto L5";
-const char* password = "preguntaleamaxi";
+// La red WiFi va en credenciales.h, al lado de este archivo, que NO se sube
+// (el repositorio es publico). Copiar credenciales.h.ejemplo como
+// credenciales.h y completar la red y la clave.
+#include "credenciales.h"
+
+// Modo prueba: en el arranque muestra todas las pantallas del display una por
+// una, y usa el boton BOOT de la placa como boton de dispensar (asi se prueba
+// sin tener el pulsador cableado). No se toca aca: se prende al compilar con
+//   --build-property compiler.cpp.extra_flags=-DMODO_PRUEBA=1
+#ifndef MODO_PRUEBA
+#define MODO_PRUEBA 0
+#endif
 
 // El backend ahora vive en internet, asi que esto ya NO cambia con la red.
 // Se configura una sola vez y sirve en cualquier lado.
@@ -43,7 +53,8 @@ Servo servo;
 
 const int SERVO_PIN = 18;
 const int BUZZER_PIN = 19;
-const int BUTTON_PIN = 21;
+// En modo prueba, el BOOT de la DevKit (GPIO 0).
+const int BUTTON_PIN = MODO_PRUEBA ? 0 : 21;
 
 // Display OLED 0.96" (SSD1306, 128x64, I2C).
 //
@@ -573,6 +584,89 @@ bool confirmarDispensacion(int cantidadDispensada) {
 
 
 //-----------------------------
+// Arranque del display
+//
+// Prueba primero los pines configurados y despues invertidos: SDA y SCL
+// cruzados es el error de cableado mas comun y asi no hace falta recablear.
+// En cada orden prueba las dos direcciones en que vienen estos modulos.
+//-----------------------------
+
+bool hayDispositivoI2C(uint8_t direccion) {
+  Wire.beginTransmission(direccion);
+  return Wire.endTransmission() == 0;
+}
+
+bool iniciarPantalla() {
+  const int pines[2][2] = { { OLED_SDA, OLED_SCL }, { OLED_SCL, OLED_SDA } };
+  const uint8_t direcciones[2] = { OLED_DIRECCION, OLED_DIRECCION == 0x3C ? 0x3D : 0x3C };
+
+  for (int i = 0; i < 2; i++) {
+    Wire.end();
+    Wire.begin(pines[i][0], pines[i][1]);
+
+    for (int j = 0; j < 2; j++) {
+      if (!hayDispositivoI2C(direcciones[j])) continue;
+      if (!pantalla.begin(SSD1306_SWITCHCAPVCC, direcciones[j])) continue;
+
+      Serial.print("Pantalla encontrada: SDA=");
+      Serial.print(pines[i][0]);
+      Serial.print(" SCL=");
+      Serial.print(pines[i][1]);
+      Serial.print(" direccion=0x");
+      Serial.println(direcciones[j], HEX);
+      if (i == 1) Serial.println("  (los pines estan cruzados respecto de OLED_SDA/OLED_SCL, anda igual)");
+      return true;
+    }
+  }
+  return false;
+}
+
+
+//-----------------------------
+// Modo prueba: todas las pantallas del display, una por una
+//-----------------------------
+
+void mostrarFase(const char* nombre, unsigned long ms) {
+  Serial.print("[prueba] ");
+  Serial.println(nombre);
+  dibujarPantalla();
+  delay(ms);
+}
+
+void probarPantallas() {
+  Serial.println();
+  Serial.println("=== MODO PRUEBA: recorriendo las pantallas ===");
+
+  // Esperar unos segundos la hora de internet, para que se vea el reloj.
+  for (int i = 0; i < 10 && horaActual() == ""; i++) delay(500);
+
+  mostrarFase("1. reposo: hora y VOITOS", 4000);
+
+  cantRecordatorios = 3;
+  recordatorios[0] = { "16:00", "Kinesiologia", 12 };
+  recordatorios[1] = { "16:30", "Aspirina x2", 42 };
+  recordatorios[2] = { "17:15", "Turno con la doctora", 57 };
+  mostrarFase("2. recordatorios (de ejemplo)", 5000);
+
+  cantRecordatorios = 0;
+  esperandoBoton = true;
+  cantidadPendiente = 2;
+  mostrarFase("3. dosis esperando el boton", 4000);
+  esperandoBoton = false;
+  cantidadPendiente = 1;
+
+  Serial.println("[prueba] 4. el sensor vio menos de las pedidas");
+  avisarFaltantes(1, 2);
+
+  Serial.println("=== FIN DE LA PRUEBA: ahora funciona en vivo con la app ===");
+  Serial.println("Agenda una dosis o una actividad con recordatorio y espera.");
+  Serial.println("Cuando aparezca TU DOSIS, apreta el boton BOOT de la placa.");
+  Serial.println();
+  dibujarPantalla();
+}
+
+
+//-----------------------------
 // SETUP
 //-----------------------------
 
@@ -603,8 +697,7 @@ void setup() {
   servo.write(0);
 
   // Display. Si no aparece, se sigue sin pantalla.
-  Wire.begin(OLED_SDA, OLED_SCL);
-  hayPantalla = pantalla.begin(SSD1306_SWITCHCAPVCC, OLED_DIRECCION);
+  hayPantalla = iniciarPantalla();
   if (hayPantalla) {
     mostrarMensaje("Conectando WiFi...");
   } else {
@@ -653,6 +746,8 @@ void setup() {
   Serial.print(MS_ENTRE_CONSULTAS / 1000);
   Serial.println(" segundos.");
   Serial.println();
+
+  if (MODO_PRUEBA) probarPantallas();
 
   // La primera consulta sale enseguida, sin esperar el intervalo completo.
   ultimaConsulta = millis() - MS_ENTRE_CONSULTAS;

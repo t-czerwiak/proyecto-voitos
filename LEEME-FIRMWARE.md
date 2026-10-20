@@ -19,7 +19,8 @@ git show ac56ae4:firmware/voitos-push/voitos-push.ino
 
 ```
 firmware/
-  voitos-polling/     ← este, y no hay otro
+  voitos-polling/          ← el que va al pastillero
+    prueba-display/        ← el mismo, en modo prueba (ver más abajo)
 ```
 
 **No trae contraseñas.** Donde dice `PONER_LA_RED` y `PONER_LA_CLAVE` hay que
@@ -45,12 +46,16 @@ esperaba que el backend le pegara. Eso obligaba a que la computadora y el
 pastillero estuvieran en la misma red WiFi, y había que reflashear con la IP
 nueva cada vez que se cambiaba de lugar.
 
-Para usarlo, completar arriba del archivo:
+Para usarlo, la red WiFi va en un archivo aparte, **`credenciales.h`**, al
+lado del `.ino`. Copiar `credenciales.h.ejemplo` con ese nombre y completar:
 
 ```cpp
 const char* ssid = "PONER_LA_RED";
 const char* password = "PONER_LA_CLAVE";
 ```
+
+`credenciales.h` está en el `.gitignore`: nunca se sube. Antes la red y la
+clave estaban escritas adentro del sketch, y el repositorio es público.
 
 El `BACKEND` ya está puesto y no se toca: apunta al servidor en internet.
 
@@ -244,3 +249,49 @@ Arriba del sketch:
 - `MS_ANTIRREBOTE_SENSOR` (80 ms) y `MS_ESPERA_CAIDA` (1 s) son para calibrar
   con el hardware real: si cuenta una pastilla dos veces, subir el primero; si
   no llega a ver la última, subir el segundo.
+
+---
+
+## Prueba del display (`prueba-display/`)
+
+Es el mismo firmware con el modo prueba prendido, para probar la pantalla
+con la app de verdad sin tener el resto del hardware armado.
+
+**Qué hace:**
+
+1. Al arrancar recorre **todas las pantallas**, unos segundos cada una, y las
+   anuncia en el monitor serie (115200):
+   reposo con la hora → recordatorios de ejemplo → TU DOSIS → REVISAR.
+2. Después queda **en vivo** contra el backend de producción: lo que se agende
+   en https://voitos.vercel.app aparece en la pantalla.
+3. El botón de dispensar es el **BOOT** de la placa, así que no hace falta el
+   pulsador. Sin servo conectado no sale nada, pero la dosis se confirma igual
+   y queda registrada en la app.
+
+**Cómo usarlo:**
+
+1. Instalar las librerías de arriba (ArduinoJson y Adafruit SSD1306).
+2. En `firmware/voitos-polling/prueba-display/`, copiar
+   `credenciales.h.ejemplo` como `credenciales.h` y completar la red.
+3. Abrir `prueba-display.ino`, placa **DOIT ESP32 DEVKIT V1**, subir.
+4. Abrir el monitor serie a 115200 y mirar la pantalla.
+
+Cableado: VCC a 3V3, GND a GND, y los otros dos a **D22 y D23**. No importa
+cuál de los dos va a SDA: si están cruzados, lo detecta solo y lo avisa en el
+monitor serie. También prueba las direcciones 0x3C y 0x3D.
+
+**Para ver cada fase con la app:**
+
+| Fase | Qué hacer en la app |
+| --- | --- |
+| Recordatorio de actividad | Calendario → un día → agregar actividad, hora dentro de unos minutos, "Recordatorio en la pantalla del pastillero: Sí", 5 o 10 minutos antes |
+| Recordatorio de dosis | Agendar una dosis para dentro de unos minutos con recordatorio |
+| TU DOSIS | Esperar a la hora de esa dosis (la placa consulta cada 30 s) |
+| Confirmar | Apretar BOOT: la dosis queda dispensada en la app |
+| Reposo | Sin nada agendado: la hora grande y VOITOS |
+
+Si la pantalla queda negra: el monitor serie dice "No se encontro la pantalla
+OLED". Revisar VCC/GND y que los dos cables estén en D22 y D23.
+
+**Ojo:** es una copia del sketch principal. Si el principal cambia, se
+regenera copiándolo y poniendo `#define MODO_PRUEBA 1`; no editarla a mano.
