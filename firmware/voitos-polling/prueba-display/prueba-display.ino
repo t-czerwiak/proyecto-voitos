@@ -291,8 +291,17 @@ int anchoTexto(const String& t, int tam) {
   return t.length() * 6 * tam;
 }
 
-// Centrado si entra; si no, entra por la derecha y sale por la izquierda.
-// "desde" es cuando empezo a mostrarse, asi cada texto arranca del borde.
+// Antes de empezar a correr, el texto se queda quieto este rato con el
+// principio a la vista, para que se alcance a leer la primera palabra.
+const unsigned long MS_PAUSA_MARQUESINA = 1200;
+
+// Centrado si entra; si no, corre de derecha a izquierda en loop.
+//
+// Arranca con el principio del texto pegado al borde izquierdo, NO afuera de
+// la pantalla: un mensaje que se dibuja una sola vez (como "Conectando WiFi")
+// quedaba invisible porque su primer cuadro tenia todo el texto a la derecha
+// del borde. Lo encontro la simulacion en Wokwi.
+// "desde" es cuando empezo a mostrarse, asi cada texto arranca del principio.
 void textoGrande(const String& t, int tam, int y, unsigned long desde) {
   pantalla.setTextSize(tam);
   int ancho = anchoTexto(t, tam);
@@ -303,9 +312,15 @@ void textoGrande(const String& t, int tam, int y, unsigned long desde) {
     return;
   }
 
+  unsigned long pasado = millis() - desde;
+  unsigned long avance = pasado > MS_PAUSA_MARQUESINA
+      ? (pasado - MS_PAUSA_MARQUESINA) * PX_POR_SEGUNDO / 1000
+      : 0;
+
+  // Sale por la izquierda y vuelve a entrar por la derecha: con avance 0 el
+  // texto esta en x = 0.
   unsigned long recorrido = ancho + ANCHO;
-  unsigned long avance = (millis() - desde) * PX_POR_SEGUNDO / 1000;
-  pantalla.setCursor(ANCHO - (int)(avance % recorrido), y);
+  pantalla.setCursor(ANCHO - (int)((avance + ANCHO) % recorrido), y);
   pantalla.print(t);
 }
 
@@ -314,7 +329,8 @@ void textoGrande(const String& t, int tam, int y, unsigned long desde) {
 unsigned long duracionDe(const String& t, int tam) {
   int ancho = anchoTexto(t, tam);
   if (ancho <= ANCHO) return 4000;
-  return (unsigned long)(ancho + ANCHO) * 1000 / PX_POR_SEGUNDO;
+  // La pausa inicial y hasta que la ultima letra sale por la izquierda.
+  return MS_PAUSA_MARQUESINA + (unsigned long)ancho * 1000 / PX_POR_SEGUNDO;
 }
 
 void avanzarRotacion() {
