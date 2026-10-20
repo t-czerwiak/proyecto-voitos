@@ -14,6 +14,9 @@ export const ConfirmacionSchema = z.object({
     .min(1, "cantidad debe ser al menos 1")
     .max(20, "cantidad no puede ser mayor a 20")
     .optional(),
+  // Cuantas pastillas vio caer el sensor del pastillero. Opcional: los
+  // firmwares sin sensor no lo mandan.
+  detectadas: z.number().int().min(0).max(20, "detectadas no puede ser mayor a 20").optional(),
 });
 
 export type Confirmacion = z.infer<typeof ConfirmacionSchema>;

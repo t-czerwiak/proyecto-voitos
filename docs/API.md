@@ -380,9 +380,15 @@ solo hace sonar el buzzer y queda esperando el botón.
   "dispositivo_id": "ESP32-001",
   "horario_id": "uuid-del-horario",
   "bateria": 85,
-  "cantidad": 2
+  "cantidad": 2,
+  "detectadas": 2
 }
 ```
+
+`detectadas` (opcional, 0 a 20) es cuántas pastillas vio caer el **sensor** del
+pastillero. Queda en `dispensaciones.detectadas`; si el firmware no tiene
+sensor no lo manda y se guarda `null` (no 0, que significaría "el sensor no vio
+ninguna"). Comparar `cantidad` con `detectadas` dice si salió todo.
 
 Al confirmar, el backend:
 
@@ -410,6 +416,16 @@ dos y el stock bajaba dos veces.
 | 201 | Dispensación registrada |
 | 404 | El `horario_id` no existe |
 | 409 | Esa dosis ya estaba registrada como dispensada |
+| 409 | La dosis todavía no es (su hora es futura) |
+| 409 | La dosis pasó hace más de 45 minutos |
+
+**La confirmación tiene que llegar en el horario de la dosis**: desde su hora
+hasta 45 minutos después. La dosis se ofrece 15 minutos y el firmware espera
+el botón hasta 15 más; el resto es margen. Es la parte del backend del triple
+chequeo (dosis programada en su horario, botón, sensor): aunque llegue una
+confirmación de una dosis de mañana o de hace horas, no se marca nada. El
+detalle del orden del lado de la placa está en `LEEME-FIRMWARE.md` de la rama
+`naiderman/hardware`.
 
 El firmware toma como éxito solo el 201; un 409 lo imprime en el monitor serie
 como "Fallo la confirmacion" sin hacer nada más.
@@ -733,7 +749,7 @@ Supabase (PostgreSQL), proyecto `pshejdspqqhuhyjbzslx`.
 | `usuarios` | `id` (= id de Supabase Auth), `nombre`, `apellido`, `mail`, `fecha_nacimiento`, `rol` (`cuidador`/`admin`), `verificado`, `token_verificacion` + `token_expira`, `token_reset` + `token_reset_expira` |
 | `pastillas` | `id`, `usuario_id`, `nombre`, `tipo` |
 | `horarios` | `id`, `pastilla_id`, `dia`, `hora`, `minuto`, `cantidad` (1-20), `dispensado`, `senal_enviada`, `notificado`, `recordatorio_min` |
-| `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `timestamp` |
+| `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `detectadas` (0-20 o null, lo que vio el sensor), `timestamp` |
 | `modulos` | `id`, `numero`, `nombre`, `dispositivo_id`, `pastilla_id` (null = vacío), `cantidad_actual`. Único por (`dispositivo_id`, `numero`) |
 | `contactos_emergencia` | `id`, `usuario_id`, `nombre`, `apellido`, `numero`, `dni` |
 | `actividades` | `id`, `usuario_id`, `nombre`, `fecha`, `hora`, `tipo`, `dias`, `recordatorio_min` |
