@@ -302,6 +302,7 @@ const correr = async () => {
     const r = (await recordatoriosAhora()).find((x) => x.texto === "Ibuprofeno x3");
     esperar(r, "no aparece la dosis en los recordatorios");
     esperar(r.hora === t.hhmm && r.tipo === "dosis", `vino ${JSON.stringify(r)}`);
+    esperar(r.id === json.data.id, "el recordatorio de una dosis tiene que traer el id del horario");
   });
 
   await prueba("un recordatorio todavia no aparece si falta mas que su anticipacion", async () => {

@@ -287,8 +287,8 @@ En los dos casos la dispensación se registra igual: por
     "modulo": 1,
     "disponibles": 27,
     "recordatorios": [
-      { "hora": "16:00", "texto": "Kinesiologia", "tipo": "actividad", "faltan_min": 12 },
-      { "hora": "16:30", "texto": "Aspirina x2", "tipo": "dosis", "faltan_min": 42 }
+      { "id": "uuid-actividad@2026-10-20", "hora": "16:00", "texto": "Kinesiologia", "tipo": "actividad", "faltan_min": 12 },
+      { "id": "uuid-horario", "hora": "16:30", "texto": "Aspirina x2", "tipo": "dosis", "faltan_min": 42 }
     ]
   }
 }
@@ -320,6 +320,9 @@ la toma la alarma.
   anticipación aparezca a las 23:30.
 - Una dosis ya dispensada no se muestra.
 - No se filtran por cuenta: en el MVP todas comparten el pastillero.
+- `id` sirve para que la placa recuerde cuáles ya se marcaron como **vistos**
+  con el botón y no los vuelva a mostrar. En una dosis es el id del horario; en
+  una actividad, `id@dia`, porque una rutina vuelve a avisar cada día.
 
 Código: `services/recordatorios.service.ts`.
 
