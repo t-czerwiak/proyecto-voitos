@@ -12,13 +12,17 @@ import { getHoraArgentina, aMinutosDelDia, sumarUnDia } from "../utils/tiempo";
 // pastillero y todas las cuentas lo comparten (ver docs/API.md, Modulos).
 
 export interface Recordatorio {
+  // Para que la placa recuerde cuales ya marco como vistos con el boton y no
+  // los vuelva a mostrar. Dosis: el id del horario. Actividad: su id y el dia,
+  // porque una rutina se repite y cada dia es un recordatorio nuevo.
+  id: string;
   hora: string; // "08:30"
   texto: string; // "Aspirina x2" o el nombre de la actividad
   tipo: "dosis" | "actividad";
   faltan_min: number;
 }
 
-// Lo que entra en la pantalla de 128x64 junto al encabezado. Se corta aca y
+// Cuantos va rotando la pantalla, de a uno y con letra grande. Se corta aca y
 // no en la placa para que el JSON que parsea la ESP32 sea chico.
 const MAXIMO = 3;
 
@@ -45,13 +49,13 @@ export const getRecordatorios = async (): Promise<Recordatorio[]> => {
   const [dosis, actividades] = await Promise.all([
     supabase
       .from("horarios")
-      .select("dia, hora, minuto, cantidad, recordatorio_min, pastillas ( nombre )")
+      .select("id, dia, hora, minuto, cantidad, recordatorio_min, pastillas ( nombre )")
       .in("dia", [hoy, manana])
       .eq("dispensado", false)
       .not("recordatorio_min", "is", null),
     supabase
       .from("actividades")
-      .select("nombre, fecha, hora, tipo, dias, recordatorio_min")
+      .select("id, nombre, fecha, hora, tipo, dias, recordatorio_min")
       .not("recordatorio_min", "is", null),
   ]);
 
@@ -67,6 +71,7 @@ export const getRecordatorios = async (): Promise<Recordatorio[]> => {
   for (const d of dosis.data ?? []) {
     const nombre = (d as any).pastillas?.nombre ?? "Pastilla";
     candidatos.push({
+      id: d.id,
       hora: `${dosDigitos(d.hora)}:${dosDigitos(d.minuto)}`,
       texto: d.cantidad > 1 ? `${nombre} x${d.cantidad}` : nombre,
       tipo: "dosis",
@@ -86,6 +91,7 @@ export const getRecordatorios = async (): Promise<Recordatorio[]> => {
 
     for (const dia of dias) {
       candidatos.push({
+        id: `${a.id}@${dia}`,
         hora: a.hora,
         texto: a.nombre,
         tipo: "actividad",
