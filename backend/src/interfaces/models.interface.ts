@@ -46,6 +46,7 @@ export interface Dispensacion {
   dispositivo_id: string;
   bateria: number;
   cantidad: number; // cuantas pastillas se dispensaron realmente (1 a 20)
+  detectadas: number | null; // cuantas vio caer el sensor (null = sin sensor)
   timestamp: string;
 }
 

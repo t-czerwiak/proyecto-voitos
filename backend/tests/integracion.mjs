@@ -169,37 +169,73 @@ const correr = async () => {
 
   console.log("\n=== CONFIRMACION DEL PASTILLERO ===");
 
+  // La hora argentina dentro de N minutos, como la guarda la base.
+  const enArgentina = (minutos) => {
+    const d = new Date(Date.now() - 3 * 3600_000 + minutos * 60_000);
+    return {
+      dia: d.toISOString().split("T")[0],
+      hora: d.getUTCHours(),
+      minuto: d.getUTCMinutes(),
+      hhmm: d.toISOString().slice(11, 16),
+      letra: ["D", "L", "M", "X", "J", "V", "S"][d.getUTCDay()],
+    };
+  };
+  // Crea una dosis a N minutos de ahora (negativo = ya paso). La confirmacion
+  // solo se acepta en el horario de la dosis, asi que cada prueba arma la suya.
+  const dosisA = async (minutos) => {
+    const t = enArgentina(minutos);
+    const { json } = await pedir("/api/horarios", {
+      metodo: "POST",
+      cuerpo: { pastilla_id: pastillaId, dia: t.dia, hora: t.hora, minuto: t.minuto },
+    });
+    return json.data.id;
+  };
+
   // La pastilla de esta suite no tiene modulo cargado, asi que confirmar no
   // le toca el stock al pastillero de verdad.
-  const confirmar = (horario_id) =>
+  const confirmar = (horario_id, extra = {}) =>
     pedir("/api/sensor/confirmacion", {
       metodo: "POST",
       conToken: false,
-      cuerpo: { dispositivo_id: "ESP32-TEST", horario_id, bateria: 100, cantidad: 2 },
+      cuerpo: { dispositivo_id: "ESP32-TEST", horario_id, bateria: 100, cantidad: 2, ...extra },
     });
 
-  await prueba("confirmar una dosis la registra", async () => {
-    const { status, json } = await confirmar(horarioId);
+  let confirmada = null;
+
+  await prueba("confirmar una dosis la registra, con lo que vio el sensor", async () => {
+    confirmada = await dosisA(-2);
+    const { status, json } = await confirmar(confirmada, { detectadas: 1 });
     esperar(status === 201, `esperaba 201, vino ${status}: ${JSON.stringify(json.error)}`);
+    esperar(json.data.detectadas === 1, `detectadas quedo en ${json.data.detectadas}`);
   });
 
   await prueba("confirmar dos veces la misma dosis da 409", async () => {
-    const { status } = await confirmar(horarioId);
+    const { status } = await confirmar(confirmada);
     esperar(status === 409, `esperaba 409, vino ${status}`);
   });
 
   await prueba("dos confirmaciones simultaneas registran una sola", async () => {
-    const { json } = await pedir("/api/horarios", {
-      metodo: "POST",
-      cuerpo: { pastilla_id: pastillaId, dia: hoy, hora: 10, minuto: 0 },
-    });
-    const otro = json.data.id;
+    const otro = await dosisA(-1);
     const resultados = await Promise.all([confirmar(otro), confirmar(otro)]);
     const estados = resultados.map((r) => r.status).sort();
     esperar(estados.join() === "201,409", `esperaba 201 y 409, vinieron ${estados.join(" y ")}`);
 
     const { data } = await supabase.from("dispensaciones").select("id").eq("horario_id", otro);
     esperar(data.length === 1, `quedaron ${data.length} dispensaciones para un solo horario`);
+  });
+
+  await prueba("una dosis que todavia no es no se puede confirmar", async () => {
+    const futura = await dosisA(30);
+    const { status } = await confirmar(futura);
+    esperar(status === 409, `esperaba 409, vino ${status}`);
+    const { data } = await supabase.from("horarios").select("dispensado").eq("id", futura).single();
+    esperar(data.dispensado === false, "la dosis futura quedo marcada como dispensada");
+  });
+
+  await prueba("una dosis de hace dos horas no se puede confirmar", async () => {
+    const vieja = await dosisA(-120);
+    const { status } = await confirmar(vieja);
+    esperar(status === 409, `esperaba 409, vino ${status}`);
   });
 
   await prueba("confirmar un horario que no existe da 404", async () => {
@@ -253,17 +289,6 @@ const correr = async () => {
 
   console.log("\n=== RECORDATORIOS EN EL DISPLAY ===");
 
-  // La hora argentina dentro de N minutos, como la guarda la base.
-  const enArgentina = (minutos) => {
-    const d = new Date(Date.now() - 3 * 3600_000 + minutos * 60_000);
-    return {
-      dia: d.toISOString().split("T")[0],
-      hora: d.getUTCHours(),
-      minuto: d.getUTCMinutes(),
-      hhmm: d.toISOString().slice(11, 16),
-      letra: ["D", "L", "M", "X", "J", "V", "S"][d.getUTCDay()],
-    };
-  };
   const marca = `Test${Date.now() % 100000}`;
   const recordatoriosAhora = async () => (await pedir("/api/sensor/pendiente", { conToken: false })).json.data.recordatorios;
 
