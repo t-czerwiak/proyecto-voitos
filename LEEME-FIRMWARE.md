@@ -86,8 +86,11 @@ Qué muestra:
   (`recordatorios` en `GET /api/sensor/pendiente`): el usuario los pide desde
   la app al agendar una dosis o crear una actividad, y elige cuánto antes
   aparecen. La placa no calcula horarios, solo dibuja la lista.
-- **Nada:** "VOITOS", corrido unos píxeles por minuto para que el OLED no se
-  marque con una imagen fija.
+- **Nada:** la **hora actual** grande y "VOITOS" abajo, corridos unos píxeles
+  por minuto para que el OLED no se marque con una imagen fija. La hora sale
+  de internet (NTP) apenas hay WiFi; hasta que llega, se ve solo "VOITOS".
+- **El sensor no vio caer todas:** "REVISAR, salieron X de Y" durante 5
+  segundos (ver abajo).
 
 **Si la pantalla no está conectada el pastillero anda igual:** el monitor serie
 dice "No se encontro la pantalla OLED" y sigue. Si está conectada y no prende,
@@ -196,3 +199,48 @@ Una dosis queda disponible para la placa durante **15 minutos** después de su
 horario. Pasado ese rato el backend la da por perdida y le manda el aviso al
 cuidador, así que si el pastillero estuvo desconectado más de ese tiempo la
 dosis no se va a dispensar sola cuando vuelva.
+
+---
+
+## Sensor de caída (el tercer chequeo)
+
+Para estar seguros de que la pastilla salió de verdad se juntan tres cosas, y
+**en este orden**:
+
+1. **Hay una dosis programada y en su horario.** La da el backend en
+   `/pendiente`, y al confirmar vuelve a revisar que exista, que no esté ya
+   dispensada y que sea su hora (no se puede confirmar una de mañana ni una de
+   hace dos horas).
+2. **Alguien apretó el botón** mientras esa dosis esperaba. El botón no hace
+   nada si no hay dosis.
+3. **El sensor vio caer las pastillas**, y solo cuenta mientras el servo está
+   dispensando (más un segundo para que terminen de caer).
+
+Lo importante es que **el sensor nunca arranca nada**. Si alguien mete el dedo
+y corta el haz cuando no se está dispensando, el monitor serie dice "Sensor
+activado sin dispensacion en curso: se ignora" y no pasa nada más: no
+dispensa, no confirma y no borra ni marca ninguna dosis.
+
+Al confirmar, la placa manda las dos cuentas: `cantidad` (las vueltas del
+servo) y `detectadas` (las que vio el sensor). El backend guarda las dos. Si
+el sensor vio menos, la dosis igual queda registrada y la pantalla muestra
+"REVISAR" para que se mire la bandeja.
+
+**Conexión** (módulo infrarrojo de salida digital, de barrera o de obstáculo):
+
+| Sensor | ESP32 |
+| --- | --- |
+| VCC | 3V3 |
+| GND | GND |
+| OUT | GPIO 27 |
+
+Arriba del sketch:
+
+- `HAY_SENSOR = false` viene así para poder probar el display sin el sensor.
+  **Ponerlo en `true` cuando el sensor esté conectado.** Con `false`, la placa
+  no manda `detectadas` y el backend guarda que no hubo sensor.
+- `SENSOR_FLANCO = FALLING` sirve para los módulos que dan LOW al detectar
+  (casi todos). Si el que usan da HIGH, cambiarlo a `RISING`.
+- `MS_ANTIRREBOTE_SENSOR` (80 ms) y `MS_ESPERA_CAIDA` (1 s) son para calibrar
+  con el hardware real: si cuenta una pastilla dos veces, subir el primero; si
+  no llega a ver la última, subir el segundo.

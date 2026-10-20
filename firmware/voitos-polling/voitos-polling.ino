@@ -30,6 +30,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <time.h>
 
 const char* ssid = "Proyecto L5";
 const char* password = "preguntaleamaxi";
@@ -60,6 +61,27 @@ Adafruit_SSD1306 pantalla(128, 64, &Wire, -1);
 // Si la pantalla no esta conectada el pastillero tiene que seguir andando
 // igual: dispensar es lo importante, el display es un extra.
 bool hayPantalla = false;
+
+// Sensor de caida de pastillas (el "tercer chequeo").
+//
+// Pensado para un modulo infrarrojo de salida digital (barrera o de
+// obstaculo), que pone la salida en LOW mientras algo corta el haz. Si el que
+// se use da HIGH al detectar, cambiar SENSOR_FLANCO a RISING.
+//
+// HAY_SENSOR arranca en false para poder probar el display sin el sensor
+// conectado: si estuviera en true sin sensor, cada dosis se reportaria con 0
+// pastillas detectadas. Ponerlo en true cuando el sensor este cableado.
+const bool HAY_SENSOR = false;
+const int SENSOR_PIN = 27;
+const int SENSOR_FLANCO = FALLING;
+
+// Despues del ultimo movimiento del servo, cuanto se sigue escuchando al
+// sensor: la pastilla tarda un poco en caer.
+const unsigned long MS_ESPERA_CAIDA = 1000;
+
+// Una pastilla corta el haz una sola vez, pero el borde puede generar varios
+// pulsos seguidos. Lo que llegue antes de esto se toma como la misma pastilla.
+const unsigned long MS_ANTIRREBOTE_SENSOR = 80;
 
 // Tiene que coincidir con el dispositivo_id de la tabla modulos
 const char* DISPOSITIVO_ID = "ESP32-001";
@@ -141,6 +163,49 @@ void sonarBuzzer() {
 
 
 //-----------------------------
+// Sensor por interrupcion
+//
+// El ORDEN es lo que lo hace confiable: el sensor solo cuenta mientras el
+// servo esta dispensando una dosis que el backend ofrecio y que alguien
+// confirmo con el boton. Fuera de esa ventana, un dedo o una sacudida que
+// corte el haz se ignora: no dispensa, no confirma y no borra nada.
+//-----------------------------
+
+volatile bool sensorArmado = false;
+volatile int pastillasDetectadas = 0;
+volatile unsigned long ultimoPulsoSensor = 0;
+volatile bool sensorTocadoSinDosis = false;
+
+void IRAM_ATTR alDetectarPastilla() {
+  if (!sensorArmado) {
+    sensorTocadoSinDosis = true;
+    return;
+  }
+  unsigned long ahora = millis();
+  if (ahora - ultimoPulsoSensor < MS_ANTIRREBOTE_SENSOR) return;
+  ultimoPulsoSensor = ahora;
+  pastillasDetectadas++;
+}
+
+
+//-----------------------------
+// Reloj
+//
+// La hora sale de internet (NTP) apenas hay WiFi; la placa no tiene reloj
+// propio con pila. Hasta que llega, la pantalla muestra solo VOITOS.
+//-----------------------------
+
+// "HH:MM" si ya se sabe la hora, "" si todavia no.
+String horaActual() {
+  struct tm t;
+  if (!getLocalTime(&t, 0)) return "";
+  char texto[6];
+  snprintf(texto, sizeof(texto), "%02d:%02d", t.tm_hour, t.tm_min);
+  return String(texto);
+}
+
+
+//-----------------------------
 // Display: recordatorios y aviso de dosis
 //
 // El backend manda en cada consulta los recordatorios que tocan AHORA (cada uno
@@ -195,6 +260,13 @@ void dibujarPantalla() {
     pantalla.setTextSize(1);
     pantalla.setCursor(0, 0);
     pantalla.println("PROXIMO");
+
+    // La hora actual arriba a la derecha (5 caracteres de 6 px).
+    String hora = horaActual();
+    if (hora != "") {
+      pantalla.setCursor(128 - 30, 0);
+      pantalla.print(hora);
+    }
     pantalla.drawFastHLine(0, 9, 128, SSD1306_WHITE);
 
     for (int i = 0; i < cantRecordatorios; i++) {
@@ -210,17 +282,51 @@ void dibujarPantalla() {
       pantalla.print(recordatorios[i].texto.substring(0, 21));
     }
 
-  // 3. Nada para mostrar.
+  // 3. Nada para mostrar: la hora grande y VOITOS abajo.
   } else {
     // Un OLED con la misma imagen fija durante dias se marca (burn-in). Correr
-    // el texto unos pixeles por minuto alcanza para repartir el desgaste.
-    int corrimiento = (millis() / 60000) % 8;
-    pantalla.setTextSize(2);
-    pantalla.setCursor(28 + corrimiento, 20 + corrimiento);
-    pantalla.println("VOITOS");
+    // el contenido unos pixeles por minuto alcanza para repartir el desgaste.
+    int corrimiento = (millis() / 60000) % 6;
+    String hora = horaActual();
+
+    if (hora != "") {
+      // Tamano 3: 18 px por caracter, "HH:MM" ocupa 90 de los 128.
+      pantalla.setTextSize(3);
+      pantalla.setCursor(16 + corrimiento, 8 + corrimiento);
+      pantalla.print(hora);
+      pantalla.setTextSize(1);
+      pantalla.setCursor(46 + corrimiento, 44 + corrimiento);
+      pantalla.print("VOITOS");
+    } else {
+      pantalla.setTextSize(2);
+      pantalla.setCursor(28 + corrimiento, 20 + corrimiento);
+      pantalla.print("VOITOS");
+    }
   }
 
   pantalla.display();
+}
+
+// Unos segundos de aviso cuando el sensor no vio caer todas las pastillas.
+// La dosis igual se confirma (el servo se movio y el backend guarda las dos
+// cuentas); esto es para que la persona mire la bandeja.
+void avisarFaltantes(int detectadas, int pedidas) {
+  if (!hayPantalla) return;
+  pantalla.clearDisplay();
+  pantalla.setTextColor(SSD1306_WHITE);
+  pantalla.setTextSize(2);
+  pantalla.setCursor(0, 0);
+  pantalla.println("REVISAR");
+  pantalla.setTextSize(1);
+  pantalla.setCursor(0, 26);
+  pantalla.print("Salieron ");
+  pantalla.print(detectadas);
+  pantalla.print(" de ");
+  pantalla.println(pedidas);
+  pantalla.setCursor(0, 44);
+  pantalla.println("Mira la bandeja");
+  pantalla.display();
+  delay(5000);
 }
 
 // Lee la lista "recordatorios" de la respuesta del backend.
@@ -266,6 +372,12 @@ int dispensar(int cantidad) {
   Serial.print(cantidad);
   Serial.println(cantidad == 1 ? " pastilla..." : " pastillas...");
 
+  // Se arma el sensor solo para esta dispensacion. Desde aca hasta
+  // MS_ESPERA_CAIDA despues del ultimo servo, cada corte del haz es una
+  // pastilla que cayo.
+  pastillasDetectadas = 0;
+  sensorArmado = HAY_SENSOR;
+
   for (int i = 1; i <= cantidad; i++) {
     Serial.print("  pastilla ");
     Serial.print(i);
@@ -275,6 +387,15 @@ int dispensar(int cantidad) {
     moverServo();
 
     if (i < cantidad) delay(PAUSA_ENTRE_PASTILLAS);
+  }
+
+  if (HAY_SENSOR) {
+    delay(MS_ESPERA_CAIDA);
+    sensorArmado = false;
+    Serial.print("El sensor vio caer ");
+    Serial.print(pastillasDetectadas);
+    Serial.print(" de ");
+    Serial.println(cantidad);
   }
 
   Serial.println("Listo.");
@@ -430,7 +551,10 @@ bool confirmarDispensacion(int cantidadDispensada) {
   String json = String("{\"dispositivo_id\":\"") + DISPOSITIVO_ID
               + "\",\"horario_id\":\"" + horarioPendiente
               + "\",\"bateria\":100"
-              + ",\"cantidad\":" + String(cantidadDispensada) + "}";
+              + ",\"cantidad\":" + String(cantidadDispensada)
+              // Solo con sensor: sin el, el backend guarda null y no 0.
+              + (HAY_SENSOR ? ",\"detectadas\":" + String(pastillasDetectadas) : String(""))
+              + "}";
 
   int codigo = http.POST(json);
   String respuesta = http.getString();
@@ -515,6 +639,16 @@ void setup() {
   // loop deja de correr y se pierden las apretadas del boton.
   WiFi.setSleep(false);
 
+  // Hora argentina (UTC-3, sin horario de verano) desde internet. Llega en
+  // unos segundos y se mantiene sola.
+  configTime(-3 * 3600, 0, "pool.ntp.org", "time.google.com");
+
+  // Sensor
+  if (HAY_SENSOR) {
+    pinMode(SENSOR_PIN, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(SENSOR_PIN), alDetectarPastilla, SENSOR_FLANCO);
+  }
+
   Serial.print("Consultando cada ");
   Serial.print(MS_ENTRE_CONSULTAS / 1000);
   Serial.println(" segundos.");
@@ -529,7 +663,23 @@ void setup() {
 // LOOP
 //-----------------------------
 
+// Para redibujar el reloj cuando cambia el minuto.
+String ultimaHoraDibujada = "";
+
 void loop() {
+  // Un corte del sensor sin dosis en curso: se deja constancia y nada mas.
+  if (sensorTocadoSinDosis) {
+    sensorTocadoSinDosis = false;
+    Serial.println("Sensor activado sin dispensacion en curso: se ignora.");
+  }
+
+  // El reloj de la pantalla avanza aunque no haya consultas nuevas.
+  String hora = horaActual();
+  if (hora != ultimaHoraDibujada) {
+    ultimaHoraDibujada = hora;
+    dibujarPantalla();
+  }
+
   // Si se cayo el WiFi, reconectar. La placa puede quedar dias encendida.
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi caido, reconectando...");
@@ -546,6 +696,10 @@ void loop() {
 
     int dispensadas = dispensar(cantidadPendiente);
     confirmarDispensacion(dispensadas);
+
+    if (HAY_SENSOR && pastillasDetectadas < dispensadas) {
+      avisarFaltantes(pastillasDetectadas, dispensadas);
+    }
 
     esperandoBoton = false;
     horarioPendiente = "";
