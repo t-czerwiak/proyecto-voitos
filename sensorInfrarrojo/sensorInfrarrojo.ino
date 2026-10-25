@@ -18,7 +18,7 @@ void setup() {
   pinMode(SENSOR_PIN, INPUT);
 
   servo.attach(SERVO_PIN);
-  servo.write(0);
+  servo.write(180);
 
   attachInterrupt(
     digitalPinToInterrupt(SENSOR_PIN),
@@ -36,12 +36,11 @@ void loop() {
   pastillaDetectada = false;
   interrupts();
 
-  Serial.println("Girando hacia la izquierda...");
+  Serial.println("Girando hacia el lado contrario...");
 
-  // AVANCE: de 0 a 180 grados
-  for (int angulo = 0; angulo <= 180; angulo++) {
+  // AVANCE: de 180 a 0 grados
+  for (int angulo = 180; angulo >= 0; angulo--) {
 
-    // Comprobar si paso una pastilla
     noInterrupts();
     bool detectada = pastillaDetectada;
     interrupts();
@@ -55,8 +54,7 @@ void loop() {
     delay(20);
   }
 
-  // Si no detecto nada durante la ida,
-  // espera en 180 hasta detectar una pastilla
+  // Si no detecto nada, espera en 0 grados
   while (true) {
     noInterrupts();
     bool detectada = pastillaDetectada;
@@ -70,14 +68,12 @@ void loop() {
     delay(5);
   }
 
-  Serial.println("Volviendo hacia la derecha...");
+  Serial.println("Volviendo a la posicion inicial...");
 
-  // REGRESO: desde la posicion actual hasta 0 grados
-  // Si detecto la pastilla antes de 180, vuelve desde ahi
-  // Si llego a 180, vuelve desde 180
+  // REGRESO: desde la posicion actual hasta 180 grados
   int posicionActual = servo.read();
 
-  for (int angulo = posicionActual; angulo >= 0; angulo--) {
+  for (int angulo = posicionActual; angulo <= 180; angulo++) {
     servo.write(angulo);
     delay(20);
   }
