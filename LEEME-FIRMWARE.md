@@ -123,10 +123,13 @@ Pantalla de 0.96" SSD1306, 128x64, por I2C (cuatro pines: VCC, GND, SCL, SDA).
 | VCC | 3V3 |
 | GND | GND |
 | SCL | GPIO 22 |
-| SDA | GPIO **23** |
+| SDA | GPIO **21** |
 
-**SDA no va al 21** (el pin I2C por defecto) porque el 21 ya es el botón. Si se
-cablea en otros pines, se cambian `OLED_SDA` y `OLED_SCL` arriba del sketch.
+El **botón de dispensar va al GPIO 35**, del pin a GND. El 35 es solo de
+entrada y **no tiene pull-up interno**: hace falta una **resistencia de 10 kΩ
+del 35 a 3V3**. Sin ella el pin queda flotando y la placa lee apretadas que
+nadie hizo (puede dispensar sola). Si se cablea en otros pines, se cambian
+`BUTTON_PIN`, `OLED_SDA` y `OLED_SCL` arriba del sketch.
 
 Qué muestra, siempre con **la letra más grande que entra** (pensado para
 una persona mayor). Lo que no entra en el ancho corre de derecha a izquierda,
@@ -328,8 +331,7 @@ con la app de verdad sin tener el resto del hardware armado.
 4. Abrir el monitor serie a 115200 y mirar la pantalla.
 
 Cableado de la placa de prueba: VCC a 3V3, GND a GND, SCL a **D22** y SDA a
-**D21** (acá el botón es el BOOT, así que el 21 está libre; en el pastillero
-SDA va al 23). Si SDA y SCL quedaron cruzados lo detecta solo y lo avisa en el
+**D21**, igual que en el pastillero (acá el botón es el BOOT, en vez del 35). Si SDA y SCL quedaron cruzados lo detecta solo y lo avisa en el
 monitor serie. También prueba las direcciones 0x3C y 0x3D.
 
 **Nunca escribir la red ni la clave adentro del `.ino`**: el repositorio es
