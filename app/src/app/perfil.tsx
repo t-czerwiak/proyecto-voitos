@@ -263,6 +263,17 @@ export default function Perfil() {
         })
       )}
 
+      {/* EL PASTILLERO: vincularlo a la cuenta con el código de su pantalla. */}
+      <Text style={styles.seccion}>Tu pastillero</Text>
+
+      <Boton
+        titulo="Mi pastillero"
+        variante="secundario"
+        icono="hardware-chip-outline"
+        onPress={() => router.push("/mi-pastillero")}
+        ayuda="Vincularlo a tu cuenta con el código de su pantalla"
+      />
+
       {/* TUS DATOS. Después de las pastillas porque se miran mucho menos. */}
       <Text style={styles.seccion}>Tus datos</Text>
 
