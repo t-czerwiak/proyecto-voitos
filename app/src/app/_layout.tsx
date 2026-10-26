@@ -28,19 +28,6 @@ export default function RootLayout() {
     Nunito_700Bold,
   });
 
-  // SafeAreaProvider tiene que envolver todo: es de donde salen los margenes
-  // que evitan que el contenido quede abajo del notch o de la barra de gestos.
-  //
-  // initialMetrics no es opcional aca. La web de esta aplicacion se
-  // prerenderiza (app.json, web.output "static"): el HTML se arma en el
-  // servidor y despues el navegador lo hidrata. Sin metricas iniciales el
-  // SafeAreaProvider no dibuja a sus hijos hasta medir, asi que el servidor
-  // producia un arbol y el navegador otro. React lo detectaba en plena
-  // hidratacion —"Rendered fewer hooks than expected"—, tiraba el HTML
-  // prerenderizado y volvia a dibujar todo del lado del cliente.
-  //
-  // La pagina igual se veia bien, que es lo que hace dificil de encontrar el
-  // problema: lo unico que se perdia era la primera pintada rapida.
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <Navegacion fuentesListas={fuentesListas} />
@@ -48,15 +35,10 @@ export default function RootLayout() {
   );
 }
 
-// Va aparte del componente de arriba para que la espera de las fuentes no
-// obligue a redibujar el SafeAreaProvider, que es lo caro de montar.
 function Navegacion({ fuentesListas }: { fuentesListas: boolean }) {
   const colores = useColores();
   const styles = useEstilos();
 
-  // Mientras carga la fuente se muestra el fondo de la aplicacion con un
-  // indicador. Antes devolvia null: la pantalla quedaba en blanco puro, que en
-  // un telefono lento se ve como si la aplicacion no hubiera abierto.
   if (!fuentesListas) {
     return (
       <View style={styles.espera}>
@@ -68,33 +50,18 @@ function Navegacion({ fuentesListas }: { fuentesListas: boolean }) {
 
   return (
     <View style={styles.raiz}>
-      {/* Iconos claros: el fondo de la aplicacion siempre es oscuro. */}
       <StatusBar style="light" />
 
-      {/* Encima de cualquier pantalla: si algo se rompe, esto tiene que quedar
-          visible aunque el resto no se dibuje. */}
       <CazaErrores />
 
-      {/* Las dos van montadas UNA vez, aca, y escuchan si tienen algo que
-          mostrar. Las pantallas no las dibujan ni las conocen: el dialogo se
-          pide con confirmar() y el aviso lo prende solo el cliente de la API
-          cuando esta esperando a que el backend despierte.
-
-          El aviso va ANTES del Stack y en el flujo normal, no flotando encima:
-          empuja las pantallas hacia abajo mientras esta, y cuando se va las
-          devuelve a su lugar. Flotando tapaba el titulo de la pantalla, que es
-          justo lo que hay que poder leer para saber donde esta uno. */}
       <Dialogo />
       <AvisoDespertando />
 
-      {/* Sin <Stack.Screen> a mano: expo-router arma las rutas leyendo los
-          archivos de src/app. */}
       <View style={styles.pantallas}>
         <Stack
           screenOptions={{
             headerShown: false,
-            // El fondo de la transicion entre pantallas. Sin esto se ve un
-            // destello blanco al navegar.
+
             contentStyle: { backgroundColor: colores.fondo },
           }}
         />
@@ -109,9 +76,6 @@ const useEstilos = crearEstilos((colores) => ({
     backgroundColor: colores.fondo,
   },
 
-  // El Stack necesita su propio flex: 1. Sin esta caja, con el aviso arriba en
-  // el flujo, las pantallas se dibujarian con el alto de su contenido en vez
-  // del alto que sobra.
   pantallas: {
     flex: 1,
   },
@@ -124,20 +88,6 @@ const useEstilos = crearEstilos((colores) => ({
   },
 }));
 
-// Lo que se dibuja cuando una pantalla se rompe AL RENDERIZAR.
-//
-// Sin esto, expo-router deja el arbol vacio y queda el fondo de la aplicacion
-// solo: una pantalla negra que no dice nada, igual para cualquier error. Es
-// literalmente el "pantallazo negro" que reporta la gente.
-//
-// Ojo con el alcance: un ErrorBoundary de React atrapa errores durante el
-// renderizado y NADA MAS. Lo que pasa al tocar un boton, o una promesa que se
-// rompe sin catch, nunca llega hasta aca. De eso se ocupa CazaErrores, que
-// escucha los eventos del navegador.
-//
-// Los colores van escritos a mano y no salen del tema a proposito: una
-// pantalla de error no deberia depender de ningun otro modulo, porque
-// cualquiera de ellos puede ser el que fallo.
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (
     <View style={estilosError.caja}>

@@ -9,17 +9,11 @@ type Props = {
   alCambiar: (v: number) => void;
   minimo?: number;
   maximo?: number;
-  // Como se dice el numero en palabras: "3 pastillas", "2 semanas".
+
   enPalabras: (v: number) => string;
   ayuda?: string;
 };
 
-// El − / + de "cantidad por dosis" y "duracion de la rutina".
-//
-// Los botones pasaron a 56px y el numero a 26px. Ademas el conjunto es un
-// control ajustable para el lector de pantalla: se anuncia como "Cantidad por
-// dosis, 2 pastillas, ajustable" y se sube o baja con un gesto, sin tener que
-// acertarle al signo menos.
 export default function Contador({
   etiqueta,
   valor,
@@ -65,8 +59,6 @@ export default function Contador({
           <Ionicons name="remove" size={26} color={colores.acento} />
         </Pressable>
 
-        {/* El numero no se anuncia por separado: ya lo dice el control
-            ajustable de arriba, y repetirlo lo hace mas dificil de escuchar. */}
         <Text style={styles.valor} accessibilityElementsHidden>
           {enPalabras(valor)}
         </Text>

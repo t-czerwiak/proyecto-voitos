@@ -2,11 +2,6 @@ import React from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { crearEstilos, useColores, espacio, texto } from "../tema";
 
-// La espera, con texto.
-//
-// Un circulito girando solo no dice que se esta esperando ni cuanto puede
-// tardar, y para quien escucha la pantalla no existe. Con accessibilityLiveRegion
-// el lector anuncia "Buscando las dosis..." cuando aparece.
 export default function Cargando({ texto: contenido = "Cargando..." }: { texto?: string }) {
   const styles = useEstilos();
   const colores = useColores();

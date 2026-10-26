@@ -12,9 +12,7 @@ type Props = {
   etiqueta: string;
   valor: string;
   alCambiar: (v: string) => void;
-  // Debajo del campo, siempre visible. No es un placeholder: la ayuda que
-  // desaparece cuando empezas a escribir es ayuda que no estuvo cuando hacia
-  // falta.
+
   ayuda?: string;
   error?: string;
   secreto?: boolean;
@@ -23,13 +21,6 @@ type Props = {
   placeholder?: string;
 };
 
-// Un campo de texto con su etiqueta arriba, escrita, siempre.
-//
-// El diseno anterior usaba el placeholder como etiqueta ("MAIL.....",
-// "CONTRASEÑA...."). Eso falla de tres maneras a la vez: apenas escribis algo
-// ya no sabes que campo era, el gris claro sobre blanco no llega al contraste
-// minimo, y un lector de pantalla no siempre anuncia el placeholder. La
-// etiqueta arriba arregla las tres.
 export default function Campo({
   etiqueta,
   valor,
@@ -67,9 +58,7 @@ export default function Campo({
         autoCapitalize={teclado === "email-address" ? "none" : "sentences"}
         placeholder={placeholder}
         placeholderTextColor={colores.textoTenue}
-        // El campo se anuncia con su etiqueta y, si hay error, con el error
-        // pegado atras. Si no, el lector dice "campo de texto" a secas y la
-        // persona no sabe cual de los cinco es.
+
         accessibilityLabel={etiqueta}
         accessibilityHint={hayError ? `${ayuda ?? ""} ${error}`.trim() : ayuda}
       />
@@ -105,8 +94,7 @@ const useEstilos = crearEstilos((colores) => ({
     borderRadius: radio.md,
     paddingHorizontal: espacio.lg,
     paddingVertical: espacio.md,
-    // 17px y no 16: por debajo de 16 los navegadores de iOS hacen zoom solos
-    // al enfocar un campo, y la pantalla queda corrida.
+
     ...texto.cuerpo,
     color: colores.texto,
   },

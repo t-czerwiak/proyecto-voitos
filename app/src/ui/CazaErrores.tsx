@@ -1,21 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-// Muestra en pantalla los errores que de otro modo no se ven.
-//
-// Existe por el mismo motivo que POST /api/admin/probar-mail en el backend: un
-// error que nadie puede ver es un error que no se arregla. Cuando la aplicacion
-// se rompe en el navegador de un telefono ajeno, lo unico que llega es "se puso
-// todo negro", y con eso no se diagnostica nada.
-//
-// Atrapa lo que un ErrorBoundary de React NO atrapa, que es casi todo lo que
-// pasa despues de dibujar: errores dentro de un manejador de evento (tocar un
-// boton), promesas rechazadas sin catch, y fallas de carga de recursos. El
-// ErrorBoundary cubre el otro caso, los errores durante el renderizado.
-//
-// No reemplaza a la consola: la suma. Quien pueda abrir las herramientas de
-// desarrollo va a ver lo mismo y con mas detalle.
-
 type Registro = { mensaje: string; donde: string };
 
 export default function CazaErrores() {
@@ -25,8 +10,6 @@ export default function CazaErrores() {
     if (typeof window === "undefined") return;
 
     const anotar = (mensaje: string, donde: string) => {
-      // Se acumulan pero se muestran pocos: si algo falla en un bucle de
-      // render, mil mensajes iguales tapan la pantalla y no agregan nada.
       setErrores((previos) =>
         previos.length >= 3 || previos.some((p) => p.mensaje === mensaje)
           ? previos
@@ -83,8 +66,6 @@ export default function CazaErrores() {
 }
 
 const styles = StyleSheet.create({
-  // Arriba de todo y por encima de cualquier cosa: si la aplicacion quedo en
-  // negro, esto tiene que ser lo unico que se lea.
   barra: {
     position: "absolute",
     top: 0,

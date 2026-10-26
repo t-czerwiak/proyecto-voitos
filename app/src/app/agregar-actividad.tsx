@@ -19,16 +19,6 @@ import { crearEstilos, espacio, radio, texto } from "../tema";
 const HORAS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTOS = Array.from({ length: 60 }, (_, i) => i);
 
-// Agregar una actividad al calendario.
-//
-// Las actividades son lo que el pastillero no hace: la caminata, el
-// kinesiólogo, la visita del médico. Sirven para que el calendario sea el
-// calendario del día de la persona y no sólo el de sus pastillas.
-//
-// El cambio más importante es la hora: antes era un campo de texto libre con
-// el ejemplo "08:30" adentro. Escrita a mano, la hora se equivoca —"8:30",
-// "830", "8.30"— y el error recién aparecía al guardar. Ahora son dos
-// desplegables y no hay forma de escribir una hora que no exista.
 export default function AgregarActividad() {
   const styles = useEstilos();
 
@@ -41,7 +31,6 @@ export default function AgregarActividad() {
   const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([]);
   const [recordatorio, setRecordatorio] = useState<number | null>(null);
 
-  // La fecha viene del calendario, del día que estaba elegido.
   const [fecha] = useState(fechaParametro || "");
 
   const [error, setError] = useState("");
@@ -73,8 +62,7 @@ export default function AgregarActividad() {
         nombre,
         hora: `${dosDigitos(hora)}:${dosDigitos(minuto)}`,
         tipo,
-        // Una actividad de rutina se repite por dia de semana, asi que no
-        // tiene una fecha puntual. La base igual pide el campo.
+
         fecha: tipo === "una-vez" ? fecha : "",
         dias: tipo === "rutina" ? diasSeleccionados : [],
         recordatorio_min: recordatorio,

@@ -3,11 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { pedirRecuperacion, confirmarRecuperacion } from "../lib/voitos";
 import { Pantalla, Encabezado, Campo, Boton, Aviso } from "../ui";
 
-// Recuperacion de contrasena. Las dos mitades del flujo segun haya token en
-// la URL o no:
-//
-//   /recuperar               -> pide el mail y manda el enlace
-//   /recuperar?token=abc123  -> pide la contrasena nueva
 export default function Recuperar() {
   const { token } = useLocalSearchParams<{ token?: string }>();
   const hayToken = Boolean(token);
@@ -32,8 +27,7 @@ export default function Recuperar() {
     setCargando(true);
     try {
       const r = await pedirRecuperacion(mail);
-      // El backend contesta lo mismo exista o no la cuenta, para no delatar
-      // que casillas estan registradas. La pantalla dice lo mismo.
+
       setAviso(r.mensaje);
     } catch (e: any) {
       setError(e.message);
@@ -51,8 +45,6 @@ export default function Recuperar() {
       return;
     }
 
-    // Se pide dos veces porque no hay forma de deshacerlo: si se equivoca al
-    // tipear queda afuera de su cuenta y hay que empezar todo de nuevo.
     if (password !== repetida) {
       setErrorPassword("Las dos contraseñas no coinciden");
       return;

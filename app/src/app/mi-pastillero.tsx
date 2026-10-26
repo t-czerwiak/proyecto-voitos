@@ -12,12 +12,6 @@ import { confirmar } from "../lib/avisos";
 import { Pantalla, Encabezado, Tarjeta, Boton, Campo, Aviso, Estado, Cargando } from "../ui";
 import { crearEstilos, espacio, texto } from "../tema";
 
-// Vincular el pastillero a la cuenta.
-//
-// El pastillero y la app hablan los dos con el backend en internet, asi que
-// esto se hace desde cualquier lado: no hace falta estar en la misma red que
-// el aparato. Lo unico que se hace al lado del pastillero, una sola vez, es
-// cargarle el WiFi de la casa desde su red VOITOS-XXXX.
 export default function MiPastillero() {
   const styles = useEstilos();
 
@@ -43,7 +37,6 @@ export default function MiPastillero() {
   useFocusEffect(cargar);
 
   const vincular = async () => {
-    // El display lo muestra separado ("1234 5678"): se acepta como venga.
     const limpio = codigo.replace(/\D/g, "");
     if (limpio.length !== 8) {
       setErrorCodigo("Son los 8 números que aparecen abajo de la hora en el pastillero.");

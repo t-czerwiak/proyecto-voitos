@@ -6,7 +6,7 @@ import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema"
 type Opcion = {
   valor: string;
   etiqueta: string;
-  // Una linea que explica que significa elegir esto.
+
   detalle?: string;
 };
 
@@ -17,12 +17,6 @@ type Props = {
   opciones: Opcion[];
 };
 
-// Elegir una entre pocas opciones, con las dos a la vista.
-//
-// Un desplegable esconde las opciones hasta que se lo abre; cuando son dos o
-// tres y la eleccion cambia el resto del formulario, es mejor que se vean
-// juntas. La elegida se marca con un tilde ademas del color, asi que tambien
-// se distingue en blanco y negro.
 export default function Opciones({ etiqueta, valor, alCambiar, opciones }: Props) {
   const styles = useEstilos();
   const colores = useColores();
@@ -31,7 +25,6 @@ export default function Opciones({ etiqueta, valor, alCambiar, opciones }: Props
     <View style={styles.caja}>
       <Text style={styles.etiqueta}>{etiqueta}</Text>
 
-      {/* radiogroup: el lector de pantalla anuncia "1 de 2" al recorrerlas. */}
       <View style={styles.lista} accessibilityRole="radiogroup">
         {opciones.map((o) => {
           const elegida = o.valor === valor;
@@ -49,9 +42,7 @@ export default function Opciones({ etiqueta, valor, alCambiar, opciones }: Props
               accessibilityLabel={o.etiqueta}
               accessibilityHint={o.detalle}
               accessibilityState={{ checked: elegida, selected: elegida }}
-              // react-native-web no traduce accessibilityState.checked a
-              // aria-checked en un role="radio", asi que el navegador no
-              // sabia cual estaba elegida. Se pone a mano.
+
               aria-checked={elegida}
             >
               <Ionicons

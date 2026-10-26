@@ -39,22 +39,11 @@ const NOMBRE_DIA: Record<string, string> = {
   D: "domingo",
 };
 
-// Agendar una rutina de medicación.
-//
-// Es el formulario más largo de la aplicación y el que más caro sale
-// equivocar: agendar mal son semanas de dosis a la hora equivocada. Por eso
-// arriba del botón hay un resumen escrito en castellano de lo que se va a
-// crear —"Aspirina, 2 pastillas, lunes y jueves a las 08:00, durante 4
-// semanas: 8 dosis"—. Leer eso lleva tres segundos y ahorra el ida y vuelta
-// de agendar, mirar el calendario y borrar todo.
 export default function AgendarMedicacion() {
   const styles = useEstilos();
 
   const [cantidad, setCantidad] = useState(1);
 
-  // La hora se elige con dos desplegables en vez de un DateTimePicker.
-  // react-native-web no implementa ese componente, asi que en el navegador
-  // tocar el campo no abria nada.
   const [hora, setHora] = useState(8);
   const [minuto, setMinuto] = useState(0);
 
@@ -69,14 +58,8 @@ export default function AgendarMedicacion() {
   const [exito, setExito] = useState("");
   const [guardando, setGuardando] = useState(false);
 
-  // Sin esto, la lista arranca vacia y la pantalla mostraba "todavia no hay
-  // ninguna pastilla cargada" durante el medio segundo que tarda la consulta,
-  // aunque hubiera diez. Un vacio que despues se desmiente solo asusta.
   const [cargando, setCargando] = useState(true);
 
-  // El desplegable se llena con las pastillas que ya se cargaron. Asi el
-  // nombre nunca puede no coincidir, y de paso viene el stock del modulo, que
-  // es lo que permite avisar si alcanza.
   useEffect(() => {
     getPastillas()
       .then((lista) => {
@@ -113,9 +96,6 @@ export default function AgendarMedicacion() {
       return;
     }
 
-    // Sin dias no hay rutina. Antes, con ninguno marcado, agendaba una dosis
-    // suelta para hoy sin avisar, que no es lo que uno pide cuando deja los
-    // siete dias sin tocar.
     if (!diasSeleccionados.length) {
       setError("Elegí al menos un día de la semana");
       return;
@@ -165,9 +145,6 @@ export default function AgendarMedicacion() {
         recordatorio_min: recordatorio,
       });
 
-      // Si hoy era uno de los dias elegidos pero la hora ya paso, la rutina
-      // arranco la semana que viene. Conviene decirlo: si no, parece que no
-      // agendo nada para hoy por error.
       const ahora = new Date();
       const hoyISO = `${ahora.getFullYear()}-${dosDigitos(ahora.getMonth() + 1)}-${dosDigitos(ahora.getDate())}`;
       const letraHoy = ["D", "L", "M", "X", "J", "V", "S"][ahora.getDay()];
@@ -184,7 +161,6 @@ export default function AgendarMedicacion() {
           : `${cuerpo}. Arranca el ${comoFecha(fechas[0])}.`
       );
 
-      // Se deja ver el mensaje antes de volver a la pantalla anterior.
       setTimeout(() => router.back(), 3000);
     } catch (e: any) {
       setError(e.message);
@@ -298,10 +274,6 @@ export default function AgendarMedicacion() {
 
       <CampoRecordatorio valor={recordatorio} alCambiar={setRecordatorio} />
 
-      {/* EL RESUMEN
-          Lo que se va a crear, escrito como lo diría una persona. Es la última
-          oportunidad de darse cuenta de que dice "20:00" donde uno quiso poner
-          "08:00". */}
       <View style={styles.resumen} accessibilityLiveRegion="polite">
         <Text style={styles.resumenTitulo}>Vas a agendar</Text>
 

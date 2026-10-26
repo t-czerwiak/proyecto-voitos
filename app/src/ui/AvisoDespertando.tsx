@@ -15,22 +15,6 @@ import {
   suscribirDespertar,
 } from "../lib/api";
 
-// La franja que aparece cuando el backend estaba dormido y se lo esta
-// esperando.
-//
-// El backend vive en Render con el plan free, que apaga el servicio a los 15
-// minutos sin trafico; despertarlo tarda entre 30 y 60 segundos. El cliente de
-// api.ts reintenta solo, pero ese reintento son 45 segundos en los que no pasa
-// nada en pantalla. Sin este aviso, esos 45 segundos se ven exactamente igual
-// que una aplicacion colgada, y lo razonable es recargar la pagina, que es lo
-// peor que se puede hacer: tira el intento que ya estaba por salir bien.
-//
-// Va arriba de todo y EN EL FLUJO, no flotando: empuja las pantallas hacia
-// abajo mientras esta y las devuelve a su lugar cuando se va. Flotando tapaba
-// el titulo de la pantalla, que es justo lo que hay que poder leer.
-//
-// No es un error, es un "esto va a tardar": por eso no bloquea nada ni corta lo
-// que la persona estaba mirando.
 export default function AvisoDespertando() {
   const despertando = useSyncExternalStore(
     suscribirDespertar,

@@ -11,8 +11,6 @@ type Props = {
   icono?: keyof typeof Ionicons.glyphMap;
 };
 
-// La tabla se arma con la paleta activa: los mismos roles cambian de color
-// segun el tema.
 const tonosDe = (
   colores: Paleta
 ): Record<Tono, { fondo: string; borde: string; color: string; icono: keyof typeof Ionicons.glyphMap }> => ({
@@ -42,12 +40,6 @@ const tonosDe = (
   },
 });
 
-// La etiqueta de estado de una dosis, una cuenta o un modulo.
-//
-// Siempre lleva las tres cosas juntas: icono, palabra y color. El punto de
-// color solo —como el que marcaba las cuentas verificadas en el panel— no le
-// dice nada a quien no distingue el verde del ambar, ni a quien escucha la
-// pantalla en vez de verla.
 export default function Estado({ texto: contenido, tono = "neutro", icono }: Props) {
   const styles = useEstilos();
 

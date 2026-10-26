@@ -1,13 +1,3 @@
-// Pantalla de diagnostico del pastillero. No forma parte del flujo de la app:
-// no hay ningun link que lleve aca, se entra escribiendo /prueba-hardware en
-// el navegador. Sirve para verificar que el backend alcanza a la ESP32 por la
-// red local sin depender de que haya una dosis agendada.
-//
-// Muestra la respuesta cruda del backend a proposito: cuando algo falla, lo
-// util es ver la URL exacta a la que se le pego y que contesto el dispositivo.
-// Es la unica pantalla donde el texto va en monoespaciado, porque lo que se
-// lee son URLs y respuestas de un aparato, no prosa.
-
 import React, { useState } from "react";
 import { Platform, Text, View } from "react-native";
 import { API_URL } from "../lib/api";
@@ -40,8 +30,7 @@ export default function PruebaHardware() {
     try {
       const r = await dispensarAhora({
         cantidad: cuantas,
-        // Vacio = el backend usa ESP32_URL del .env. Poder pisarlo desde aca
-        // evita reiniciar el backend cuando cambia la IP del pastillero.
+
         destino: destino.trim() || undefined,
       });
 
