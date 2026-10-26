@@ -7,6 +7,7 @@ import { formatearFecha, formatearHora } from "./plantillas-mail";
 const APP_URL = (process.env.APP_URL ?? "http://localhost:8081").replace(/\/$/, "");
 import { getModuloDePastilla, descontarDelModulo } from "./modulos.service";
 import { avisarDispensacionOk, avisarPastilleroVacio } from "./email.service";
+import { Alcance, alcanceDe, filtrarPorAlcance } from "./pastilleros.service";
 
 // Cuanto tiempo despues de su horario una dosis sigue estando disponible para
 // el dispositivo.
@@ -28,7 +29,7 @@ import { avisarDispensacionOk, avisarPastilleroVacio } from "./email.service";
 // aparato nunca llego a ofrecer. Paso de verdad el 24/08.
 const MINUTOS_VENTANA = 15;
 
-export const getPendiente = async () => {
+export const getPendiente = async (alcance: Alcance) => {
   const { hoy, hora, minuto } = getHoraArgentina();
 
   // La ventana puede cruzar el cambio de hora, y a las 00:0X hasta el cambio
@@ -40,15 +41,20 @@ export const getPendiente = async () => {
     )
     .join(",");
 
-  const { data, error } = await supabase
+  // pastillas!inner es para poder filtrar por el duenio de la pastilla (ver
+  // pastilleros.service). No viaja a la placa: se saca abajo.
+  const consulta = supabase
     .from("horarios")
-    .select("id, pastilla_id, hora, minuto, cantidad")
+    .select("id, pastilla_id, hora, minuto, cantidad, pastillas!inner(usuario_id)")
     .eq("dispensado", false)
-    .or(filtro)
+    .or(filtro);
+
+  const { data: fila, error } = await filtrarPorAlcance(consulta, alcance, "pastillas.usuario_id")
     .limit(1)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
+  const data = fila ? (({ pastillas, ...h }: any) => h)(fila) : null;
 
   if (!data) {
     return { pendiente: false, horario: null, modulo: null, disponibles: null };
@@ -109,7 +115,8 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
     cantidadDelHorario = data?.cantidad ?? null;
     pastillaId = data?.pastilla_id ?? null;
   } else {
-    const pendiente = await getPendiente();
+    // Este camino (push por red local) no sabe que placa es: alcance sin duenio.
+    const pendiente = await getPendiente(await alcanceDe());
     horario_id = pendiente.horario?.id ?? null;
     cantidadDelHorario = pendiente.horario?.cantidad ?? null;
     pastillaId = pendiente.horario?.pastilla_id ?? null;

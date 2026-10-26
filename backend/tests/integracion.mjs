@@ -24,8 +24,8 @@ let usuario = null;
 let ok = 0;
 let fallos = 0;
 
-const pedir = async (ruta, { metodo = "GET", cuerpo, conToken = true } = {}) => {
-  const headers = { "Content-Type": "application/json" };
+const pedir = async (ruta, { metodo = "GET", cuerpo, conToken = true, extra = {} } = {}) => {
+  const headers = { "Content-Type": "application/json", ...extra };
   if (conToken && token) headers.Authorization = `Bearer ${token}`;
   const r = await fetch(`${API}${ruta}`, {
     method: metodo,
@@ -58,7 +58,11 @@ const creados = [];
 // Borra las cuentas descartables de las dos tablas: la fila de public.usuarios y
 // la cuenta de auth.users. Si alguna no se pudo borrar lo dice, para que no se
 // acumule basura en silencio.
+// Una placa de mentira para probar el vinculo, sin tocar la ESP32-001 real.
+const PLACA = `TEST-${Date.now()}`;
+
 const limpiar = async () => {
+  await supabase.from("pastilleros").delete().eq("dispositivo_id", PLACA);
   for (const id of creados) {
     const { error } = await supabase.from("usuarios").delete().eq("id", id);
     if (error) console.log(`  quedo la fila ${id} en usuarios: ${error.message}`);
@@ -340,6 +344,63 @@ const correr = async () => {
     esperar(status === 200, `esperaba 200, vino ${status}`);
     esperar(Array.isArray(json.data), "no vino una lista");
     esperar(typeof json.data[0]?.cantidad_actual === "number", "falta cantidad_actual");
+  });
+
+  console.log("\n=== VINCULAR PASTILLERO ===");
+
+  await supabase.from("pastilleros").insert({ dispositivo_id: PLACA });
+  const SECRETO = "secreto-de-prueba-1234";
+  const consultaPlaca = (secreto) =>
+    pedir(`/api/sensor/pendiente?dispositivo_id=${PLACA}`, {
+      conToken: false,
+      extra: secreto ? { "X-Pastillero-Secreto": secreto } : {},
+    });
+  let codigo = null;
+
+  await prueba("una placa sin duenio recibe un codigo de 8 digitos", async () => {
+    const { json } = await consultaPlaca(SECRETO);
+    codigo = json.data.vinculo?.codigo;
+    esperar(json.data.vinculo?.vinculado === false, `vino ${JSON.stringify(json.data.vinculo)}`);
+    esperar(/^[0-9]{8}$/.test(codigo ?? ""), `codigo invalido: ${codigo}`);
+    esperar((await consultaPlaca(SECRETO)).json.data.vinculo.codigo === codigo, "la segunda consulta cambio el codigo");
+  });
+
+  await prueba("sin el secreto, o con otro, no se entrega el codigo", async () => {
+    esperar(!(await consultaPlaca()).json.data.vinculo.codigo, "sin secreto vino el codigo");
+    esperar(!(await consultaPlaca("otro-secreto")).json.data.vinculo.codigo, "con otro secreto vino el codigo");
+  });
+
+  await prueba("un codigo mal escrito da 400 y uno que no existe 404", async () => {
+    const mal = await pedir("/api/pastilleros/vincular", { metodo: "POST", cuerpo: { codigo: "12ab" } });
+    esperar(mal.status === 400, `esperaba 400, vino ${mal.status}`);
+    const otro = String((Number(codigo) + 1) % 100000000).padStart(8, "0");
+    const no = await pedir("/api/pastilleros/vincular", { metodo: "POST", cuerpo: { codigo: otro } });
+    esperar(no.status === 404, `esperaba 404, vino ${no.status}`);
+  });
+
+  await prueba("vincular con el codigo (aunque venga con espacio) la deja en la cuenta", async () => {
+    const { status } = await pedir("/api/pastilleros/vincular", {
+      metodo: "POST",
+      cuerpo: { codigo: `${codigo.slice(0, 4)} ${codigo.slice(4)}` },
+    });
+    esperar(status === 201, `esperaba 201, vino ${status}`);
+    const { json } = await pedir("/api/pastilleros");
+    esperar(json.data.some((p) => p.dispositivo_id === PLACA), "no aparece en mis pastilleros");
+    esperar((await consultaPlaca(SECRETO)).json.data.vinculo.vinculado === true, "la placa no se entero");
+  });
+
+  await prueba("vinculada, la placa ve las dosis de su duenio y las otras ya no", async () => {
+    const enLaPlaca = (await consultaPlaca(SECRETO)).json.data.recordatorios;
+    esperar(enLaPlaca.some((x) => x.texto === "Ibuprofeno x3"), "la placa vinculada no ve la dosis de su duenio");
+    esperar(!(await recordatoriosAhora()).some((x) => x.texto === "Ibuprofeno x3"), "un pastillero sin duenio sigue viendo la dosis");
+  });
+
+  await prueba("desvincular la deja sin duenio, y otra vez da 404", async () => {
+    const { status } = await pedir(`/api/pastilleros/${PLACA}`, { metodo: "DELETE" });
+    esperar(status === 200, `esperaba 200, vino ${status}`);
+    const otra = await pedir(`/api/pastilleros/${PLACA}`, { metodo: "DELETE" });
+    esperar(otra.status === 404, `esperaba 404, vino ${otra.status}`);
+    esperar((await recordatoriosAhora()).some((x) => x.texto === "Ibuprofeno x3"), "la dosis no volvio al pastillero sin duenio");
   });
 
   console.log("\n=== LIMPIEZA ===");

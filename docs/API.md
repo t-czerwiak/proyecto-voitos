@@ -257,7 +257,7 @@ flujo para ponerse una. El mail lo dice con otras palabras en ese caso.
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| GET | `/api/sensor/pendiente` | La ESP32 consulta cada 30 s si hay una dosis para dispensar |
+| GET | `/api/sensor/pendiente` | La ESP32 consulta cada 30 s si hay una dosis para dispensar. Query opcional `?dispositivo_id=` y header `X-Pastillero-Secreto` (ver [Pastilleros](#pastilleros-protegido)) |
 | POST | `/api/sensor/dispensar` | El backend le manda la orden al dispositivo por la red local |
 | POST | `/api/sensor/confirmacion` | La ESP32 confirma que dispensó tras apretar el botón físico |
 
@@ -301,6 +301,14 @@ En los dos casos la dispensación se registra igual: por
 - Si no hay nada pendiente, `pendiente` es `false` y el resto `null`.
 - `recordatorios`: lo que el **display OLED** del pastillero tiene que mostrar
   ahora (ver abajo). Viene siempre, haya dosis pendiente o no.
+- `vinculo`: solo si la placa mandó `?dispositivo_id=` y está dada de alta en
+  `pastilleros`. `{ "vinculado": true }` si tiene dueño; si no,
+  `{ "vinculado": false, "codigo": "12345678" }`, y el `codigo` llega **solo si
+  el header `X-Pastillero-Secreto` es el correcto**. La placa lo muestra en el
+  display para que el cuidador lo cargue en la app.
+- Con `dispositivo_id`, la dosis y los recordatorios son solo los del dueño de
+  esa placa. Sin dueño (o sin `dispositivo_id`, las placas viejas), son los de
+  todas las cuentas **menos** las que ya tienen su propio pastillero.
 
 #### Recordatorios en el display
 
@@ -609,23 +617,53 @@ el hardware. Una ESP32 maneja varios módulos; hoy hay uno solo, `voitos_1`
 al recargar, y el backend lo descuenta solo en cada dispensación confirmada. El
 `numero` y el `dispositivo_id` no se editan: describen hardware.
 
-Los módulos **no se filtran por dueño, a propósito**: cualquier sesión ve y
-puede editar todos. En el MVP hay un solo pastillero, y en la exhibición cada
-visitante se hace su propia cuenta y programa una dispensación en ese mismo
-aparato. Atar el módulo a una cuenta rompería justamente esa demo.
+Los módulos se filtran por el **dueño del pastillero**: los de un pastillero
+vinculado a otra cuenta no aparecen en la lista, dan 404 por id y no se usan al
+cargar una pastilla. Los de un pastillero **sin dueño** los ve y edita
+cualquier sesión, como en la exhibición, donde cada visitante se hace su cuenta
+y programa en el mismo aparato.
 
-**Idea para después (no implementada):** vincular cada pastillero a la cuenta
-del cuidador o familiar que lo usa, para que nadie más pueda cambiarle la
-pastilla, el stock ni dispensar en él. Formas posibles de hacer el vínculo:
+### Pastilleros (protegido)
 
-- un código de 8 dígitos que aparece en el display del pastillero y se ingresa
-  en la app;
-- un código QR pegado en el aparato o mostrado en el display;
-- un mail especial de activación que llega con el pastillero.
+| Método | Ruta | Descripción |
+| ------ | ---- | ----------- |
+| GET | `/api/pastilleros` | Los pastilleros vinculados a la cuenta |
+| POST | `/api/pastilleros/vincular` | Vincular con el código de 8 dígitos del display |
+| DELETE | `/api/pastilleros/:dispositivo_id` | Dejarlo sin dueño |
 
-Cualquiera de las tres termina en lo mismo en el backend: una columna de dueño
-en `modulos` (o en una tabla de dispositivos) y el mismo chequeo de propiedad
-que ya tienen pastillas y contactos (`puedeOperar`).
+Un pastillero es una placa ESP32 (`dispositivo_id`, el mismo que tienen sus
+módulos). Como los módulos, **se dan de alta a mano** en la tabla
+`pastilleros`. `usuario_id` null = sin dueño (modo exhibición: cualquiera lo
+usa); con dueño, solo esa cuenta ve sus módulos y la placa solo dispensa y
+muestra lo de esa cuenta.
+
+**Cómo se vincula, sin estar en la misma red:**
+
+1. El cuidador le carga el WiFi de su casa a la placa una sola vez, desde la red
+   propia que abre la ESP32 (`VOITOS-XXXX`, ver `LEEME-FIRMWARE.md` en la rama
+   de hardware). Es el único paso que necesita estar al lado del aparato.
+2. Con internet, la placa consulta `pendiente` cada 30 s. Mientras no tiene
+   dueño, recibe un código de 8 dígitos (vale 30 minutos, después llega otro) y
+   lo muestra en el display.
+3. El cuidador escribe ese código en la app desde donde esté:
+   `POST /api/pastilleros/vincular`. En la consulta siguiente la placa recibe
+   `vinculado: true` y deja de mostrarlo.
+
+**Body de `POST /api/pastilleros/vincular`:**
+```json
+{ "codigo": "1234 5678" }
+```
+Espacios y guiones se ignoran. 400 si no son 8 números, 404 si no existe, ya
+venció o el pastillero ya tiene dueño. Responde 201 con `dispositivo_id` y
+`vinculado_at`.
+
+**El secreto de la placa.** El `dispositivo_id` está en el repositorio, así
+que cualquiera podría pedir el código haciéndose pasar por la placa. Por eso el
+código solo se entrega con el header `X-Pastillero-Secreto`: lo inventa la
+placa la primera vez que arranca y lo guarda en su memoria, y el backend se
+queda con el hash del primero que llega (confianza en el primer uso).
+Desvincular borra también ese hash, para que una placa reseteada pueda volver
+a presentarse.
 
 ### Alertas (protegido)
 
@@ -754,6 +792,7 @@ Supabase (PostgreSQL), proyecto `pshejdspqqhuhyjbzslx`.
 | `horarios` | `id`, `pastilla_id`, `dia`, `hora`, `minuto`, `cantidad` (1-20), `dispensado`, `senal_enviada`, `notificado`, `recordatorio_min` |
 | `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `detectadas` (0-20 o null, lo que vio el sensor), `timestamp` |
 | `modulos` | `id`, `numero`, `nombre`, `dispositivo_id`, `pastilla_id` (null = vacío), `cantidad_actual`. Único por (`dispositivo_id`, `numero`) |
+| `pastilleros` | `dispositivo_id` (PK), `usuario_id` (null = sin dueño, SET NULL al borrar la cuenta), `secreto_hash`, `codigo` (8 dígitos, único) + `codigo_vence`, `vinculado_at` |
 | `contactos_emergencia` | `id`, `usuario_id`, `nombre`, `apellido`, `numero`, `dni` |
 | `actividades` | `id`, `usuario_id`, `nombre`, `fecha`, `hora`, `tipo`, `dias`, `recordatorio_min` |
 
@@ -770,7 +809,7 @@ Supabase (PostgreSQL), proyecto `pshejdspqqhuhyjbzslx`.
 **RLS (Row Level Security):** activado en **todas** las tablas. El backend usa
 la service_role key, que saltea RLS por diseño (es la clave de servidor de
 confianza). Como ningún cliente accede directo a Supabase, no hay tablas
-expuestas a la anon key pública. `dispensaciones` y `modulos` tienen RLS sin
+expuestas a la anon key pública. `dispensaciones`, `modulos` y `pastilleros` tienen RLS sin
 políticas, o sea denegar todo a cualquier otro rol.
 
 **Plan free:** Supabase pausa el proyecto por inactividad. Se reactiva desde el

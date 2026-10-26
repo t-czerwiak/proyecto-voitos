@@ -1,6 +1,7 @@
 import { supabase } from "../config/supabase";
 import { ModuloUpdate } from "../schemas/modulos.schema";
 import { ErrorHttp } from "../utils/errores";
+import { dispositivosAjenos } from "./pastilleros.service";
 
 // UN MODULO ES UNA PIEZA DE HARDWARE. EL SOFTWARE NO LOS INVENTA.
 //
@@ -29,11 +30,21 @@ import { ErrorHttp } from "../utils/errores";
 // tiene escrito adentro, asi que no se toca desde la aplicacion.
 const CAMPOS = "id, numero, nombre, pastilla_id, cantidad_actual, dispositivo_id";
 
-export const getAllModulos = async (dispositivo_id?: string) => {
-  let query = supabase
-    .from("modulos")
-    .select("*, pastillas(id, nombre, tipo)")
-    .order("numero", { ascending: true });
+// Saca los modulos de los pastilleros vinculados a OTRA cuenta. Los de un
+// pastillero sin duenio los ve cualquiera (ver pastilleros.service).
+const sinAjenos = (consulta: any, ajenos: string[]) =>
+  ajenos.length
+    ? consulta.not("dispositivo_id", "in", `(${ajenos.map((d) => `"${d}"`).join(",")})`)
+    : consulta;
+
+export const getAllModulos = async (usuario_id: string, dispositivo_id?: string) => {
+  let query = sinAjenos(
+    supabase
+      .from("modulos")
+      .select("*, pastillas(id, nombre, tipo)")
+      .order("numero", { ascending: true }),
+    await dispositivosAjenos(usuario_id)
+  );
 
   if (dispositivo_id) query = query.eq("dispositivo_id", dispositivo_id);
 
@@ -42,12 +53,12 @@ export const getAllModulos = async (dispositivo_id?: string) => {
   return data;
 };
 
-export const getModuloById = async (id: string) => {
-  const { data, error } = await supabase
-    .from("modulos")
-    .select("*, pastillas(id, nombre, tipo)")
-    .eq("id", id)
-    .maybeSingle();
+// null tambien si es de un pastillero ajeno: para el que pregunta no existe.
+export const getModuloById = async (id: string, usuario_id: string) => {
+  const { data, error } = await sinAjenos(
+    supabase.from("modulos").select("*, pastillas(id, nombre, tipo)").eq("id", id),
+    await dispositivosAjenos(usuario_id)
+  ).maybeSingle();
 
   if (error) throw new Error(error.message);
   return data;
@@ -116,8 +127,12 @@ export const descontarDelModulo = async (moduloId: string, cantidad: number) => 
 export const asignarPastillaAModulo = async (
   pastilla_id: string,
   cantidad: number,
+  usuario_id: string,
   numeroPedido?: number
 ) => {
+  // Nunca en el modulo de un pastillero que es de otra cuenta.
+  const ajenos = await dispositivosAjenos(usuario_id);
+
   // Si piden un modulo concreto se respeta, aunque ya tenga otra pastilla:
   // fisicamente cambiar la tolva y el filtro es justamente eso.
   //
@@ -125,10 +140,10 @@ export const asignarPastillaAModulo = async (
   // 3 en un pastillero que tiene uno solo es un error de quien lo pide, y
   // crearlo dejaria a la ESP32 recibiendo un numero de servo que no tiene.
   if (numeroPedido !== undefined) {
-    const { data: existente } = await supabase
-      .from("modulos")
-      .select("id")
-      .eq("numero", numeroPedido)
+    const { data: existente } = await sinAjenos(
+      supabase.from("modulos").select("id").eq("numero", numeroPedido),
+      ajenos
+    )
       .limit(1)
       .maybeSingle();
 
@@ -146,10 +161,10 @@ export const asignarPastillaAModulo = async (
   }
 
   // Sin pedido explicito: el modulo libre de numero mas bajo.
-  const { data: libre } = await supabase
-    .from("modulos")
-    .select("id")
-    .is("pastilla_id", null)
+  const { data: libre } = await sinAjenos(
+    supabase.from("modulos").select("id").is("pastilla_id", null),
+    ajenos
+  )
     .order("numero", { ascending: true })
     .limit(1)
     .maybeSingle();
