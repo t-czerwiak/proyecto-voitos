@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabase";
 import { getHoraArgentina, aMinutosDelDia, sumarUnDia } from "../utils/tiempo";
+import { Alcance, filtrarPorAlcance } from "./pastilleros.service";
 
 // Lo que el display OLED del pastillero tiene que mostrar AHORA.
 //
@@ -8,8 +9,8 @@ import { getHoraArgentina, aMinutosDelDia, sumarUnDia } from "../utils/tiempo";
 // pastillero. Sale de dos lados, dosis (horarios) y actividades del
 // calendario, que eligieron "recordatorio en el pastillero" al crearse.
 //
-// No se filtra por cuenta ni por dispositivo: en el MVP hay un solo
-// pastillero y todas las cuentas lo comparten (ver docs/API.md, Modulos).
+// Se filtra por el alcance de la placa: si tiene duenio, solo lo de esa cuenta;
+// si no, lo de todos menos los que ya tienen su pastillero (pastilleros.service).
 
 export interface Recordatorio {
   // Para que la placa recuerde cuales ya marco como vistos con el boton y no
@@ -39,7 +40,7 @@ const dosDigitos = (n: number) => String(n).padStart(2, "0");
 // placa, que tendria que decodificar UTF-8 a mano. "Kinesiología" -> "Kinesiologia".
 const sinAcentos = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "");
 
-export const getRecordatorios = async (): Promise<Recordatorio[]> => {
+export const getRecordatorios = async (alcance: Alcance): Promise<Recordatorio[]> => {
   const { hoy, hora, minuto } = getHoraArgentina();
   const manana = sumarUnDia(hoy);
   const ahora = aMinutosDelDia(hora, minuto);
@@ -47,16 +48,24 @@ export const getRecordatorios = async (): Promise<Recordatorio[]> => {
   // Se mira tambien manana porque un recordatorio de 1 hora para una dosis de
   // las 00:30 tiene que aparecer a las 23:30 de hoy.
   const [dosis, actividades] = await Promise.all([
-    supabase
-      .from("horarios")
-      .select("id, dia, hora, minuto, cantidad, recordatorio_min, pastillas ( nombre )")
-      .in("dia", [hoy, manana])
-      .eq("dispensado", false)
-      .not("recordatorio_min", "is", null),
-    supabase
-      .from("actividades")
-      .select("id, nombre, fecha, hora, tipo, dias, recordatorio_min")
-      .not("recordatorio_min", "is", null),
+    filtrarPorAlcance(
+      supabase
+        .from("horarios")
+        .select("id, dia, hora, minuto, cantidad, recordatorio_min, pastillas!inner ( nombre, usuario_id )")
+        .in("dia", [hoy, manana])
+        .eq("dispensado", false)
+        .not("recordatorio_min", "is", null),
+      alcance,
+      "pastillas.usuario_id"
+    ),
+    filtrarPorAlcance(
+      supabase
+        .from("actividades")
+        .select("id, nombre, fecha, hora, tipo, dias, recordatorio_min")
+        .not("recordatorio_min", "is", null),
+      alcance,
+      "usuario_id"
+    ),
   ]);
 
   if (dosis.error) throw new Error(dosis.error.message);

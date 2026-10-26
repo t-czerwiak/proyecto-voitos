@@ -72,6 +72,7 @@ export const createPastilla = async (body: PastillaCreate) => {
   const modulo = await asignarPastillaAModulo(
     data.id,
     cantidad_inicial,
+    datosPastilla.usuario_id,
     modulo_numero
   );
 

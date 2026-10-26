@@ -204,12 +204,17 @@ values (2, 'voitos_2', 'ESP32-001');
 coincidir con lo que el firmware tiene escrito (`DISPOSITIVO_ID`).
 `cantidad_actual` arranca en 0 y `pastilla_id` en `null`: módulo vacío.
 
-**Cualquier cuenta puede usar cualquier módulo, y es a propósito.** En el MVP
-hay un solo pastillero y en la exhibición cada visitante se hace su cuenta y
-programa una dispensación en él. Lo ideal a futuro es vincular cada pastillero a
-la cuenta de su cuidador o familiar (código de 8 dígitos en el display, QR, o un
-mail de activación). Queda como idea, sin implementar: hoy rompería la demo.
-Detalle en `docs/API.md`, sección Módulos.
+Cada placa también va en la tabla `pastilleros`, a mano:
+
+```sql
+insert into pastilleros (dispositivo_id) values ('ESP32-002');
+```
+
+**Un pastillero sin dueño lo usa cualquier cuenta, y es a propósito:** es el
+modo de la exhibición, donde cada visitante se hace su cuenta y programa en el
+mismo aparato. Cuando el cuidador lo vincula con el código de 8 dígitos del
+display, queda solo para su cuenta. Para volver al modo exhibición se
+desvincula desde la app. Detalle en `docs/API.md`, sección Pastilleros.
 
 ### Borrar la cuenta
 
