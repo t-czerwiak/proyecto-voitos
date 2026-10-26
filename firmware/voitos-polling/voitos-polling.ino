@@ -85,7 +85,7 @@ const int BUZZER_PIN = 19;
 const int BUTTON_PIN = MODO_PRUEBA ? 0 : 21;
 
 
-const int OLED_SDA = 23;
+const int OLED_SDA = 21;
 const int OLED_SCL = 22;
 const uint8_t OLED_DIRECCION = 0x3C;
 
