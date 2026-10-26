@@ -1,6 +1,3 @@
-// Funciones de dominio de Voitos. Cada pantalla llama a estas y no arma URLs
-// a mano, asi los endpoints quedan en un solo lugar.
-
 import { api, sesion, Usuario } from "./api";
 
 interface Sesion {
@@ -14,7 +11,7 @@ export const registrarse = async (datos: {
   apellido: string;
   mail: string;
   password: string;
-  // Opcional: el formulario la pide pero deja seguir sin ella.
+
   fecha_nacimiento?: string;
 }): Promise<Usuario | null> => {
   const r = await api.postPublico<Sesion>("/api/auth/registro", datos);
@@ -28,24 +25,15 @@ export const iniciarSesion = async (mail: string, password: string): Promise<Usu
   return r.usuario;
 };
 
-// Entra (o se registra, es el mismo paso) con el ID token que devolvio el boton
-// de Google. La app no valida el token: eso lo hace el backend contra Google.
 export const iniciarSesionConGoogle = async (idToken: string): Promise<Usuario | null> => {
   const r = await api.postPublico<Sesion>("/api/auth/google", { id_token: idToken });
   sesion.guardar(r.token, r.usuario);
   return r.usuario;
 };
 
-// Pide el mail con el enlace para cambiar la contrasena.
-//
-// La respuesta es la misma exista o no la cuenta, a proposito: si cambiara,
-// cualquiera podria averiguar que casillas estan registradas probandolas de a
-// una. La pantalla muestra ese mensaje tal cual.
 export const pedirRecuperacion = (mail: string) =>
   api.postPublico<{ mensaje: string }>("/api/auth/recuperar", { mail });
 
-// Cierra la recuperacion con el token del mail. Devuelve la sesion ya iniciada,
-// asi no hay que escribir la contrasena de nuevo en la pantalla siguiente.
 export const confirmarRecuperacion = async (
   token: string,
   password: string
@@ -57,13 +45,6 @@ export const confirmarRecuperacion = async (
 
 export const cerrarSesion = () => sesion.cerrar();
 
-// Cambia la fecha de nacimiento.
-//
-// El backend solo deja editar el PROPIO usuario: compara el id de la URL contra
-// el del token y responde 404 si no coinciden. Por eso el id sale de la sesion.
-//
-// Devuelve el usuario actualizado y lo guarda en la sesion, asi la pantalla no
-// tiene que volver a pedirlo para mostrar el dato nuevo.
 export const cambiarFechaNacimiento = async (iso: string): Promise<Usuario> => {
   const actual = sesion.getUsuario();
   if (!actual) throw new Error("No hay sesion iniciada");
@@ -76,25 +57,12 @@ export const cambiarFechaNacimiento = async (iso: string): Promise<Usuario> => {
   return usuario;
 };
 
-// Borra la cuenta entera: el perfil y la cuenta de Auth.
-//
-// El backend solo deja borrar la PROPIA: compara el id de la URL contra el del
-// token y, si no coinciden, responde 404. Por eso el id sale de la sesion y no
-// es un parametro.
-//
-// No cierra la sesion: eso lo hace la pantalla despues, para poder mostrar un
-// error si algo falla en vez de dejar a la persona afuera sin explicacion.
 export const borrarMiCuenta = () => {
   const usuario = sesion.getUsuario();
   if (!usuario) throw new Error("No hay sesion iniciada");
   return api.delete<{ message: string }>(`/api/usuarios/${usuario.id}`);
 };
 
-// Vuelve a pedir el perfil al backend y actualiza el guardado.
-//
-// Hace falta porque el objeto de la sesion se escribe al iniciar sesion y no se
-// entera de nada despues. Si la cuenta se verifica desde el mail, la app seguia
-// mostrando el aviso hasta que alguien cerrara sesion y volviera a entrar.
 export const refrescarUsuario = async (): Promise<Usuario | null> => {
   const usuario = await api.get<Usuario>("/api/auth/yo");
   const token = sesion.getToken();
@@ -104,23 +72,14 @@ export const refrescarUsuario = async (): Promise<Usuario | null> => {
 
 export const getUsuarioActual = (): Usuario | null => sesion.getUsuario();
 
-// Reenvia el mail de verificacion a la propia cuenta. No recibe parametros a
-// proposito: el backend usa el dueño del token.
 export const reenviarVerificacion = () =>
   api.post<{ mail: string }>("/api/auth/reenviar-verificacion");
-
-// --- Panel de administracion ---------------------------------------------
-//
-// Todas estas rutas responden 404 si el que llama no es admin, asi que un
-// usuario normal ni se entera de que existen. La app las usa solo para decidir
-// que mostrar: la seguridad la pone el backend, no estas funciones.
 
 export interface UsuarioAdmin extends Usuario {
   rol: "cuidador" | "admin";
   verificado: boolean;
   pastillas: number;
-  // Las pastillas de esta cuenta, por nombre. Sin esto el panel decia "4
-  // pastillas" y no habia forma de saber cuales sin ir a la base.
+
   listaPastillas?: { id: string; nombre: string }[];
   horarios: number;
   created_at: string;
@@ -140,10 +99,6 @@ export const desverificarUsuario = (id: string) =>
 export const getPastillasDe = (id: string) =>
   api.get<Pastilla[]>(`/api/admin/usuarios/${id}/pastillas`);
 
-// Todas las dosis de todas las cuentas, para el calendario general del panel.
-//
-// El rango es lo que esta mirando la pantalla. Se manda siempre: sin el, el
-// backend devuelve la historia entera y eso crece sin techo.
 export interface DosisDeTodos {
   id: string;
   dia: string;
@@ -161,9 +116,6 @@ export const getCalendarioCompleto = (desde: string, hasta: string) =>
 export const vaciarCalendarioDe = (id: string) =>
   api.delete<{ borradas: number }>(`/api/admin/usuarios/${id}/calendario`);
 
-// Borra una cuenta entera. Por cascada se lleva sus pastillas, horarios,
-// dispensaciones, contactos y actividades. Los modulos quedan vacios, porque
-// son piezas fisicas del pastillero y siguen existiendo.
 export interface CuentaBorrada {
   nombre: string;
   apellido: string;
@@ -175,13 +127,6 @@ export interface CuentaBorrada {
 export const borrarUsuario = (id: string) =>
   api.delete<CuentaBorrada>(`/api/admin/usuarios/${id}`);
 
-// El modulo fisico donde esta cargada la pastilla. Es de donde sale el stock:
-// pastillas no tiene cantidad, la tiene el modulo.
-// Un modulo del pastillero: un servo con su tolva y su filtro. Como el filtro
-// es especifico, cada modulo dispensa UNA pastilla, y cantidad_actual son las
-// que quedan de esa.
-//
-// Una ESP32 puede manejar varios. Hoy hay uno solo armado, "voitos_1".
 export interface Modulo {
   id: string;
   numero: number;
@@ -203,10 +148,6 @@ export const getPastillas = () => {
   return api.get<Pastilla[]>(`/api/pastillas${filtro}`);
 };
 
-// cantidad_inicial son las pastillas que se cargan fisicamente en el modulo.
-//
-// modulo_numero elige en cual. Sin el, el backend usa el primero libre; si no
-// queda ninguno, la pastilla se crea igual pero sin cargar y modulo vuelve null.
 export const crearPastilla = (datos: {
   nombre: string;
   tipo?: string;
@@ -218,21 +159,11 @@ export const crearPastilla = (datos: {
   return api.post<Pastilla>("/api/pastillas", { ...datos, usuario_id: usuario.id });
 };
 
-// Suma o resta pastillas del modulo. El delta va con signo: +10 al recargar,
-// -3 para corregir un conteo mal anotado.
 export const ajustarStock = (pastillaId: string, delta: number) =>
   api.patch<Modulo>(`/api/pastillas/${pastillaId}/stock`, { delta });
 
-// Borra la pastilla entera. Las FK de la base estan en CASCADE, asi que se
-// lleva sus horarios y dispensaciones; el modulo queda libre, no se borra.
 export const borrarPastilla = (id: string) => api.delete(`/api/pastillas/${id}`);
 
-// Cancela una rutina sin borrar la pastilla: saca las dosis que todavia no
-// salieron y conserva el historial de las ya dispensadas.
-//
-// Los filtros importan: una pastilla puede tener varias rutinas a la vez (la
-// misma a las 8 y a las 20). Sin hora y minuto, cancelar una se llevaria
-// puestas las otras.
 export const cancelarRutina = (
   pastillaId: string,
   filtros: { hora?: number; minuto?: number; desde?: string; hasta?: string } = {}
@@ -274,24 +205,13 @@ export const crearHorario = (datos: {
 
 export const borrarHorario = (id: string) => api.delete(`/api/horarios/${id}`);
 
-// Letra de dia de la semana -> numero que devuelve Date.getDay()
 const DIAS: Record<string, number> = { D: 0, L: 1, M: 2, X: 3, J: 4, V: 5, S: 6 };
 
-// A "YYYY-MM-DD" en hora LOCAL, no UTC.
-//
-// toISOString() convierte a UTC, asi que en Argentina (UTC-3) desde las 21:00
-// devolvia la fecha del dia siguiente. Una dosis agendada de noche se guardaba
-// para manana y no aparecia en el calendario del dia correcto.
 const aFechaISO = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate()
   ).padStart(2, "0")}`;
 
-// Fechas concretas de una rutina.
-//
-// La tabla horarios guarda fechas, no reglas de repeticion, asi que una rutina
-// "lunes y viernes por 6 semanas" se materializa como una fila por dia. Por eso
-// la duracion hay que pedirla: sin un limite no se sabe cuantas filas crear.
 export const fechasDeLaRutina = (
   letrasDeDias: string[],
   semanas: number,
@@ -303,17 +223,11 @@ export const fechasDeLaRutina = (
 
   const ahora = new Date();
 
-  // Si hoy es uno de los dias elegidos pero la hora ya paso, la primera dosis
-  // no puede ser hoy: agendarla seria crear una dosis vencida, que el
-  // scheduler nunca va a disparar y que el cuidador ve como "no tomada".
   const yaPasoLaHora =
     hora !== undefined &&
     (ahora.getHours() > hora ||
       (ahora.getHours() === hora && ahora.getMinutes() >= (minuto ?? 0)));
 
-  // Se busca el primer dia valido y recien desde ahi se cuentan las semanas.
-  // Contarlas desde hoy hacia adelante hacia que, al saltear el dia de hoy,
-  // una rutina de una semana quedara sin ninguna dosis.
   let inicio = 0;
   while (inicio < 14) {
     const d = new Date(ahora);
@@ -339,17 +253,14 @@ export interface AnalisisDeStock {
   totalDosis: number;
   totalPastillas: number;
   stock: number;
-  // Cuantas dosis completas cubre el stock actual
+
   dosisCubiertas: number;
-  // Hasta que semana de la rutina llega sin recargar (1 = la primera)
+
   semanasCubiertas: number;
-  // Cuantas faltan para completar la rutina entera
+
   faltan: number;
 }
 
-// Cuenta si el stock del modulo aguanta toda la rutina, y si no, hasta donde
-// llega. Se calcula antes de crear nada: avisar despues de agendar 24 dosis no
-// le sirve a nadie.
 export const analizarStock = (datos: {
   fechas: string[];
   cantidadPorDosis: number;
@@ -361,9 +272,6 @@ export const analizarStock = (datos: {
   const totalPastillas = totalDosis * cantidadPorDosis;
   const dosisCubiertas = Math.min(totalDosis, Math.floor(stock / cantidadPorDosis));
 
-  // En que semana cae la ultima dosis que el stock cubre. Se mide contra la
-  // primera fecha de la rutina y no contra hoy, porque la rutina puede
-  // arrancar en unos dias si hoy no es ninguno de los dias elegidos.
   let semanasCubiertas = 0;
   if (dosisCubiertas > 0) {
     const inicio = new Date(fechas[0]);
@@ -383,18 +291,13 @@ export const analizarStock = (datos: {
   };
 };
 
-// Agenda una rutina completa: una fila de horarios por cada dia que toca.
-//
-// Recibe el id de la pastilla y no el nombre porque ahora la pantalla usa un
-// desplegable con las pastillas que ya existen. Antes se escribia el nombre a
-// mano y habia que resolverlo contra la lista, que fallaba con un typo.
 export const agendarPastilla = async (datos: {
   pastilla_id: string;
-  hora: string; // "HH:MM"
+  hora: string;
   cantidad: number;
-  dias: string[]; // ["L","X","V"], vacio = solo hoy
+  dias: string[];
   semanas: number;
-  recordatorio_min: number | null; // minutos antes en el display, null = sin
+  recordatorio_min: number | null;
 }) => {
   const [horaTexto, minutoTexto] = datos.hora.split(":");
   const hora = Number(horaTexto);
@@ -426,16 +329,12 @@ export const agendarPastilla = async (datos: {
   return fechas.length;
 };
 
-// Todas las dosis del usuario, para que el calendario pueda marcar los dias.
 export const getHorariosDelUsuario = () => {
   const usuario = sesion.getUsuario();
   const filtro = usuario ? `?usuario_id=${usuario.id}` : "";
   return api.get<Horario[]>(`/api/horarios${filtro}`);
 };
 
-// Le pide al backend que le mande la senal de dispensar al pastillero ahora
-// mismo. Es la ruta publica del sensor: el backend inicia la conexion contra
-// la ESP32 por la red local.
 export interface ResultadoDispensar {
   enviado: boolean;
   destino: string;
@@ -480,12 +379,6 @@ export const crearActividad = (datos: {
 };
 
 export const borrarActividad = (id: string) => api.delete(`/api/actividades/${id}`);
-
-// ---------- Pastillero ----------
-//
-// Vincular el pastillero a la cuenta con el codigo de 8 digitos que muestra
-// su display. Sin vincular lo usa cualquier cuenta (modo exhibicion);
-// vinculado, solo dispensa y muestra lo de esta cuenta.
 
 export interface PastilleroVinculado {
   dispositivo_id: string;

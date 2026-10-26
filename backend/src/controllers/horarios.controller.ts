@@ -6,7 +6,7 @@ import { idDelUsuario } from "../utils/sesion";
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const pastilla_id = req.query.pastilla_id as string | undefined;
-    // Del token, no de la query: el cliente no elige de quien son los datos.
+
     const usuario_id = idDelUsuario(req);
     const data = await horariosService.getAllHorarios({ pastilla_id, usuario_id });
     res.json({ success: true, data });

@@ -17,25 +17,6 @@ import {
 } from "../lib/avisos";
 import Boton from "./Boton";
 
-// El dialogo de confirmacion de la aplicacion.
-//
-// Reemplaza a window.confirm. El porque esta escrito en lib/avisos.ts; el
-// resumen es que el dialogo del navegador dice "voitos.vercel.app dice" arriba
-// de un texto sobre medicacion, que es exactamente la forma de los avisos
-// falsos, y que no respeta ni un color ni un tamano de los nuestros.
-//
-// Va montado UNA vez, en el layout raiz, y escucha si hay una pregunta
-// pendiente. Las pantallas no lo dibujan ni lo conocen: llaman a confirmar() y
-// esperan la respuesta.
-//
-// Que tiene que el del navegador no tenia:
-//
-//   - Los dos botones dicen que hacen ("Eliminar cuenta", no "Aceptar"), y el
-//     que borra va en rojo.
-//   - Se sale con Escape, tocando afuera o con "Cancelar", y las tres cosas
-//     responden que NO. Solo el boton de confirmar dice que si.
-//   - El texto largo scrollea adentro de la tarjeta en vez de empujar los
-//     botones fuera de la pantalla, que es lo que pasaba en un celular chico.
 export default function Dialogo() {
   const pedido = useSyncExternalStore(
     suscribirDialogo,
@@ -49,12 +30,6 @@ export default function Dialogo() {
   const abierto = pedido !== null;
   const peligro = pedido?.tono === "peligro";
 
-  // Escape cierra, respondiendo que no.
-  //
-  // El Modal de react-native-web ya llama a onRequestClose en Escape, pero solo
-  // si el foco quedo adentro del dialogo. Si la persona venia navegando con el
-  // mouse el foco puede estar en el body y entonces no llega. Escuchar en el
-  // documento cubre los dos casos.
   useEffect(() => {
     if (!abierto || typeof document === "undefined") return;
 
@@ -73,15 +48,11 @@ export default function Dialogo() {
       animationType="fade"
       onRequestClose={() => responderDialogo(false)}
     >
-      {/* El fondo oscurecido. Tocarlo cancela, que es lo que espera cualquiera
-          que haya usado un dialogo antes. */}
       <Pressable
         style={styles.fondo}
         onPress={() => responderDialogo(false)}
         accessibilityLabel="Cerrar sin hacer nada"
       >
-        {/* Este Pressable no hace nada a proposito: para el toque, asi que
-            tocar la tarjeta no cuenta como tocar el fondo y no la cierra. */}
         <Pressable
           style={styles.tarjeta}
           onPress={() => {}}
@@ -99,9 +70,6 @@ export default function Dialogo() {
                 <Text style={styles.titulo}>{pedido.titulo}</Text>
               </View>
 
-              {/* El texto scrollea adentro. Sin esto, una rutina larga empujaba
-                  los botones abajo del borde de la pantalla y no habia forma de
-                  confirmar ni de cancelar. */}
               <ScrollView
                 key={pedido.id}
                 style={styles.cuerpo}
@@ -114,9 +82,6 @@ export default function Dialogo() {
                 ))}
               </ScrollView>
 
-              {/* Cancelar va primero en el orden de lectura y del tabulador: si
-                  alguien llego hasta aca sin querer, lo primero que encuentra
-                  es la salida. */}
               <View style={styles.botones}>
                 <Boton
                   titulo="Cancelar"
@@ -142,8 +107,7 @@ export default function Dialogo() {
 const useEstilos = crearEstilos((colores) => ({
   fondo: {
     flex: 1,
-    // Negro translucido y no un color de la paleta: lo que tiene que quedar
-    // claro es que lo de atras esta apagado.
+
     backgroundColor: "rgba(0, 0, 0, 0.72)",
     alignItems: "center",
     justifyContent: "center",
@@ -153,7 +117,7 @@ const useEstilos = crearEstilos((colores) => ({
   tarjeta: {
     width: "100%",
     maxWidth: ANCHO_FORMULARIO,
-    // Nunca mas alto que la pantalla: de eso se encarga el scroll del cuerpo.
+
     maxHeight: "85%",
     backgroundColor: colores.superficieAlta,
     borderWidth: 2,

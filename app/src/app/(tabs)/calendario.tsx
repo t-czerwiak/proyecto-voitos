@@ -34,8 +34,6 @@ import {
 } from "../../ui";
 import { crearEstilos, useColores, espacio, radio, texto, toque } from "../../tema";
 
-// Nombre completo del dia de la semana, para el lector de pantalla. La letra
-// suelta ("X") no es una palabra que nadie pueda escuchar.
 const NOMBRE_DIA: Record<string, string> = {
   L: "lunes",
   M: "martes",
@@ -56,9 +54,6 @@ export default function Calendario() {
 
   const [actividades, setActividades] = useState<Actividad[]>([]);
 
-  // Las dosis agendadas. Van aparte de las actividades porque son otra tabla y
-  // se marcan distinto: una rutina de medicacion ya viene materializada como
-  // una fila por dia, asi que no hay que resolver dias de la semana.
   const [horarios, setHorarios] = useState<Horario[]>([]);
   const [cargando, setCargando] = useState(true);
   const [borrando, setBorrando] = useState(false);
@@ -67,9 +62,6 @@ export default function Calendario() {
 
   const rutinas = useMemo(() => armarRutinas(horarios, colores.rutinas), [horarios, colores.rutinas]);
 
-  // Las que se listan abajo son solo las que siguen teniendo dosis por salir.
-  // Una rutina terminada no se puede borrar ni modificar, asi que listarla solo
-  // confunde: al cancelarla quedaba ahi con "0 sin tomar" y parecia rota.
   const activas = useMemo(() => rutinasActivas(rutinas), [rutinas]);
 
   const recargarHorarios = () =>
@@ -96,8 +88,6 @@ export default function Calendario() {
     setBorrando(true);
     setErrorRutina("");
     try {
-      // Se mandan hora, minuto y rango para borrar SOLO esta rutina. Sin eso
-      // se llevaria por delante las otras rutinas de la misma pastilla.
       await cancelarRutina(rutina.pastillaId, {
         hora: rutina.hora,
         minuto: rutina.minuto,
@@ -112,11 +102,6 @@ export default function Calendario() {
     }
   };
 
-  // Carga inicial y recarga al volver a la pantalla.
-  //
-  // Va con useFocusEffect y no useEffect porque el Stack de expo-router deja
-  // la pantalla montada: al volver de agendar una dosis, un useEffect con []
-  // no se volveria a ejecutar y el calendario seguiria mostrando lo viejo.
   useFocusEffect(
     useCallback(() => {
       let vigente = true;
@@ -132,8 +117,6 @@ export default function Calendario() {
           setErrorCarga("");
         })
         .catch((e: any) => {
-          // Antes esto vaciaba la lista en silencio, asi que un 401 o un
-          // backend caido se veian identicos a "no hay dosis para este dia".
           if (!vigente) return;
           setHorarios([]);
           setErrorCarga(e?.message ?? "No se pudieron cargar las dosis");
@@ -151,7 +134,6 @@ export default function Calendario() {
   const cantidadDias = new Date(anio, mes + 1, 0).getDate();
   const primerDia = new Date(anio, mes, 1).getDay();
 
-  // Convertimos domingo=0 a lunes=0
   const primerDiaAjustado = primerDia === 0 ? 6 : primerDia - 1;
 
   const diasCalendario = useMemo(() => {
@@ -169,13 +151,6 @@ export default function Calendario() {
       a.tipo === "una-vez" ? a.fecha === fecha : a.dias?.includes(letraDelDia(fecha))
     );
 
-  // Las rutinas que tienen una dosis este dia.
-  //
-  // Se compara contra las fechas de cada rutina. Antes se filtraba por
-  // pastilla, y como varias rutinas pueden ser de la misma pastilla, un dia con
-  // una sola dosis pintaba el marcador de todas.
-  // Solo las activas: marcar tambien las terminadas llenaba el calendario de
-  // dosis viejas con colores que no correspondian a ninguna tarjeta de abajo.
   const rutinasEn = (fecha: string) => rutinasEnFecha(activas, fecha);
 
   const dosisDelDia = useMemo(
@@ -225,7 +200,6 @@ export default function Calendario() {
 
       <Aviso texto={errorCarga} />
 
-      {/* MES */}
       <View style={styles.navegacion}>
         <Pressable
           onPress={() => cambiarMes(-1)}
@@ -250,15 +224,13 @@ export default function Calendario() {
         </Pressable>
       </View>
 
-      {/* GRILLA */}
       <View style={styles.grilla}>
         <View style={styles.semana}>
           {DIAS_SEMANA.map((dia) => (
             <Text
               key={dia}
               style={styles.diaSemana}
-              // La cabecera de la columna la lee cada celda en su propia
-              // etiqueta, asi que repetirla acá solo alarga la escucha.
+
               accessibilityElementsHidden
             >
               {dia}
@@ -278,7 +250,6 @@ export default function Calendario() {
             const susRutinas = rutinasEn(fecha);
             const susActividades = actividadesEn(fecha);
 
-            // Todo lo que el ojo saca de los colores, dicho en palabras.
             const partes: string[] = [fechaLarga(fecha)];
             if (hoy) partes.push("hoy");
             if (susRutinas.length)
@@ -309,9 +280,7 @@ export default function Calendario() {
                 accessibilityRole="button"
                 accessibilityLabel={partes.join(", ")}
                 accessibilityState={{ selected: elegido }}
-                // react-native-web no traduce accessibilityState.selected en
-                // un role="button", asi que el navegador no anunciaba cual
-                // era el dia elegido. Se pone a mano.
+
                 aria-selected={elegido}
               >
                 <Text
@@ -324,9 +293,6 @@ export default function Calendario() {
                   {dia}
                 </Text>
 
-                {/* Los marcadores son una ayuda visual. Lo que significan está
-                    escrito en la referencia de abajo y en la etiqueta de la
-                    celda, así que nadie depende del color. */}
                 <View style={styles.marcadores}>
                   {susActividades.length > 0 && (
                     <View style={[styles.marcador, styles.marcadorActividad]} />
@@ -354,10 +320,6 @@ export default function Calendario() {
         />
       </View>
 
-      {/* REFERENCIA DE COLORES
-          Sin esto, los colores del calendario son adivinanza: se ven tres
-          barras distintas y no hay forma de saber cuál es cuál sin abrir cada
-          día uno por uno. */}
       {activas.length > 0 && (
         <View style={styles.referencia}>
           <Text style={styles.tituloReferencia}>Qué es cada color</Text>
@@ -383,7 +345,6 @@ export default function Calendario() {
         </View>
       )}
 
-      {/* DÍA ELEGIDO */}
       <View style={styles.seccion}>
         <View style={styles.tituloDia}>
           <Text style={styles.tituloSeccion} accessibilityRole="header">
@@ -410,8 +371,6 @@ export default function Calendario() {
               />
             ) : (
               dosisDelDia.map((dosis) => {
-                // La rutina de la que sale esta dosis, para pintarla del mismo
-                // color que su marcador en el calendario.
                 const suRutina = rutinaDeHorario(activas, dosis);
                 return (
                   <FilaDosis
@@ -477,7 +436,6 @@ export default function Calendario() {
         )}
       </View>
 
-      {/* RUTINAS EN CURSO */}
       {activas.length > 0 && (
         <View style={styles.seccion}>
           <Text style={styles.tituloSeccion} accessibilityRole="header">
@@ -494,9 +452,6 @@ export default function Calendario() {
                 Todos los días marcados, a las {r.horaTexto}
               </Text>
 
-              {/* Los siete días siempre a la vista, con los de la rutina
-                  encendidos. Leer "L M X V" suelto obliga a reconstruir la
-                  semana mentalmente; así se ve de una. */}
               <View
                 style={styles.diasRutina}
                 accessible
@@ -588,8 +543,7 @@ const useEstilos = crearEstilos((colores) => ({
     color: colores.texto,
     flex: 1,
     textAlign: "center",
-    // El nombre del mes va en minúscula porque así se lee más rápido: las
-    // mayúsculas sostenidas borran la silueta de la palabra.
+
     textTransform: "capitalize",
   },
 
@@ -620,11 +574,7 @@ const useEstilos = crearEstilos((colores) => ({
 
   celda: {
     width: `${100 / 7}%`,
-    // Antes era el minimo de 48px y el numero se centraba JUNTO con los
-    // marcadores, asi que un dia con dosis empujaba su numero hacia arriba y
-    // los numeros de la grilla no quedaban alineados entre filas. Ahora la
-    // celda es mas alta, el numero arranca siempre a la misma distancia del
-    // borde y los marcadores van anclados abajo, fuera del flujo.
+
     minHeight: 64,
     alignItems: "center" as const,
     justifyContent: "flex-start" as const,
@@ -638,8 +588,6 @@ const useEstilos = crearEstilos((colores) => ({
     borderColor: "transparent",
   },
 
-  // Hoy se marca con borde, no con relleno: el relleno queda reservado para
-  // el día que uno eligió, y así los dos estados se pueden ver a la vez.
   celdaHoy: {
     borderColor: colores.bordeFuerte,
   },
@@ -655,8 +603,7 @@ const useEstilos = crearEstilos((colores) => ({
 
   numero: {
     ...texto.item,
-    // Numeros de ancho fijo: en una grilla, un 11 mas angosto que un 30 se
-    // nota y desalinea la columna.
+
     fontVariant: ["tabular-nums" as const],
     color: colores.texto,
   },
@@ -802,7 +749,6 @@ const useEstilos = crearEstilos((colores) => ({
     marginBottom: espacio.md,
   },
 
-  // Apagado por defecto; el color lo enciende la rutina en línea.
   diaRutina: {
     ...texto.etiqueta,
     width: 28,

@@ -10,16 +10,6 @@ import {
 import { Boton } from "../ui";
 import { crearEstilos, useColores, espacio, radio, texto } from "../tema";
 
-// Aviso de cuenta sin verificar.
-//
-// NO bloquea nada a proposito. La cuenta funciona igual: se puede agregar
-// pastillas, agendar y ver el calendario sin haber confirmado el mail. El
-// aviso esta para que la persona sepa que le falta un paso, no para trabarla.
-//
-// Lo que cambio del diseno anterior: el texto pasó de 13px a 17, y las dos
-// acciones dejaron de ser texto suelto de 13px —"Reenviar el mail", "Ahora
-// no"— para ser botones de 48px. Eran las dos cosas mas chicas de la pantalla
-// y habia que acertarles con el dedo.
 export default function AvisoVerificacion() {
   const styles = useEstilos();
   const colores = useColores();
@@ -29,11 +19,6 @@ export default function AvisoVerificacion() {
   const [mensaje, setMensaje] = useState("");
   const [oculto, setOculto] = useState(false);
 
-  // Se relee al entrar a la pantalla, no una sola vez al montar.
-  //
-  // El objeto de la sesion se escribe al iniciar sesion y no se entera de nada
-  // despues. Si alguien verifica su cuenta desde el mail sin cerrar sesion, sin
-  // esto el aviso seguiria apareciendo para siempre.
   useFocusEffect(
     useCallback(() => {
       let vigente = true;
@@ -46,8 +31,6 @@ export default function AvisoVerificacion() {
           if (vigente && u) setVerificado(u.verificado ?? false);
         })
         .catch(() => {
-          // Sin sesion o sin backend: no se muestra nada. Un aviso de
-          // verificacion no es el lugar para reportar que el backend no anda.
         });
 
       return () => {

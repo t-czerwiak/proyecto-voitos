@@ -1,27 +1,8 @@
-// Pruebas de seguridad: intentan explotar los agujeros que se taparon.
-//
-// A diferencia de integracion.mjs, que verifica que las cosas funcionen, estas
-// verifican que ciertas cosas NO funcionen. Una prueba que "pasa" aca significa
-// que el ataque fue rechazado.
-//
-// Se crean dos usuarios distintos y se intenta que uno lea los datos del otro.
-// Esas dos cuentas se borran siempre al terminar, aunque la corrida se corte a
-// la mitad: estas pruebas van contra la base de produccion, y una cuenta que
-// sobrevive es basura que despues hay que limpiar a mano.
-//
-// Por eso necesita la SUPABASE_SERVICE_ROLE_KEY en el .env, igual que admin.mjs:
-// borrar la fila de usuarios y la cuenta de auth.users no se puede desde la API,
-// y no conviene que se pueda.
-//
-//   node tests/seguridad.mjs      (con el backend corriendo en localhost:3000)
-
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 
 config();
 
-// Por defecto corre contra el backend local. Para probar el desplegado:
-//   API=https://voitos-backend.onrender.com node tests/seguridad.mjs
 const API = process.env.API ?? "http://localhost:3000";
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -40,7 +21,6 @@ const pedir = async (ruta, { metodo = "GET", cuerpo, token } = {}) => {
   try {
     json = await r.json();
   } catch {
-    // algunas respuestas no traen cuerpo
   }
   return { status: r.status, json };
 };
@@ -61,7 +41,6 @@ const esperar = (cond, msg) => {
   if (!cond) throw new Error(msg);
 };
 
-// Los ids de las cuentas descartables, para poder borrarlas despues.
 const creados = [];
 
 const registrar = async (etiqueta) => {
@@ -74,8 +53,6 @@ const registrar = async (etiqueta) => {
   });
   esperar(alta.status === 201, `no se pudo registrar ${etiqueta}: ${alta.status}`);
 
-  // Se anota apenas la cuenta existe, antes del login: si el login falla la
-  // cuenta ya esta creada igual, y sin este id no habria como borrarla.
   creados.push(alta.json.data.usuario.id);
 
   const login = await pedir("/api/auth/login", {
@@ -92,9 +69,6 @@ const registrar = async (etiqueta) => {
   };
 };
 
-// Borra las cuentas descartables de las dos tablas: la fila de public.usuarios y
-// la cuenta de auth.users. Si alguna no se pudo borrar lo dice, para que no se
-// acumule basura en silencio.
 const limpiar = async () => {
   for (const id of creados) {
     const { error } = await supabase.from("usuarios").delete().eq("id", id);
@@ -114,13 +88,10 @@ const correr = async () => {
   console.log(`  usuario A: ${a.id}`);
   console.log(`  usuario B: ${b.id}`);
 
-  // A crea una pastilla y un contacto de emergencia
   const pastilla = await pedir("/api/pastillas", {
     metodo: "POST",
     token: a.token,
-    // Sin cantidad_inicial a proposito: cargar stock crea un modulo, y la FK
-    // modulos -> pastillas es SET NULL, asi que al borrar la pastilla el modulo
-    // quedaria huerfano ensuciando la base en cada corrida.
+
     cuerpo: { usuario_id: a.id, nombre: "SecretoDeAna", tipo: "comprimido" },
   });
   esperar(pastilla.status === 201, "A no pudo crear su pastilla");
@@ -168,7 +139,6 @@ const correr = async () => {
     const r = await pedir(`/api/pastillas/${pastillaDeA}`, { metodo: "DELETE", token: b.token });
     esperar(r.status === 404, `respondio ${r.status}, deberia ser 404`);
 
-    // Y sigue existiendo para su dueño
     const sigue = await pedir(`/api/pastillas/${pastillaDeA}`, { token: a.token });
     esperar(sigue.status === 200, "la pastilla de A desaparecio");
   });
@@ -268,8 +238,6 @@ const correr = async () => {
   process.exit(fallos > 0 ? 1 : 0);
 };
 
-// Tambien se limpia cuando la corrida se corta: si no, cada error dejaria dos
-// cuentas vivas en la base de produccion.
 correr().catch(async (e) => {
   console.error("La corrida se corto:", e.message);
   await limpiar();

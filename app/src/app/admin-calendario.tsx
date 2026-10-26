@@ -16,19 +16,6 @@ import {
 } from "../ui";
 import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema";
 
-// El calendario de todos, en una sola grilla.
-//
-// Es una pantalla aparte de (tabs)/calendario.tsx a proposito. Aquella maneja
-// la agenda PROPIA: agrupa en rutinas, deja borrar, muestra actividades. Esta
-// es de solo lectura y responde otra pregunta: quien tiene que tomar que, y
-// cuando, mirando a todo el mundo junto. Meter las dos en un archivo hubiera
-// significado un monton de condicionales sobre casi mil lineas.
-//
-// El color identifica a la PERSONA, no al medicamento, porque el sentido de
-// esta pantalla es distinguir de quien es cada dosis de un vistazo. Y como el
-// color solo no alcanza, cada dia dice en su etiqueta de quienes son las dosis
-// que tiene, y abajo esta la referencia escrita.
-
 const dosDigitos = (n: number) => String(n).padStart(2, "0");
 
 const aFecha = (anio: number, mes: number, dia: number) =>
@@ -54,8 +41,6 @@ export default function AdminCalendario() {
 
   const cantidadDias = new Date(anio, mes + 1, 0).getDate();
 
-  // Se pide solo el mes que se esta mirando. Sin rango, esto crece para siempre
-  // a medida que se agendan dosis.
   const cargar = useCallback(() => {
     setCargando(true);
     setError("");
@@ -68,8 +53,6 @@ export default function AdminCalendario() {
 
   useFocusEffect(cargar);
 
-  // Un color fijo por persona, estable dentro del mes. Se ordena por id para
-  // que no cambie entre recargas segun el orden en que vengan las dosis.
   const personas = useMemo(() => {
     const vistos = new Map<string, { id: string; nombre: string; mail: string }>();
 
@@ -99,7 +82,6 @@ export default function AdminCalendario() {
     [personas]
   );
 
-  // Las dosis agrupadas por dia, para no recorrer la lista entera por casillero.
   const porDia = useMemo(() => {
     const mapa = new Map<string, DosisDeTodos[]>();
     for (const d of dosis) {
@@ -111,7 +93,6 @@ export default function AdminCalendario() {
   }, [dosis]);
 
   const celdas = useMemo(() => {
-    // getDay() devuelve 0 para domingo, y la semana arranca en lunes.
     const primer = new Date(anio, mes, 1).getDay();
     const vacias = primer === 0 ? 6 : primer - 1;
 
@@ -152,7 +133,6 @@ export default function AdminCalendario() {
 
       <Aviso texto={error} />
 
-      {/* MES */}
       <View style={styles.navegacion}>
         <Pressable
           onPress={() => mover(-1)}
@@ -182,7 +162,6 @@ export default function AdminCalendario() {
       ) : (
         !error && (
           <>
-            {/* GRILLA */}
             <View style={styles.grilla}>
               <View style={styles.semana}>
                 {DIAS_SEMANA.map((d) => (
@@ -201,11 +180,8 @@ export default function AdminCalendario() {
                   const esHoy = fecha === hoy;
                   const abierto = fecha === diaAbierto;
 
-                  // Un punto por persona, no por dosis: si alguien tiene cuatro
-                  // tomas en el dia, cuatro puntos del mismo color no dicen nada.
                   const deQuienes = [...new Set(delDia.map((d) => d.usuario?.id))];
 
-                  // Lo que el ojo saca de los colores, dicho en palabras.
                   const partes = [fechaLarga(fecha)];
                   if (esHoy) partes.push("hoy");
                   if (delDia.length === 0) partes.push("sin dosis");
@@ -256,7 +232,6 @@ export default function AdminCalendario() {
               </View>
             </View>
 
-            {/* QUIÉN ES CADA COLOR */}
             {personas.length > 0 && (
               <View style={styles.referencia}>
                 <Text style={styles.tituloReferencia}>Quién es cada color</Text>
@@ -279,7 +254,6 @@ export default function AdminCalendario() {
               </View>
             )}
 
-            {/* EL DÍA ABIERTO */}
             {diaAbierto && (
               <View style={styles.seccion}>
                 <Text style={styles.tituloSeccion} accessibilityRole="header">
@@ -320,10 +294,6 @@ export default function AdminCalendario() {
                             <Text style={styles.duenio}>{duenio}</Text>
 
                             <View style={styles.estado}>
-                              {/* Icono y palabra ademas del color: antes esto
-                                  era la palabra "retirada" o "pendiente" en
-                                  12px, y la unica diferencia visible entre las
-                                  dos era el tono de verde. */}
                               <Estado
                                 texto={d.dispensado ? "Salió del pastillero" : "Todavía no"}
                                 tono={d.dispensado ? "ok" : "neutro"}
@@ -414,11 +384,7 @@ const useEstilos = crearEstilos((colores) => ({
 
   celda: {
     width: `${100 / 7}%`,
-    // Antes era el minimo de 48px y el numero se centraba JUNTO con los
-    // marcadores, asi que un dia con dosis empujaba su numero hacia arriba y
-    // los numeros de la grilla no quedaban alineados entre filas. Ahora la
-    // celda es mas alta, el numero arranca siempre a la misma distancia del
-    // borde y los marcadores van anclados abajo, fuera del flujo.
+
     minHeight: 64,
     alignItems: "center" as const,
     justifyContent: "flex-start" as const,
@@ -447,8 +413,7 @@ const useEstilos = crearEstilos((colores) => ({
 
   numero: {
     ...texto.item,
-    // Numeros de ancho fijo: en una grilla, un 11 mas angosto que un 30 se
-    // nota y desalinea la columna.
+
     fontVariant: ["tabular-nums" as const],
     color: colores.texto,
   },

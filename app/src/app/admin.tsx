@@ -1,10 +1,3 @@
-// Panel de administracion.
-//
-// No hay link visible salvo para los administradores: el inicio lo muestra
-// solo si el backend confirma el rol. Igual, entrar escribiendo /admin a mano
-// no sirve de nada, porque todas las rutas del backend responden 404 a quien
-// no es admin. La app decide que mostrar; la seguridad la pone el servidor.
-
 import React, { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -154,9 +147,6 @@ export default function Admin() {
       ) : (
         !error && (
           <>
-            {/* El calendario de todas las cuentas juntas. Venia de main como
-                un recuadro con letra de 14px; ahora es una tarjeta como los
-                accesos del inicio, con el area de toque entera. */}
             <Tarjeta
               onPress={() => router.push("/admin-calendario")}
               etiqueta="Ver el calendario general"
@@ -195,9 +185,6 @@ export default function Admin() {
                 <Text style={styles.mail}>{u.mail}</Text>
 
                 <View style={styles.estados}>
-                  {/* Icono, palabra y color juntos. Antes era un punto de
-                      color al lado del texto: para quien no distingue el
-                      verde del ámbar, dos cuentas idénticas. */}
                   <Estado
                     texto={u.verificado ? "Verificada" : "Sin verificar"}
                     tono={u.verificado ? "ok" : "atencion"}
@@ -215,10 +202,6 @@ export default function Admin() {
                     icono="time-outline"
                   />
 
-                  {/* La edad se calcula acá, no viene de la base: lo que se
-                      guarda es la fecha de nacimiento. Las cuentas viejas no la
-                      tienen y no se muestra nada, que es mejor que un hueco que
-                      diga "sin edad". */}
                   {edadDesde(u.fecha_nacimiento) !== null && (
                     <Estado
                       texto={`${edadDesde(u.fecha_nacimiento)} años`}
@@ -228,8 +211,6 @@ export default function Admin() {
                   )}
                 </View>
 
-                {/* Cuales son, no cuantas. "4 pastillas" no dice nada cuando lo
-                    que se quiere saber es de quien es la Aspirina. */}
                 {u.listaPastillas && u.listaPastillas.length > 0 && (
                   <Text style={styles.pastillasDe}>
                     {u.listaPastillas.map((p) => p.nombre).join(" · ")}
@@ -253,10 +234,6 @@ export default function Admin() {
                     ayuda="Borra las dosis que todavía no salieron"
                   />
 
-                  {/* El admin no puede borrarse a si mismo: quedaria sin cuenta
-                      y sin panel, sin forma de deshacerlo desde la aplicacion.
-                      El backend tambien lo rechaza, esto es solo para no
-                      ofrecerlo. */}
                   {u.id !== yo && (
                     <Boton
                       titulo="Eliminar la cuenta"
@@ -278,9 +255,6 @@ export default function Admin() {
 }
 
 const useEstilos = crearEstilos((colores) => ({
-  // Los nombres de las pastillas de cada cuenta, debajo de las etiquetas de
-  // estado. En texto corrido y separados por punto medio: son pocos y no
-  // merecen una lista con vinetas.
   pastillasDe: {
     ...texto.dato,
     color: colores.textoTenue,

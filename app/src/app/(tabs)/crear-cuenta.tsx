@@ -10,14 +10,11 @@ export default function CrearCuenta() {
   const [mail, setMail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
-  // Opcional: queda "" si no la completan y no se manda.
+
   const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
-  // Los errores se muestran pegados al campo que los causo, no todos juntos
-  // arriba: si la contrasena es corta, el aviso tiene que estar donde esta la
-  // contrasena.
   const [errorPassword, setErrorPassword] = useState("");
 
   const handleCrearCuenta = async () => {
@@ -46,8 +43,7 @@ export default function CrearCuenta() {
         apellido,
         mail,
         password,
-        // Sin la fecha no se manda la clave: el backend la tiene como opcional,
-        // y mandar "" seria mandar una fecha invalida en vez de ninguna.
+
         ...(fechaNacimiento ? { fecha_nacimiento: fechaNacimiento } : {}),
       });
       router.push("/home");
@@ -68,9 +64,6 @@ export default function CrearCuenta() {
 
       <Aviso texto={error} />
 
-      {/* Ver el comentario de Login: Google arriba, y sin contrasena.
-          Con Google no hace falta elegir ninguna; si despues quiere una, el
-          mail de bienvenida trae un enlace para ponerla. */}
       <BotonGoogle separador="abajo" leyenda="o con tu mail y una contraseña" />
 
       <Campo etiqueta="Nombre" valor={nombre} alCambiar={setNombre} autoCompletar="name" />

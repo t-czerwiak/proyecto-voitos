@@ -13,12 +13,6 @@ type Props = {
   ayuda?: string;
 };
 
-// Un desplegable con su etiqueta escrita arriba.
-//
-// El Picker pelado no tiene forma de decir que esta eligiendo: en el
-// navegador salia un <select> suelto en medio de la pantalla. Con la etiqueta
-// arriba y accessibilityLabel, el lector de pantalla anuncia "Pastilla,
-// Aspirina, lista desplegable" en vez de solo "Aspirina".
 export default function Selector({
   etiqueta,
   valor,
@@ -39,8 +33,7 @@ export default function Selector({
           onValueChange={(v) => alCambiar(String(v))}
           dropdownIconColor={colores.acento}
           style={styles.picker}
-          // En iOS el Picker es una rueda y los items se dibujan con el color
-          // que se les pase; sin esto quedaban negros sobre el fondo oscuro.
+
           itemStyle={styles.item}
           accessibilityLabel={etiqueta}
         >
@@ -83,10 +76,6 @@ const useEstilos = crearEstilos((colores) => ({
   },
 
   picker: {
-    // El alto va explicito: en el navegador el Picker es un <select>, y sin
-    // esto se dibujaba de 25px adentro del marco de 56. El marco se veia
-    // grande pero lo que respondia al dedo era la mitad de alto que el
-    // minimo de WCAG.
     height: toque.comodo - 4,
     color: colores.texto,
     backgroundColor: "transparent",

@@ -12,7 +12,7 @@ import {
   type Pastilla,
   type Horario,
 } from "../lib/voitos";
-// Usuario vive en lib/api.ts, que es donde esta el tipo de la sesion.
+
 import type { Usuario } from "../lib/api";
 import { proximaDosis } from "../lib/dosis";
 import { edadDesde, fechaConAnio, comoHora, fechaRelativa } from "../lib/fechas";
@@ -30,23 +30,6 @@ import {
 } from "../ui";
 import { crearEstilos, espacio, radio, texto } from "../tema";
 
-// El perfil.
-//
-// EL ORDEN DE LA PANTALLA ES LA DECISION MAS IMPORTANTE DE ACA.
-//
-// Arranca por lo que se viene —la proxima dispensacion— y sigue por las
-// pastillas, porque quien abre esta pantalla casi siempre viene a mirar eso.
-// Los datos de la cuenta van despues: el mail propio no se consulta, se sabe.
-// Y al final, separadas y con aire, las dos cosas que no se pueden deshacer.
-//
-// Antes estaba al reves: el nombre y el mail arriba de todo en una tarjeta
-// grande, con el nombre en 30px. Se veia como una ficha de registro y no como
-// algo que sirva para algo. El nombre propio no es informacion: esta para
-// reconocer que la cuenta es la tuya, y para eso alcanza con verlo.
-//
-// Cerrar sesion y borrar la cuenta viven SOLO aca. El inicio se abre veinte
-// veces por dia y no hay motivo para tener a mano el boton que obliga a
-// escribir mail y contrasena de nuevo.
 export default function Perfil() {
   const styles = useEstilos();
 
@@ -57,8 +40,6 @@ export default function Perfil() {
   const [error, setError] = useState("");
   const [borrando, setBorrando] = useState(false);
 
-  // La edicion de la fecha. editando=false es el estado normal: se ve el dato
-  // y un boton para cambiarlo.
   const [editando, setEditando] = useState(false);
   const [fechaNueva, setFechaNueva] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -68,9 +49,6 @@ export default function Perfil() {
     useCallback(() => {
       let vigente = true;
 
-      // El usuario de la sesión puede estar viejo: se guardó al entrar y desde
-      // entonces pudo cambiar. Se pide de nuevo, pero sin romper la pantalla si
-      // falla, porque lo guardado alcanza para mostrar algo.
       refrescarUsuario()
         .then((u) => vigente && u && setUsuario(u))
         .catch(() => {});
@@ -96,8 +74,6 @@ export default function Perfil() {
     }, [])
   );
 
-  // La próxima dosis de CADA pastilla, no la próxima en general: en la lista lo
-  // que se mira es "¿esta pastilla está andando?", una por una.
   const proximaPorPastilla = useMemo(() => {
     const mapa = new Map<string, Horario | null>();
     for (const p of pastillas) {
@@ -129,8 +105,6 @@ export default function Perfil() {
       setUsuario(actualizado);
       setEditando(false);
     } catch (e: any) {
-      // El backend valida lo mismo que el formulario, pero tiene la ultima
-      // palabra: si rechaza algo, se muestra su mensaje tal cual.
       setErrorFecha(e?.message ?? "No se pudo guardar la fecha");
     } finally {
       setGuardando(false);
@@ -148,8 +122,7 @@ export default function Perfil() {
     if (!seguro) return;
 
     cerrarSesion();
-    // replace y no push: si quedara en el historial, el botón de atrás del
-    // navegador devolvería a esta pantalla con la sesión ya cerrada.
+
     router.replace("/");
   };
 
@@ -184,7 +157,6 @@ export default function Perfil() {
 
       <Aviso texto={error} />
 
-      {/* QUIÉN SOS, EN UNA LÍNEA. */}
       <View style={styles.identidad}>
         <View style={styles.inicial}>
           <Text style={styles.inicialTexto}>{inicialesDe(usuario)}</Text>
@@ -200,7 +172,6 @@ export default function Perfil() {
         </View>
       </View>
 
-      {/* LO QUE SE VIENE. Primero, porque es a lo que se entra a mirar. */}
       {proximaGeneral && (
         <Tarjeta destacada etiqueta="Lo próximo">
           <Text style={styles.proxima}>
@@ -213,7 +184,6 @@ export default function Perfil() {
         </Tarjeta>
       )}
 
-      {/* TUS PASTILLAS */}
       <Text style={styles.seccion}>Tus pastillas</Text>
 
       {cargando ? (
@@ -247,9 +217,6 @@ export default function Perfil() {
                   <Estado texto="Sin dosis agendadas" tono="neutro" icono="time-outline" />
                 )}
 
-                {/* El stock sale del módulo donde está cargada ESTA pastilla:
-                    cada módulo tiene su tolva y su filtro, así que el número es
-                    de ella. Si no está cargada en ninguno, no se muestra nada. */}
                 {quedan !== null && (
                   <Estado
                     texto={`Quedan ${quedan}`}
@@ -263,7 +230,6 @@ export default function Perfil() {
         })
       )}
 
-      {/* EL PASTILLERO: vincularlo a la cuenta con el código de su pantalla. */}
       <Text style={styles.seccion}>Tu pastillero</Text>
 
       <Boton
@@ -274,7 +240,6 @@ export default function Perfil() {
         ayuda="Vincularlo a tu cuenta con el código de su pantalla"
       />
 
-      {/* TUS DATOS. Después de las pastillas porque se miran mucho menos. */}
       <Text style={styles.seccion}>Tus datos</Text>
 
       <Tarjeta>
@@ -312,11 +277,6 @@ export default function Perfil() {
             </Text>
             {edad !== null && <Text style={styles.datoEdad}>{edad} años</Text>}
 
-            {/* El boton va ABAJO y a lo ancho, no al lado.
-                Al lado apretaba el texto y la fecha se partia en dos lineas
-                ("3 de noviembre de / 1956"), que es justo lo que no hay que
-                hacerle a un dato que se lee de un vistazo. Ademas a lo ancho
-                es mas facil de tocar, que es como se usa esto. */}
             <Boton
               titulo="Cambiar la fecha"
               variante="secundario"
@@ -329,7 +289,6 @@ export default function Perfil() {
         )}
       </Tarjeta>
 
-      {/* LAS DOS SALIDAS, AL FINAL Y SEPARADAS DEL RESTO. */}
       <Text style={styles.seccion}>Tu cuenta</Text>
 
       <View style={styles.salidas}>
@@ -354,8 +313,6 @@ export default function Perfil() {
   );
 }
 
-// Las iniciales para el circulito. Es decoracion: el nombre esta escrito al
-// lado, asi que si sale vacio no se pierde nada.
 const inicialesDe = (u: Usuario | null): string => {
   if (!u) return "?";
   const a = u.nombre?.trim()?.[0] ?? "";
@@ -455,8 +412,6 @@ const useEstilos = crearEstilos((colores) => ({
     marginTop: espacio.lg,
   },
 
-  // Separadas del resto con aire: son las dos cosas de esta pantalla que no se
-  // pueden deshacer de un toque.
   salidas: {
     gap: espacio.md,
     marginBottom: espacio.xl,

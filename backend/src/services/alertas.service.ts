@@ -1,10 +1,6 @@
 import { supabase } from "../config/supabase";
 import { getHoraArgentina, aMinutosDelDia } from "../utils/tiempo";
 
-// Una dosis esta "no tomada" cuando su horario ya paso (la fecha es anterior
-// a hoy, o es hoy pero la hora:minuto ya quedo atras) y sigue sin dispensarse.
-// Para cada una devolvemos la pastilla, el usuario y sus contactos de
-// emergencia, que son a quienes hay que avisar.
 export const getDosisNoTomadas = async (usuario_id?: string) => {
   const { hoy, hora, minuto } = getHoraArgentina();
   const ahoraEnMinutos = aMinutosDelDia(hora, minuto);
@@ -34,8 +30,6 @@ export const getDosisNoTomadas = async (usuario_id?: string) => {
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
-  // De los horarios de hoy, descartamos los que todavia no llegaron a su hora:
-  // esos no estan "vencidos", simplemente estan por venir.
   const vencidos = (data ?? []).filter((h: any) => {
     if (h.dia < hoy) return true;
     return aMinutosDelDia(h.hora, h.minuto) <= ahoraEnMinutos;

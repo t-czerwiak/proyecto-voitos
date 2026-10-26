@@ -7,17 +7,11 @@ import { crearEstilos, useColores, espacio, radio, texto } from "../tema";
 type Props = {
   icono?: keyof typeof Ionicons.glyphMap;
   titulo: string;
-  // Que hacer al respecto. Una lista vacia sin salida es una via muerta.
+
   detalle?: string;
   accion?: { titulo: string; onPress: () => void };
 };
 
-// Lo que se ve cuando una lista no tiene nada.
-//
-// El diseno anterior ponia "No hay dosis para este día" en gris chico y
-// centrado, y ahi terminaba. Quien recien empieza no tiene forma de saber si
-// eso es normal, si algo fallo, o que hacer. Aca hay titulo, explicacion y,
-// cuando corresponde, el boton que resuelve el vacio.
 export default function Vacio({ icono = "calendar-outline", titulo, detalle, accion }: Props) {
   const styles = useEstilos();
   const colores = useColores();

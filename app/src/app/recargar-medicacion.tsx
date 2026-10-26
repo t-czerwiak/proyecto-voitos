@@ -15,15 +15,6 @@ import {
 } from "../ui";
 import { crearEstilos, espacio, radio, texto } from "../tema";
 
-// Recargar un módulo, o borrar una pastilla.
-//
-// Es la operación del día a día: la pastilla se carga una vez y se recarga
-// muchas. Por eso lo primero que se ve, grande, es cuántas quedan ahora: es el
-// número que uno viene a comparar con lo que ve en el pastillero.
-//
-// Borrar quedó abajo de todo y separado por una línea. Antes era un botón más
-// de la misma fila, del mismo tamaño, y borra el historial entero de una
-// pastilla sin vuelta atrás.
 export default function RecargarMedicacion() {
   const styles = useEstilos();
 
@@ -32,9 +23,6 @@ export default function RecargarMedicacion() {
   const [ajuste, setAjuste] = useState("");
   const [ajustando, setAjustando] = useState(false);
 
-  // Mientras la consulta esta en vuelo la lista esta vacia, y sin este estado
-  // la pantalla decia "todavia no hay ninguna pastilla cargada" antes de
-  // saberlo.
   const [cargando, setCargando] = useState(true);
 
   const [error, setError] = useState("");
@@ -169,7 +157,6 @@ export default function RecargarMedicacion() {
         }))}
       />
 
-      {/* Cuántas hay ahora, en grande. Es el dato que se viene a mirar. */}
       <View
         style={styles.stock}
         accessible
@@ -226,9 +213,6 @@ export default function RecargarMedicacion() {
         />
       </View>
 
-      {/* BORRAR
-          Separado del resto a propósito: no es una operación más de esta
-          pantalla, es la única que no se puede deshacer. */}
       <View style={styles.zonaPeligro}>
         <Text style={styles.tituloPeligro}>Eliminar del todo</Text>
 
@@ -248,8 +232,6 @@ export default function RecargarMedicacion() {
         />
       </View>
 
-      {/* Cancelar una rutina se hace desde el calendario, que es donde se ve
-          cuál es cuál. */}
       <Boton
         titulo="Ver el calendario"
         variante="enlace"

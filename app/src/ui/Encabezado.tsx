@@ -6,22 +6,14 @@ import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema"
 
 type Props = {
   titulo: string;
-  // Una linea que explica para que sirve la pantalla. En una aplicacion que
-  // se usa de apuro, decir "Elegí qué pastilla y a qué hora" arriba de todo
-  // ahorra mas tiempo que cualquier icono.
+
   bajada?: string;
-  // A donde vuelve la flecha. Por defecto, a la pantalla anterior.
+
   volverA?: Href;
-  // La portada y el inicio de sesion no tienen a donde volver.
+
   sinVolver?: boolean;
 };
 
-// El encabezado de cada pantalla: flecha para volver y titulo.
-//
-// Antes se volvia tocando el logo, o el titulo, sin ninguna senal de que eso
-// se pudiera tocar. Quien no lo sabia de memoria quedaba encerrado en la
-// pantalla —en el navegador no hay boton de atras a mano en un celular—.
-// Ahora hay una flecha con la palabra "Volver" al lado, de 56px.
 export default function Encabezado({ titulo, bajada, volverA, sinVolver }: Props) {
   const styles = useEstilos();
   const colores = useColores();
@@ -53,8 +45,6 @@ export default function Encabezado({ titulo, bajada, volverA, sinVolver }: Props
         </Pressable>
       )}
 
-      {/* role de encabezado: en el navegador sale como <h1> y un lector de
-          pantalla puede saltar de titulo en titulo. */}
       <Text style={styles.titulo} accessibilityRole="header">
         {titulo}
       </Text>
@@ -88,8 +78,7 @@ const useEstilos = crearEstilos((colores) => ({
 
   volverTexto: {
     ...texto.cuerpoFuerte,
-    // Mas grande que el cuerpo: es la salida de la pantalla, no una nota al
-    // pie. Con 17 se leia como un detalle y costaba encontrarlo.
+
     fontSize: 20,
     lineHeight: 28,
     color: colores.acento,
