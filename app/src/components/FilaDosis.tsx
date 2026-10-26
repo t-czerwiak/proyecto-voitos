@@ -8,20 +8,13 @@ import { crearEstilos, espacio, texto } from "../tema";
 
 type Props = {
   dosis: Horario;
-  // El color de la rutina a la que pertenece, si se conoce. Es una ayuda
-  // visual, nunca la unica informacion: el nombre de la pastilla siempre
-  // esta escrito al lado.
+
   color?: string;
-  // Texto extra abajo: "Rutina: L M V a las 08:00".
+
   detalle?: string;
   destacada?: boolean;
 };
 
-// Una dosis, como fila.
-//
-// La hora va grande y primero porque es lo que se busca de un vistazo, con
-// numeros de ancho fijo para que las horas de la lista queden alineadas. El
-// estado va con icono, palabra y color juntos, nunca color solo.
 export default function FilaDosis({ dosis, color, detalle, destacada }: Props) {
   const styles = useEstilos();
 
@@ -32,8 +25,6 @@ export default function FilaDosis({ dosis, color, detalle, destacada }: Props) {
 
   return (
     <Tarjeta franja={color} destacada={destacada}>
-      {/* El bloque entero se lee de un tiron: "las 8, Aspirina, 2 pastillas,
-          salió del pastillero". Leido campo por campo se pierde el sentido. */}
       <View
         style={styles.fila}
         accessible

@@ -18,42 +18,19 @@ type Props = {
   icono?: keyof typeof Ionicons.glyphMap;
   cargando?: boolean;
   deshabilitado?: boolean;
-  // Por defecto ocupa el ancho disponible. En una fila de dos, "auto".
+
   ancho?: "completo" | "auto";
-  // Se lee despues del titulo, para explicar que va a pasar. Sirve sobre todo
-  // en las acciones que borran algo.
+
   ayuda?: string;
   estilo?: ViewStyle;
 };
 
-// Pressable expone hovered y focused en web, pero los tipos de React Native
-// solo declaran pressed. Se ensancha aca en vez de ignorar el tipo.
 type EstadoPress = {
   pressed: boolean;
   hovered?: boolean;
   focused?: boolean;
 };
 
-// El boton de la aplicacion.
-//
-// Antes cada pantalla dibujaba el suyo: alturas de 66, 72 y 56, textos de 14,
-// 20 y 26, y tres tonos de verde distintos para la misma accion. Ahora hay
-// cuatro variantes y una sola definicion de cada una.
-//
-// Lo que cambio para que se pueda usar de verdad:
-//
-//   - 56px de alto minimo (WCAG 2.2 pide 44). El dedo que aprieta puede ser
-//     el de alguien con artrosis o el de un enfermero con guantes.
-//   - minHeight y no height: si la persona agranda la letra del sistema, el
-//     boton crece en vez de recortar el texto.
-//   - El principal es verde lleno con letra oscura. Se distingue del
-//     secundario por relleno, no solo por color, asi que tambien se ve en
-//     escala de grises.
-//   - Anillo de foco visible: en el navegador se puede recorrer la aplicacion
-//     con el tabulador y siempre se ve donde esta parado.
-//   - Deshabilitado y cargando viajan en accessibilityState, asi que un lector
-//     de pantalla dice "atenuado" o "ocupado" en vez de leer un boton que no
-//     responde.
 export default function Boton({
   titulo,
   onPress,
@@ -135,19 +112,11 @@ const useEstilos = crearEstilos((colores) => ({
     gap: espacio.sm,
   },
 
-  // El anillo de foco del teclado. Va por fuera del borde para que se vea
-  // tambien cuando el boton ya tiene borde propio.
-  //
-  // Con boxShadow y no con shadowColor/shadowRadius: las shadow* estan
-  // deprecadas y ademas dibujaban un halo difuso, no un anillo. Un anillo
-  // nitido de 3px se ve; un halo verde sobre un boton verde, no.
   foco: {
     borderColor: colores.texto,
     boxShadow: `0 0 0 3px ${colores.acento}`,
   },
 
-  // Atenuado pero todavia legible: un boton apagado que no se lee no explica
-  // por que no se puede apretar.
   inactivo: {
     opacity: 0.55,
   },
@@ -159,11 +128,9 @@ const useEstilos = crearEstilos((colores) => ({
   },
 }));
 
-// Las cuatro variantes, armadas con la paleta activa.
 const variantesDe = (
   colores: Paleta
 ): Record<Variante, { caja: ViewStyle; activo: ViewStyle; texto: { color: string } }> => ({
-  // La accion principal de la pantalla. Una sola por pantalla.
   principal: {
     caja: {
       backgroundColor: colores.acento,
@@ -176,7 +143,6 @@ const variantesDe = (
     texto: { color: colores.sobreAcento },
   },
 
-  // Todo lo demas.
   secundario: {
     caja: {
       backgroundColor: colores.superficie,
@@ -189,7 +155,6 @@ const variantesDe = (
     texto: { color: colores.texto },
   },
 
-  // Borra cosas. Nunca es la accion principal de una pantalla.
   peligro: {
     caja: {
       backgroundColor: colores.peligro.fondo,
@@ -202,7 +167,6 @@ const variantesDe = (
     texto: { color: colores.peligro.texto },
   },
 
-  // Para "volver", "ahora no": acciones de salida que no compiten con nada.
   enlace: {
     caja: {
       backgroundColor: "transparent",

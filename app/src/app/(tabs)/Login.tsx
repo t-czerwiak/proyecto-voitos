@@ -41,11 +41,6 @@ export default function Login() {
 
       <Aviso texto={error} />
 
-      {/* Google va PRIMERO, arriba del formulario.
-          Antes estaba abajo de todo, despues de los campos de mail y
-          contrasena, y eso hacia parecer que para entrar con Google habia que
-          completar igual la contrasena. Entrar con Google no pide ninguna: ni
-          para entrar, ni para registrarse. */}
       <BotonGoogle separador="abajo" leyenda="o con tu mail y contraseña" />
 
       <Campo

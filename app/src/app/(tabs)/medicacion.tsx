@@ -14,21 +14,8 @@ import {
 } from "../../ui";
 import { crearEstilos, espacio, texto } from "../../tema";
 
-// Cuando quedan menos que esto en un modulo, conviene recargar antes de que
-// una dosis quede sin salir. Cinco es aproximadamente dos dias de una rutina
-// de dos pastillas por dia: alcanza para reaccionar sin alarmar todo el
-// tiempo.
 const STOCK_BAJO = 5;
 
-// La pantalla de las pastillas.
-//
-// Antes eran tres botones —AGREGAR, AGENDAR, RECARGAR— sobre un fondo vacio,
-// sin ninguna informacion. Para saber cuantas pastillas quedaban en un modulo
-// habia que entrar a RECARGAR y abrir el desplegable.
-//
-// El dato de cuanto queda es justamente el que evita el problema que la
-// aplicacion existe para evitar: que llegue la hora y el modulo este vacio.
-// Asi que ahora esta a la vista, y con aviso cuando esta por acabarse.
 export default function Pastillas() {
   const styles = useEstilos();
 

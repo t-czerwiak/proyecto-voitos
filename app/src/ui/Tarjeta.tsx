@@ -4,15 +4,13 @@ import { crearEstilos, espacio, radio } from "../tema";
 
 type Props = {
   children: React.ReactNode;
-  // Si se puede tocar, la tarjeta entera es el area de toque: no hay que
-  // acertarle a un enlace chiquito adentro.
+
   onPress?: () => void;
   etiqueta?: string;
   ayuda?: string;
-  // Para lo que tiene que despegarse del resto: la proxima dosis, la fila
-  // seleccionada.
+
   destacada?: boolean;
-  // Franja de color al costado, del color de la rutina.
+
   franja?: string;
   estilo?: ViewStyle;
 };

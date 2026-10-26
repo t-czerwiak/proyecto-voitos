@@ -4,10 +4,6 @@ import { crearEstilos, espacio, radio, texto, toque } from "../tema";
 
 export const DIAS = ["L", "M", "X", "J", "V", "S", "D"];
 
-// El nombre entero de cada dia, para el lector de pantalla.
-//
-// "L" leido en voz alta es "ele", que no es un dia de la semana. La letra
-// sirve para el ojo; el oido necesita la palabra.
 const NOMBRE: Record<string, string> = {
   L: "lunes",
   M: "martes",
@@ -25,13 +21,6 @@ type Props = {
   ayuda?: string;
 };
 
-// Los siete dias de la semana como casillas.
-//
-// Antes eran circulos de 40px que se prendian en verde. Dos problemas: 40px
-// es chico para el dedo, y el unico indicio de que un dia estaba elegido era
-// el color. Ahora el elegido ademas cambia de forma (relleno lleno y borde
-// grueso), lleva el estado en accessibilityState y abajo se lee escrito
-// cuales quedaron elegidos.
 export default function SelectorDias({
   etiqueta,
   seleccionados,
@@ -77,7 +66,7 @@ export default function SelectorDias({
               accessibilityRole="checkbox"
               accessibilityLabel={NOMBRE[dia]}
               accessibilityState={{ checked: elegido }}
-              // Ver el comentario de Opciones: hace falta el aria a mano.
+
               aria-checked={elegido}
             >
               <Text style={[styles.diaTexto, elegido && styles.diaTextoElegido]}>
@@ -88,8 +77,6 @@ export default function SelectorDias({
         })}
       </View>
 
-      {/* La lista escrita. Sirve para confirmar de un vistazo que se marco lo
-          que se queria, sin tener que releer siete circulos. */}
       <Text style={styles.resumen}>{enPalabras}</Text>
 
       {ayuda && <Text style={styles.ayuda}>{ayuda}</Text>}

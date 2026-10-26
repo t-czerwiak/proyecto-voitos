@@ -24,16 +24,6 @@ import {
 import { Pantalla, Tarjeta, Boton, Aviso, Vacio, Cargando, Estado } from "../../ui";
 import { crearEstilos, useColores, espacio, texto } from "../../tema";
 
-// La pantalla de inicio.
-//
-// Antes era un menu: la palabra "MENÚ" en 45px y dos fotos que solo mostraban
-// su titulo al pasar el mouse por encima —o sea, nunca, en un celular—. Para
-// saber si la medicacion de hoy habia salido habia que entrar al calendario,
-// buscar el dia y leer una lista que no decia el estado de nada.
-//
-// La pregunta con la que un cuidador abre esta aplicacion es una sola: si
-// salio la medicacion. Asi que la pantalla es la respuesta a esa pregunta, y
-// los accesos a las otras secciones van despues.
 export default function Hoy() {
   const styles = useEstilos();
   const colores = useColores();
@@ -51,10 +41,6 @@ export default function Hoy() {
     useCallback(() => {
       let vigente = true;
 
-      // El acceso al panel solo aparece si el backend confirma el rol. No es
-      // una medida de seguridad: entrar a /admin a mano no sirve, porque esas
-      // rutas responden 404 a quien no es admin. Es para no mostrarle a un
-      // cuidador un boton que no le corresponde.
       soyAdmin()
         .then((r) => vigente && setAdmin(r.admin))
         .catch(() => vigente && setAdmin(false));
@@ -70,8 +56,6 @@ export default function Hoy() {
           setError("");
         })
         .catch((e: any) => {
-          // Antes esto vaciaba la lista en silencio, asi que un backend caido
-          // se veia igual que "no hay nada agendado para hoy".
           if (!vigente) return;
           setHorarios([]);
           setError(e?.message ?? "No se pudieron cargar las dosis");
@@ -123,9 +107,6 @@ export default function Hoy() {
 
       <Aviso texto={error} />
 
-      {/* Lo primero que se ve: si algo no salio, se dice arriba de todo y con
-          todas las letras. Es la unica razon por la que alguien abre esto de
-          apuro. */}
       {resumen.sinDispensar > 0 && (
         <Aviso
           tipo="atencion"
@@ -142,7 +123,6 @@ export default function Hoy() {
         <Cargando texto="Buscando las dosis de hoy..." />
       ) : (
         <>
-          {/* LA QUE SIGUE */}
           {proxima && (
             <View style={styles.seccion}>
               <Text style={styles.tituloSeccion} accessibilityRole="header">
@@ -172,7 +152,6 @@ export default function Hoy() {
             </View>
           )}
 
-          {/* LA MEDICACIÓN DE HOY */}
           <View style={styles.seccion}>
             <Text style={styles.tituloSeccion} accessibilityRole="header">
               La medicación de hoy
@@ -224,7 +203,6 @@ export default function Hoy() {
             )}
           </View>
 
-          {/* OTRAS ACTIVIDADES */}
           {actividadesDeHoy.length > 0 && (
             <View style={styles.seccion}>
               <Text style={styles.tituloSeccion} accessibilityRole="header">
@@ -248,7 +226,6 @@ export default function Hoy() {
         </>
       )}
 
-      {/* DÓNDE IR */}
       <View style={styles.seccion}>
         <Text style={styles.tituloSeccion} accessibilityRole="header">
           Dónde ir
@@ -279,9 +256,6 @@ export default function Hoy() {
           />
         )}
 
-        {/* Cerrar sesion y borrar la cuenta viven en /perfil y no aca.
-            Esta pantalla se abre veinte veces por dia; no hay motivo para tener
-            a mano el boton que obliga a escribir mail y contrasena de nuevo. */}
         <Boton
           titulo="Tu perfil"
           variante="enlace"
@@ -291,19 +265,11 @@ export default function Hoy() {
         />
       </View>
 
-      {/* Abajo de todo: es para quien quiera conocer el proyecto, no algo que
-          se use a diario. */}
       <TarjetaLanding />
     </Pantalla>
   );
 }
 
-// Un acceso a otra seccion.
-//
-// Reemplaza a las tarjetas con foto: el titulo aparecia recien al pasar el
-// mouse por encima, asi que en un celular las dos tarjetas eran dos fotos sin
-// nombre. Aca el titulo y la explicacion estan siempre, y la tarjeta entera es
-// el area que se toca.
 function Acceso({
   icono,
   titulo,

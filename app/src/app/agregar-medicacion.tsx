@@ -11,16 +11,6 @@ const TAMANOS = [
   { valor: "pildora", etiqueta: "Píldora" },
 ];
 
-// Cargar una pastilla nueva.
-//
-// El formulario anterior eran tres cajas blancas con "PASTILLA....",
-// "CANTIDAD...." adentro y un desplegable sin etiqueta. Escrito así, nadie
-// que no lo hubiera hecho antes podía saber que "cantidad" eran las pastillas
-// que se ponen físicamente en el módulo, ni que el tamaño es el del módulo y
-// no el de la dosis.
-//
-// Ahora cada campo dice qué es y para qué sirve, con la explicación abajo y no
-// adentro del campo, donde desaparecía al empezar a escribir.
 export default function AgregarMedicacion() {
   const [nombre, setNombre] = useState("");
   const [tipo, setTipo] = useState("chico");
@@ -43,9 +33,6 @@ export default function AgregarMedicacion() {
 
     setGuardando(true);
     try {
-      // La cantidad son las pastillas que se cargan en el modulo fisico. Va
-      // como cantidad_inicial y no dentro de "caracteristicas": de ahi sale el
-      // stock que despues se descuenta y que avisa si alcanza para la rutina.
       const creada = await crearPastilla({
         nombre,
         tipo,

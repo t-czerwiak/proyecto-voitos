@@ -6,29 +6,7 @@ import { iniciarSesionConGoogle } from "../lib/voitos";
 import { Aviso } from "../ui";
 import { crearEstilos, espacio, radio, texto } from "../tema";
 
-// Boton de "Continuar con Google".
-//
-// El boton lo dibuja Google adentro de este contenedor: no es un boton nuestro
-// con su logo. GIS solo entrega el ID token a traves de su propio boton, y
-// ademas es lo que piden sus condiciones de uso.
-//
-// Si Google no esta configurado (falta EXPO_PUBLIC_GOOGLE_CLIENT_ID) el
-// componente no dibuja nada. La pantalla queda igual que antes, sin un boton
-// roto que promete algo que no funciona.
-//
-// EL ANCHO
-//
-// Este es el unico boton de la aplicacion que no dibujamos nosotros, asi que
-// era el unico que no seguia el ancho de los demas: quedaba de 280px en una
-// columna donde el resto ocupaba todo, y la fila se veia desprolija.
-//
-// Ahora se mide el hueco donde va a entrar y se le pasa esa medida a Google.
-// GIS solo acepta entre 200 y 400, asi que se recorta a ese rango; por eso las
-// pantallas de entrada usan una columna de 400 (ANCHO_FORMULARIO), que es
-// justo lo mas ancho que Google sabe dibujar.
 export default function BotonGoogle({
-  // Donde va la linea del "o". Con Google arriba del formulario, la linea
-  // tiene que ir debajo suyo.
   separador = "arriba",
   leyenda = "o",
 }: {
@@ -43,12 +21,9 @@ export default function BotonGoogle({
 
   useEffect(() => {
     if (!googleDisponible()) return;
-    // Hasta no saber el ancho no se dibuja: si se dibujara antes, Google
-    // pintaria el boton con el valor por defecto y despues habria que
-    // borrarlo y rehacerlo, que se ve como un parpadeo.
+
     if (!ancho) return;
 
-    // En web, View termina siendo un div: el ref ES el nodo del DOM.
     const nodo = contenedor.current as unknown as HTMLElement | null;
     if (!nodo) return;
 
@@ -62,9 +37,6 @@ export default function BotonGoogle({
           await iniciarSesionConGoogle(idToken);
           router.replace("/home");
         } catch (e: any) {
-          // El backend puede rechazar a proposito, por ejemplo cuando ese mail
-          // ya tiene una cuenta con contrasena sin confirmar. El mensaje que
-          // manda explica que hacer, asi que se muestra tal cual.
           if (vivo) setError(e.message);
         }
       },
@@ -83,24 +55,16 @@ export default function BotonGoogle({
   return (
     <View
       style={styles.caja}
-      // De aca sale el ancho que se le pasa a Google.
+
       onLayout={(e) => {
         const medido = Math.round(e.nativeEvent.layout.width);
-        // El rango que acepta GIS. Fuera de el, tira error y no dibuja nada.
+
         const valido = Math.max(200, Math.min(400, medido));
         setAncho((actual) => (actual === valido ? actual : valido));
       }}
     >
       {separador === "arriba" && <Raya leyenda={leyenda} styles={styles} />}
 
-      {/* EL MARCO QUE LE DA NUESTRA FORMA AL BOTON DE GOOGLE.
-          Google lo dibuja adentro de este hueco y le pone fondo blanco y radio
-          de 4px, que no se pueden cambiar por parametro. Este contenedor tiene
-          el radio de los demas botones y recorta, asi que el blanco sale con
-          nuestras esquinas en vez de las de Google.
-          La altura es EXACTA y no minima: si el contenedor fuera mas alto que
-          el boton, el recorte agarraria las esquinas de arriba y no las de
-          abajo, y quedaria torcido. */}
       <View ref={contenedor} style={styles.hueco} />
 
       <Aviso texto={error} />
@@ -110,9 +74,6 @@ export default function BotonGoogle({
   );
 }
 
-// La linea con una palabra en el medio. Es decoracion que separa dos caminos,
-// asi que se esconde del lector de pantalla: la separacion ya la dan los
-// encabezados y las etiquetas de cada campo.
 function Raya({ leyenda, styles }: { leyenda: string; styles: any }) {
   return (
     <View style={styles.separador} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -123,7 +84,6 @@ function Raya({ leyenda, styles }: { leyenda: string; styles: any }) {
   );
 }
 
-// Lo que mide el boton de Google con size "large". Medido en el navegador.
 const ALTO_GOOGLE = 40;
 
 const useEstilos = crearEstilos((colores) => ({
@@ -152,16 +112,11 @@ const useEstilos = crearEstilos((colores) => ({
     color: colores.textoSuave,
   },
 
-  // ALTO_GOOGLE es lo que mide el boton con size "large", medido en el
-  // navegador. Es el unico alto que da GIS: no hay un tamano mas grande, asi
-  // que este boton es mas bajo que los nuestros (56) y no hay forma de
-  // emparejarlos sin deformarlo.
   hueco: {
     height: ALTO_GOOGLE,
     width: "100%",
     borderRadius: radio.lg,
-    // Lo que le da la forma. Sin esto, el boton queda con el radio de 4px de
-    // Google, que al lado de los nuestros se ve como un cuadrado.
+
     overflow: "hidden",
   },
 }));

@@ -4,16 +4,6 @@ import { router } from "expo-router";
 import { Pantalla, Boton } from "../ui";
 import { crearEstilos, espacio, texto } from "../tema";
 
-// La portada.
-//
-// Antes era el logo, un boton con brillo verde y "Crear cuenta" en letra
-// chica abajo. Se veia bien y no decia nada: quien abre la aplicacion por
-// primera vez —el hijo al que le pasaron el pastillero, el enfermero del
-// primer dia— no tenia forma de saber que es esto.
-//
-// Ahora dice en una linea para que sirve, y las dos salidas pesan lo mismo
-// visualmente que su importancia: entrar es el boton lleno, crear cuenta es
-// el de borde. Ninguna de las dos depende de pasar el mouse por encima.
 export default function Portada() {
   const styles = useEstilos();
 
@@ -24,8 +14,7 @@ export default function Portada() {
           source={require("../../assets/images/logoClaro.png")}
           style={styles.logo}
           resizeMode="contain"
-          // El logo dice "Voitos"; para quien escucha la pantalla, eso es el
-          // titulo de la portada.
+
           accessibilityRole="header"
           accessibilityLabel="Voitos"
         />
