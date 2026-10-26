@@ -23,9 +23,8 @@ firmware/
     prueba-display/        ← el mismo, en modo prueba (ver más abajo)
 ```
 
-**No trae contraseñas.** Donde dice `PONER_LA_RED` y `PONER_LA_CLAVE` hay que
-completar con los datos de la red del momento. El repositorio es público, así
-que las credenciales nunca se suben.
+**No trae contraseñas, ni hace falta ponerlas.** El WiFi se le carga a la placa
+desde el celular la primera vez que prende (ver [Conectarlo al WiFi](#conectarlo-al-wifi)).
 
 ---
 
@@ -46,18 +45,55 @@ esperaba que el backend le pegara. Eso obligaba a que la computadora y el
 pastillero estuvieran en la misma red WiFi, y había que reflashear con la IP
 nueva cada vez que se cambiaba de lugar.
 
-Para usarlo, la red WiFi va en un archivo aparte, **`credenciales.h`**, al
-lado del `.ino`. Copiar `credenciales.h.ejemplo` con ese nombre y completar:
-
-```cpp
-const char* ssid = "PONER_LA_RED";
-const char* password = "PONER_LA_CLAVE";
-```
-
-`credenciales.h` está en el `.gitignore`: nunca se sube. Antes la red y la
-clave estaban escritas adentro del sketch, y el repositorio es público.
-
 El `BACKEND` ya está puesto y no se toca: apunta al servidor en internet.
+
+### Conectarlo al WiFi
+
+Sin cambiar el código y sin computadora:
+
+1. Se enchufa el pastillero. Si no tiene una red guardada, la pantalla dice
+   **SIN WIFI** y abre su propia red, **`VOITOS-XXXX`** (las 4 últimas son de
+   la placa, para distinguir dos pastilleros).
+2. El cuidador se conecta a esa red con el celular. No tiene clave. El celular
+   abre solo una página (como en el WiFi de un bar); si no se abre, entrar a
+   `http://192.168.4.1`.
+3. Elige el WiFi de la casa de la lista, escribe la clave y toca **Conectar**.
+   La placa la guarda en su memoria, se reinicia y se conecta.
+4. De ahí en adelante se conecta sola, aunque se corte la luz.
+
+Si la clave estaba mal, al minuto vuelve a aparecer `VOITOS-XXXX` con el aviso
+de que no pudo conectarse. Si el router está apagado (un corte de luz), la red
+propia queda abierta 5 minutos y la placa vuelve a probar con la red guardada,
+así no queda trabada esperando a que alguien la configure.
+
+**Para cambiarla de red:** mantener apretado el botón de dispensar mientras se
+enchufa, 3 segundos. Borra la red guardada y abre `VOITOS-XXXX` de nuevo.
+
+`credenciales.h` ya no hace falta. Si existe (en la placa de desarrollo), se
+usa solo cuando no hay ninguna red guardada. Sigue en el `.gitignore`.
+
+### Vincularlo a la cuenta del cuidador
+
+Una vez conectado, mientras el pastillero no tiene dueño, **abajo de la hora
+aparece un código de 8 números** (en lugar de "VOITOS"). El cuidador lo escribe
+en la app, en *Mi pastillero*, **desde donde esté**: no hace falta estar en la
+misma red, porque la placa y la app hablan las dos con el backend en internet.
+A los 30 segundos el código desaparece de la pantalla: ya quedó vinculado.
+
+Sin dueño el pastillero funciona como antes (cualquier cuenta lo usa, es el
+modo de la exhibición). Vinculado, solo dispensa y muestra lo de esa cuenta.
+El código cambia cada 30 minutos. Detalle en `docs/API.md`, sección
+Pastilleros, en la rama `main`.
+
+Cada placa inventa un secreto la primera vez que arranca y lo guarda en su
+memoria. El backend solo le da el código a la placa con ese secreto: sin eso,
+cualquiera que sepa el `DISPOSITIVO_ID` (está en este repositorio) podría
+pedir el código y quedarse con el pastillero. Si se le borra la memoria a la
+placa, hay que desvincularla desde la app (o poner `secreto_hash` en null en la
+tabla `pastilleros`) para que pueda volver a presentarse.
+
+Cada placa nueva se da de alta a mano en `pastilleros`, con el mismo
+`DISPOSITIVO_ID` que tiene en el código.
 
 **Requiere tres librerías**, que se instalan desde
 *Herramientas → Administrar bibliotecas → buscar → Instalar*:
@@ -274,9 +310,11 @@ con la app de verdad sin tener el resto del hardware armado.
 **Cómo usarlo:**
 
 1. Instalar las librerías de arriba (ArduinoJson y Adafruit SSD1306).
-2. En `firmware/voitos-polling/prueba-display/`, copiar
-   `credenciales.h.ejemplo` como `credenciales.h` y completar la red.
-3. Abrir `prueba-display.ino`, placa **DOIT ESP32 DEVKIT V1**, subir.
+2. Abrir `prueba-display.ino`, placa **DOIT ESP32 DEVKIT V1**, subir.
+3. Si no tiene red guardada, conectarse con el celular a `VOITOS-XXXX` y elegir
+   el WiFi (ver [Conectarlo al WiFi](#conectarlo-al-wifi)). Para borrarla,
+   mantener el **BOOT** apretado justo después de enchufarla (no mientras se
+   enchufa: con BOOT apretado al arrancar, la placa entra en modo de carga).
 4. Abrir el monitor serie a 115200 y mirar la pantalla.
 
 Cableado de la placa de prueba: VCC a 3V3, GND a GND, SCL a **D22** y SDA a
@@ -284,9 +322,8 @@ Cableado de la placa de prueba: VCC a 3V3, GND a GND, SCL a **D22** y SDA a
 SDA va al 23). Si SDA y SCL quedaron cruzados lo detecta solo y lo avisa en el
 monitor serie. También prueba las direcciones 0x3C y 0x3D.
 
-**La red WiFi va en `credenciales.h`**, en la carpeta `prueba-display/`
-(copiar `credenciales.h.ejemplo`). No escribirla adentro del `.ino`: el
-repositorio es público y queda a la vista de cualquiera.
+**Nunca escribir la red ni la clave adentro del `.ino`**: el repositorio es
+público y queda a la vista de cualquiera.
 
 **Para ver cada fase con la app:**
 
@@ -297,6 +334,7 @@ repositorio es público y queda a la vista de cualquiera.
 | TU DOSIS | Esperar a la hora de esa dosis (la placa consulta cada 30 s) |
 | Confirmar | Apretar BOOT: la dosis queda dispensada en la app |
 | Ya lo vi | Con un recordatorio en pantalla, apretar BOOT: vuelve a la hora y ese recordatorio no aparece más |
+| Vincular | Con la hora en pantalla y un código abajo: cargarlo en la app, en Mi pastillero. A los 30 s el código se va |
 | Reposo | Sin nada agendado: la hora grande y VOITOS |
 
 Si la pantalla queda negra: el monitor serie dice "No se encontro la pantalla

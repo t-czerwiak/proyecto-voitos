@@ -37,10 +37,7 @@
 //   - el boton va por interrupcion, nunca leido dentro del loop
 //   - ESP32PWM::allocateTimer(0..3) antes del attach del servo
 //   - WiFi.setSleep(false)
-//
-// REQUIERE las librerias ArduinoJson, Adafruit SSD1306 y Adafruit GFX. Se
-// instalan del Library Manager del IDE: Herramientas > Administrar bibliotecas
-// > buscar cada una > Instalar (Adafruit SSD1306 ofrece instalar GFX sola).
+
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -51,11 +48,42 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <time.h>
+#include <WebServer.h>
+#include <DNSServer.h>
+#include <Preferences.h>
 
-// La red WiFi va en credenciales.h, al lado de este archivo, que NO se sube
-// (el repositorio es publico). Copiar credenciales.h.ejemplo como
-// credenciales.h y completar la red y la clave.
+// EL WIFI YA NO VA EN EL CODIGO
+//
+// La primera vez que prende (o si no puede conectarse) la placa abre su propia
+// red, "VOITOS-XXXX". El cuidador se conecta desde el celular, se le abre una
+// pagina, elige el WiFi de la casa y pone la clave. La placa lo guarda en su
+// memoria y de ahi en adelante se conecta sola, aunque se corte la luz.
+//
+// Para cambiar de red: mantener apretado el boton de dispensar mientras se
+// enchufa (3 segundos). Borra la red guardada y vuelve a abrir VOITOS-XXXX.
+//
+// credenciales.h ya no hace falta. Si esta (placa de desarrollo), se usa solo
+// cuando no hay ninguna red guardada.
+#if __has_include("credenciales.h")
 #include "credenciales.h"
+#define HAY_CREDENCIALES_H 1
+#else
+#define HAY_CREDENCIALES_H 0
+#endif
+
+// La memoria que sobrevive a los reinicios: la red, su clave y el secreto.
+Preferences memoria;
+
+// Lo inventa la placa la primera vez que arranca y lo manda en cada consulta.
+// El backend solo le da el codigo para vincularla a quien manda este secreto:
+// sin eso, cualquiera que sepa el DISPOSITIVO_ID (esta en el repositorio)
+// podria pedir el codigo y quedarse con el pastillero.
+String secreto;
+
+// Mientras el pastillero no tiene duenio, el backend manda un codigo de 8
+// digitos. Se muestra abajo de la hora para que el cuidador lo cargue en la
+// app, desde donde este. Vacio = ya esta vinculado.
+String codigoVinculo = "";
 
 // Modo prueba: en el arranque muestra todas las pantallas del display una por
 // una, y usa el boton BOOT de la placa como boton de dispensar (asi se prueba
@@ -74,15 +102,9 @@ const int BUZZER_PIN = 19;
 // En modo prueba, el BOOT de la DevKit (GPIO 0).
 const int BUTTON_PIN = MODO_PRUEBA ? 0 : 21;
 
-// Display OLED 0.96" (SSD1306, 128x64, I2C).
-//
-// Los pines I2C por defecto de la ESP32 son SDA=21 y SCL=22, pero el 21 ya es
-// el boton. Por eso SDA va al 23. Si se cablea en otros pines, se cambia aca.
+
 const int OLED_SDA = 21;
 const int OLED_SCL = 22;
-
-// La mayoria de estos modulos vienen en 0x3C. Si la pantalla no prende y el
-// monitor serie dice "No se encontro la pantalla", probar con 0x3D.
 const uint8_t OLED_DIRECCION = 0x3C;
 
 Adafruit_SSD1306 pantalla(128, 64, &Wire, -1);
@@ -91,12 +113,7 @@ Adafruit_SSD1306 pantalla(128, 64, &Wire, -1);
 // igual: dispensar es lo importante, el display es un extra.
 bool hayPantalla = false;
 
-// Sensor de caida de pastillas (el "tercer chequeo").
-//
-// Pensado para un modulo infrarrojo de salida digital (barrera o de
-// obstaculo), que pone la salida en LOW mientras algo corta el haz. Si el que
-// se use da HIGH al detectar, cambiar SENSOR_FLANCO a RISING.
-//
+// Sensor 
 // HAY_SENSOR arranca en false para poder probar el display sin el sensor
 // conectado: si estuviera en true sin sensor, cada dosis se reportaria con 0
 // pastillas detectadas. Ponerlo en true cuando el sensor este cableado.
@@ -115,24 +132,14 @@ const unsigned long MS_ANTIRREBOTE_SENSOR = 80;
 // Tiene que coincidir con el dispositivo_id de la tabla modulos
 const char* DISPOSITIVO_ID = "ESP32-001";
 
-// Tope de seguridad: por mas que el backend pida mas, no dispensa de mas.
+// Tope de seguridad
 const int MAX_PASTILLAS = 20;
-
-// Cuanto espera entre pastilla y pastilla
 const int PAUSA_ENTRE_PASTILLAS = 500;
 
-// Cada cuanto le pregunta al backend si hay algo que dispensar.
-//
-// El backend busca dosis en una ventana de 15 minutos desde la hora, asi
-// que 30 segundos deja margen de sobra para no perderse ninguna. Bajarlo mucho
-// solo gasta datos y bateria sin ganar nada.
+// Cada cuanto le pregunta al backend si hay algo que dispensar = 30 segundos
 const unsigned long MS_ENTRE_CONSULTAS = 30000;
 
 // Cuanto espera el boton antes de rendirse.
-//
-// Coincide a proposito con los 15 minutos que usa el backend para dar una
-// dosis por perdida y mandar el mail de "no se tomo". Pasado ese rato la placa
-// vuelve a consultar en vez de quedarse trabada para siempre.
 const unsigned long MS_ESPERANDO_BOTON = 15UL * 60UL * 1000UL;
 
 unsigned long ultimaConsulta = 0;
@@ -166,9 +173,6 @@ volatile unsigned long ultimoRebote = 0;
 // Los contactos mecanicos rebotan al cerrar. Sin esto una sola apretada dispara
 // varias veces y dispensaria pastillas de mas.
 const unsigned long MS_ANTIRREBOTE = 250;
-
-// IRAM_ATTR es obligatorio en ESP32: la rutina tiene que vivir en RAM porque
-// puede dispararse mientras la memoria flash esta ocupada.
 void IRAM_ATTR alApretarBoton() {
   unsigned long ahora = millis();
   if (ahora - ultimoRebote < MS_ANTIRREBOTE) return;
@@ -177,29 +181,22 @@ void IRAM_ATTR alApretarBoton() {
 }
 
 
-//-----------------------------
 // Hace sonar el buzzer
-//-----------------------------
 
 void sonarBuzzer() {
   Serial.println("Buzzer sonando...");
 
-  // Buzzer activo: alcanza con ponerlo en alto, trae el oscilador adentro.
   digitalWrite(BUZZER_PIN, HIGH);
   delay(1000);
   digitalWrite(BUZZER_PIN, LOW);
 }
 
-
-//-----------------------------
 // Sensor por interrupcion
-//
+
 // El ORDEN es lo que lo hace confiable: el sensor solo cuenta mientras el
 // servo esta dispensando una dosis que el backend ofrecio y que alguien
 // confirmo con el boton. Fuera de esa ventana, un dedo o una sacudida que
 // corte el haz se ignora: no dispensa, no confirma y no borra nada.
-//-----------------------------
-
 volatile bool sensorArmado = false;
 volatile int pastillasDetectadas = 0;
 volatile unsigned long ultimoPulsoSensor = 0;
@@ -217,14 +214,8 @@ void IRAM_ATTR alDetectarPastilla() {
 }
 
 
-//-----------------------------
 // Reloj
-//
-// La hora sale de internet (NTP) apenas hay WiFi; la placa no tiene reloj
-// propio con pila. Hasta que llega, la pantalla muestra solo VOITOS.
-//-----------------------------
-
-// "HH:MM" si ya se sabe la hora, "" si todavia no.
+// La hora sale de internet (NTP)
 String horaActual() {
   struct tm t;
   if (!getLocalTime(&t, 0)) return "";
@@ -234,14 +225,11 @@ String horaActual() {
 }
 
 
-//-----------------------------
-// Display: recordatorios y aviso de dosis
-//
+
+// Display:
 // El backend manda en cada consulta los recordatorios que tocan AHORA (cada uno
 // aparece los minutos antes que eligio el usuario y se va a la hora). La placa
 // solo los dibuja: no calcula nada de horarios.
-//-----------------------------
-
 const int MAX_RECORDATORIOS = 3;
 
 struct Recordatorio {
@@ -278,11 +266,6 @@ int indiceRecordatorio = 0;
 unsigned long inicioRecordatorio = 0;
 
 // Texto grande que corre como una marquesina cuando no entra.
-//
-// La fuente que trae la libreria mide 6 px de ancho por caracter a tamano 1.
-// A tamano 3 son 18 px: entran 7 letras en los 128 px, asi que casi todo
-// corre. Es a proposito: es la letra mas grande que se puede leer de lejos, y
-// leer algo que pasa despacio es mas facil que leer letra chica.
 const int ANCHO = 128;
 const int PX_POR_SEGUNDO = 45;
 const unsigned long MS_POR_CUADRO = 50;
@@ -294,14 +277,6 @@ int anchoTexto(const String& t, int tam) {
 // Antes de empezar a correr, el texto se queda quieto este rato con el
 // principio a la vista, para que se alcance a leer la primera palabra.
 const unsigned long MS_PAUSA_MARQUESINA = 1200;
-
-// Centrado si entra; si no, corre de derecha a izquierda en loop.
-//
-// Arranca con el principio del texto pegado al borde izquierdo, NO afuera de
-// la pantalla: un mensaje que se dibuja una sola vez (como "Conectando WiFi")
-// quedaba invisible porque su primer cuadro tenia todo el texto a la derecha
-// del borde. Lo encontro la simulacion en Wokwi.
-// "desde" es cuando empezo a mostrarse, asi cada texto arranca del principio.
 void textoGrande(const String& t, int tam, int y, unsigned long desde) {
   pantalla.setTextSize(tam);
   int ancho = anchoTexto(t, tam);
@@ -316,16 +291,11 @@ void textoGrande(const String& t, int tam, int y, unsigned long desde) {
   unsigned long avance = pasado > MS_PAUSA_MARQUESINA
       ? (pasado - MS_PAUSA_MARQUESINA) * PX_POR_SEGUNDO / 1000
       : 0;
-
-  // Sale por la izquierda y vuelve a entrar por la derecha: con avance 0 el
-  // texto esta en x = 0.
   unsigned long recorrido = ancho + ANCHO;
   pantalla.setCursor(ANCHO - (int)((avance + ANCHO) % recorrido), y);
   pantalla.print(t);
 }
 
-// Cuanto se muestra cada recordatorio antes de pasar al siguiente: una pasada
-// completa del texto, o 4 segundos si entra quieto.
 unsigned long duracionDe(const String& t, int tam) {
   int ancho = anchoTexto(t, tam);
   if (ancho <= ANCHO) return 4000;
@@ -362,23 +332,18 @@ void dibujarPantalla() {
   pantalla.setTextColor(SSD1306_WHITE);
   pantalla.setTextWrap(false);
 
-  // 1. Hay una dosis esperando el boton: eso tapa todo lo demas.
   if (esperandoBoton) {
     textoGrande("TU DOSIS", 2, 4, 0);
     String pedido = String("APRETA EL BOTON - SALE") + (cantidadPendiente == 1 ? " " : "N ")
                   + cantidadPendiente + (cantidadPendiente == 1 ? " PASTILLA" : " PASTILLAS");
     textoGrande(pedido, 3, 32, empezoAEsperar);
 
-  // 2. Recordatorios: de a uno y en loop, hasta que apreten el boton.
   } else if (cantRecordatorios > 0) {
     Recordatorio& r = recordatorios[indiceRecordatorio < cantRecordatorios ? indiceRecordatorio : 0];
 
-    // Arriba la hora del evento, grande.
     pantalla.setTextSize(2);
     pantalla.setCursor(0, 0);
     pantalla.print(r.hora);
-
-    // "1/3" arriba a la derecha si hay mas de uno.
     if (cantRecordatorios > 1) {
       pantalla.setTextSize(1);
       pantalla.setCursor(ANCHO - 18, 4);
@@ -386,11 +351,7 @@ void dibujarPantalla() {
       pantalla.print("/");
       pantalla.print(cantRecordatorios);
     }
-
-    // En el medio el texto, lo mas grande posible.
     textoGrande(r.texto, 3, 20, inicioRecordatorio);
-
-    // Abajo, alternando cada 3 s: cuanto falta y que hacer con el boton.
     pantalla.setTextSize(1);
     pantalla.setCursor(0, 54);
     if ((millis() / 3000) % 2 == 0) {
@@ -400,22 +361,30 @@ void dibujarPantalla() {
     } else {
       pantalla.print("Boton = ya lo vi");
     }
-
-  // 3. Nada para mostrar: la hora a todo el ancho y VOITOS abajo.
   } else {
-    // Un OLED con la misma imagen fija durante dias se marca (burn-in). Correr
-    // el contenido unos pixeles por minuto alcanza para repartir el desgaste.
     int corrimiento = (millis() / 60000) % 5;
     String hora = horaActual();
 
     if (hora != "") {
-      // Tamano 4: 24 px por caracter, "HH:MM" ocupa 120 de los 128.
       pantalla.setTextSize(4);
       pantalla.setCursor(2 + corrimiento, 4 + corrimiento);
       pantalla.print(hora);
-      pantalla.setTextSize(1);
-      pantalla.setCursor(46 + corrimiento, 46 + corrimiento);
-      pantalla.print("VOITOS");
+      if (codigoVinculo != "") {
+        // "1234 5678" a tamano 2 ocupa 108 de los 128 px.
+        pantalla.setTextSize(2);
+        pantalla.setCursor(8 + corrimiento, 44 + corrimiento);
+        pantalla.print(codigoVinculo.substring(0, 4) + " " + codigoVinculo.substring(4));
+      } else {
+        pantalla.setTextSize(1);
+        pantalla.setCursor(46 + corrimiento, 46 + corrimiento);
+        pantalla.print("VOITOS");
+      }
+    } else if (codigoVinculo != "") {
+      pantalla.setTextSize(2);
+      pantalla.setCursor(28 + corrimiento, 8 + corrimiento);
+      pantalla.print("CODIGO");
+      pantalla.setCursor(8 + corrimiento, 36 + corrimiento);
+      pantalla.print(codigoVinculo.substring(0, 4) + " " + codigoVinculo.substring(4));
     } else {
       pantalla.setTextSize(3);
       pantalla.setCursor(10 + corrimiento, 20 + corrimiento);
@@ -467,10 +436,7 @@ void leerRecordatorios(JsonArray lista) {
 }
 
 
-//-----------------------------
 // Mueve el servo una vez (una pastilla)
-//-----------------------------
-
 void moverServo() {
   servo.write(180);
   delay(1000);
@@ -480,9 +446,7 @@ void moverServo() {
 }
 
 
-//-----------------------------
-// Dispensa varias pastillas de una, repitiendo el ciclo del servo
-//-----------------------------
+// Dispensa varias pastillas de a una, repitiendo el ciclo del servo
 
 int dispensar(int cantidad) {
   if (cantidad < 1) cantidad = 1;
@@ -523,14 +487,12 @@ int dispensar(int cantidad) {
 }
 
 
-//-----------------------------
 // Cliente HTTPS
 //
 // setInsecure() no valida el certificado del servidor. Lo correcto seria
 // clavar el certificado raiz, pero esos vencen y habria que reflashear la placa
 // cada vez que Render rote el suyo. Para este proyecto el riesgo es aceptable:
 // lo que viaja no es sensible y la placa solo habla con un backend conocido.
-//-----------------------------
 
 bool pedirGet(const String& ruta, String& respuesta) {
   if (WiFi.status() != WL_CONNECTED) {
@@ -549,6 +511,9 @@ bool pedirGet(const String& ruta, String& respuesta) {
     return false;
   }
 
+  // En un header y no en la URL, para que no quede en los logs del servidor.
+  http.addHeader("X-Pastillero-Secreto", secreto);
+
   int codigo = http.GET();
 
   if (codigo != 200) {
@@ -566,7 +531,7 @@ bool pedirGet(const String& ruta, String& respuesta) {
 }
 
 
-//-----------------------------
+
 // Le pregunta al backend si hay una dosis para ahora
 //
 // Respuesta esperada:
@@ -574,11 +539,11 @@ bool pedirGet(const String& ruta, String& respuesta) {
 //     "data": { "pendiente": true,
 //               "horario": { "id": "...", "cantidad": 2 },
 //               "modulo": 1, "disponibles": 26 } }
-//-----------------------------
 
 void consultarPendiente() {
   String cuerpo;
-  if (!pedirGet("/api/sensor/pendiente", cuerpo)) return;
+  // dispositivo_id: el backend manda solo lo del duenio de ESTE pastillero.
+  if (!pedirGet(String("/api/sensor/pendiente?dispositivo_id=") + DISPOSITIVO_ID, cuerpo)) return;
 
   // El filtro deja pasar solo lo que se usa, asi el documento ocupa poco.
   JsonDocument doc;
@@ -591,6 +556,14 @@ void consultarPendiente() {
   }
 
   JsonObject data = doc["data"];
+
+  // Sin duenio llega el codigo para vincularlo; ya vinculado, no viene nada.
+  String codigo = data["vinculo"]["codigo"] | "";
+  if (codigo != codigoVinculo) {
+    codigoVinculo = codigo;
+    Serial.println(codigo != "" ? "Codigo para vincular en la app: " + codigo
+                                : String("Pastillero vinculado a una cuenta."));
+  }
 
   // Los recordatorios llegan siempre, haya dosis o no.
   leerRecordatorios(data["recordatorios"]);
@@ -643,9 +616,8 @@ void consultarPendiente() {
 }
 
 
-//-----------------------------
+
 // Le avisa al backend que la pastilla salio
-//-----------------------------
 
 bool confirmarDispensacion(int cantidadDispensada) {
   if (horarioPendiente == "") {
@@ -692,14 +664,8 @@ bool confirmarDispensacion(int cantidadDispensada) {
 }
 
 
-//-----------------------------
-// Arranque del display
-//
-// Prueba primero los pines configurados y despues invertidos: SDA y SCL
-// cruzados es el error de cableado mas comun y asi no hace falta recablear.
-// En cada orden prueba las dos direcciones en que vienen estos modulos.
-//-----------------------------
 
+// Arranque del display
 bool hayDispositivoI2C(uint8_t direccion) {
   Wire.beginTransmission(direccion);
   return Wire.endTransmission() == 0;
@@ -735,10 +701,7 @@ bool iniciarPantalla() {
 }
 
 
-//-----------------------------
 // Modo prueba: todas las pantallas del display, una por una
-//-----------------------------
-
 void mostrarFase(const char* nombre, unsigned long ms) {
   Serial.print("[prueba] ");
   Serial.println(nombre);
@@ -787,10 +750,189 @@ void probarPantallas() {
 }
 
 
-//-----------------------------
-// SETUP
-//-----------------------------
+// WiFi: la red propia para configurarlo y la conexion con la red guardada
 
+// Cuanto espera a que conecte la red guardada antes de abrir VOITOS-XXXX.
+const unsigned long MS_INTENTO_WIFI = 20000;
+
+// Si HAY una red guardada y no conecta (se corto la luz y el router tarda en
+// volver, por ejemplo), la red propia queda abierta este rato y despues la
+// placa se reinicia y vuelve a probar. Sin esto, un corte del router dejaria
+// el pastillero esperando una configuracion que nadie va a hacer.
+const unsigned long MS_PORTAL_CON_RED_GUARDADA = 5UL * 60UL * 1000UL;
+
+// "VOITOS-" y los ultimos 4 hex de la MAC, para distinguir dos pastilleros.
+String nombreRedPropia() {
+  char n[16];
+  snprintf(n, sizeof n, "VOITOS-%04X", (uint16_t)(ESP.getEfuseMac() >> 32));
+  return String(n);
+}
+
+// Los nombres de las redes los elige cualquier vecino: no pueden meter HTML.
+String escaparHtml(const String& t) {
+  String r;
+  for (char c : t) {
+    if (c == '<') r += "&lt;";
+    else if (c == '>') r += "&gt;";
+    else if (c == '&') r += "&amp;";
+    else if (c == '"') r += "&quot;";
+    else r += c;
+  }
+  return r;
+}
+
+String paginaPortal(const String& cuerpo) {
+  return String("<!doctype html><meta charset=utf-8>"
+                "<meta name=viewport content='width=device-width,initial-scale=1'>"
+                "<title>Voitos</title><style>"
+                "body{font-family:sans-serif;max-width:420px;margin:24px auto;padding:0 16px;font-size:18px;color:#111}"
+                "input,button{display:block;width:100%;font-size:18px;padding:12px;margin:6px 0 18px;box-sizing:border-box}"
+                "button{background:#005829;color:#fff;border:0;border-radius:8px}"
+                ".aviso{background:#fde8e8;padding:12px;border-radius:8px}"
+                "</style><h1>Voitos</h1>") + cuerpo;
+}
+
+// Abre VOITOS-XXXX con una pagina para elegir el WiFi. No vuelve: cuando se
+// guarda una red (o se acaba el tiempo) reinicia la placa.
+void abrirPortal(const String& aviso) {
+  String red = nombreRedPropia();
+  Serial.print("Abriendo la red propia ");
+  Serial.println(red);
+
+  // Primero se buscan las redes de alrededor, para ofrecerlas en la lista.
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_AP_STA);
+  int encontradas = WiFi.scanNetworks();
+  String opciones;
+  for (int i = 0; i < encontradas; i++) {
+    opciones += "<option value=\"" + escaparHtml(WiFi.SSID(i)) + "\">";
+  }
+
+  // Abierta, sin clave: la usa una sola vez alguien que esta al lado del
+  // aparato, y una clave mas para tipear es justo lo que traba a quien lo
+  // configura. Lo que viaja (la clave de la casa) va solo del celular a la placa.
+  WiFi.softAP(red.c_str());
+  IPAddress ip = WiFi.softAPIP();
+
+  // Todo nombre de dominio apunta a la placa: asi el celular detecta que la
+  // red "pide iniciar sesion" y abre la pagina solo, sin tipear ninguna IP.
+  DNSServer dns;
+  dns.start(53, "*", ip);
+
+  WebServer web(80);
+  bool guardado = false;
+  bool habiaRed = memoria.isKey("red");
+
+  web.on("/", HTTP_GET, [&]() {
+    String avisoHtml = aviso != "" ? "<p class=aviso>" + escaparHtml(aviso) + "</p>" : "";
+    web.send(200, "text/html", paginaPortal(
+      avisoHtml +
+      "<p>Elegí el WiFi de la casa para que el pastillero se conecte solo.</p>"
+      "<form method=post action=/guardar>"
+      "<label>Red WiFi<input name=red list=redes required maxlength=32 autocomplete=off></label>"
+      "<datalist id=redes>" + opciones + "</datalist>"
+      "<label>Clave<input name=clave type=password maxlength=64></label>"
+      "<button>Conectar</button></form>"));
+  });
+
+  web.on("/guardar", HTTP_POST, [&]() {
+    String nueva = web.arg("red");
+    String clave = web.arg("clave");
+    nueva.trim();
+    if (nueva.length() == 0 || nueva.length() > 32 || clave.length() > 64) {
+      web.send(400, "text/html", paginaPortal("<p class=aviso>Falta el nombre de la red.</p><p><a href=/>Volver</a></p>"));
+      return;
+    }
+    memoria.putString("red", nueva);
+    memoria.putString("clave", clave);
+    web.send(200, "text/html", paginaPortal(
+      "<p>Listo. El pastillero se reinicia y se conecta a <b>" + escaparHtml(nueva) + "</b>.</p>"
+      "<p>Cuando se conecte, la pantalla muestra un <b>código de 8 números</b> abajo de la hora. "
+      "Cargalo en la app, en <b>Mi pastillero</b>, desde donde estés.</p>"
+      "<p>Si en un minuto vuelve a aparecer la red " + red + ", la clave estaba mal: "
+      "conectate de nuevo y probá otra vez.</p>"));
+    guardado = true;
+  });
+
+  // Cualquier otra direccion (las que usan los celulares para detectar el
+  // portal) se manda a la pagina.
+  web.onNotFound([&]() {
+    web.sendHeader("Location", "http://" + ip.toString() + "/", true);
+    web.send(302, "text/plain", "");
+  });
+
+  web.begin();
+
+  unsigned long desde = millis();
+  unsigned long ultimoCuadroPortal = 0;
+  String instruccion = "CONECTATE CON EL CELULAR A LA RED " + red;
+
+  while (!guardado && (!habiaRed || millis() - desde < MS_PORTAL_CON_RED_GUARDADA)) {
+    dns.processNextRequest();
+    web.handleClient();
+
+    if (hayPantalla && millis() - ultimoCuadroPortal >= MS_POR_CUADRO) {
+      ultimoCuadroPortal = millis();
+      pantalla.clearDisplay();
+      pantalla.setTextColor(SSD1306_WHITE);
+      pantalla.setTextWrap(false);
+      textoGrande("SIN WIFI", 2, 4, 0);
+      textoGrande(instruccion, 3, 32, desde);
+      pantalla.display();
+    }
+    delay(2);
+  }
+
+  // Un momento para que la pagina de "listo" llegue al celular.
+  delay(1500);
+  ESP.restart();
+}
+
+// Se conecta a la red guardada. Si no hay ninguna, o no conecta, abre la red
+// propia (y esa no vuelve: reinicia la placa).
+void conectarWifi() {
+  String red = memoria.getString("red", "");
+  String clave = memoria.getString("clave", "");
+
+#if HAY_CREDENCIALES_H
+  if (red == "") {
+    red = ssid;
+    clave = password;
+  }
+#endif
+
+  if (red == "") abrirPortal("");
+
+  mostrarMensaje("Conectando WiFi...");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(red.c_str(), clave.c_str());
+  Serial.print("Conectando a ");
+  Serial.print(red);
+
+  unsigned long desde = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - desde < MS_INTENTO_WIFI) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+
+  if (WiFi.status() != WL_CONNECTED) {
+    abrirPortal("No se pudo conectar a " + red + ". Revisá la clave, o elegí otra red.");
+  }
+}
+
+// Mantener apretado el boton al prender: 3 segundos borran la red guardada.
+bool botonSostenidoAlPrender() {
+  unsigned long desde = millis();
+  while (digitalRead(BUTTON_PIN) == LOW) {
+    if (millis() - desde > 3000) return true;
+    delay(10);
+  }
+  return false;
+}
+
+
+// SETUP
 void setup() {
   Serial.begin(115200);
   delay(300);
@@ -832,18 +974,34 @@ void setup() {
   // Boton. INPUT_PULLUP: el pin queda en alto y baja a LOW cuando el pulsador
   // lo conecta a GND, por eso la interrupcion escucha el flanco de bajada.
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), alApretarBoton, FALLING);
 
-  // WiFi
-  WiFi.begin(ssid, password);
-  Serial.print("Conectando");
+  memoria.begin("voitos", false);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  // El secreto de la placa, una sola vez en su vida (ver arriba).
+  secreto = memoria.getString("secreto", "");
+  if (secreto == "") {
+    char hex[33];
+    snprintf(hex, sizeof hex, "%08lx%08lx%08lx%08lx",
+             (unsigned long)esp_random(), (unsigned long)esp_random(),
+             (unsigned long)esp_random(), (unsigned long)esp_random());
+    secreto = hex;
+    memoria.putString("secreto", secreto);
   }
 
-  Serial.println("\nConectado!");
+  // WiFi
+  if (botonSostenidoAlPrender()) {
+    memoria.remove("red");
+    memoria.remove("clave");
+    Serial.println("Boton sostenido al prender: se borro la red guardada.");
+    abrirPortal("");
+  }
+  conectarWifi();
+
+  // Recien ahora: si la interrupcion estuviera antes, sostener el boton para
+  // borrar la red dejaria una apretada guardada.
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), alApretarBoton, FALLING);
+
+  Serial.println("Conectado!");
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
   Serial.print("Backend: ");
@@ -875,9 +1033,7 @@ void setup() {
 }
 
 
-//-----------------------------
 // LOOP
-//-----------------------------
 
 // Para redibujar el reloj cuando cambia el minuto.
 String ultimaHoraDibujada = "";

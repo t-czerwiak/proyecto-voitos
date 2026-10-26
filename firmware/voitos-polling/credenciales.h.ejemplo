@@ -1,5 +1,7 @@
-// Copiar este archivo como credenciales.h (en esta misma carpeta) y completar.
-// credenciales.h NO se sube a git: el repositorio es publico.
+// OPCIONAL. El WiFi se carga desde el celular (red VOITOS-XXXX, ver
+// LEEME-FIRMWARE.md). Esto es solo para la placa de desarrollo: si existe
+// credenciales.h, se usa cuando la placa no tiene ninguna red guardada.
+// Copiar como credenciales.h y completar. NO se sube: el repositorio es publico.
 
 const char* ssid = "PONER_LA_RED";
 const char* password = "PONER_LA_CLAVE";

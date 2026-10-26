@@ -28,11 +28,42 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <time.h>
+#include <WebServer.h>
+#include <DNSServer.h>
+#include <Preferences.h>
 
-// La red WiFi va en credenciales.h, al lado de este archivo, que NO se sube
-// (el repositorio es publico). Copiar credenciales.h.ejemplo como
-// credenciales.h y completar la red y la clave.
+// EL WIFI YA NO VA EN EL CODIGO
+//
+// La primera vez que prende (o si no puede conectarse) la placa abre su propia
+// red, "VOITOS-XXXX". El cuidador se conecta desde el celular, se le abre una
+// pagina, elige el WiFi de la casa y pone la clave. La placa lo guarda en su
+// memoria y de ahi en adelante se conecta sola, aunque se corte la luz.
+//
+// Para cambiar de red: mantener apretado el boton de dispensar mientras se
+// enchufa (3 segundos). Borra la red guardada y vuelve a abrir VOITOS-XXXX.
+//
+// credenciales.h ya no hace falta. Si esta (placa de desarrollo), se usa solo
+// cuando no hay ninguna red guardada.
+#if __has_include("credenciales.h")
 #include "credenciales.h"
+#define HAY_CREDENCIALES_H 1
+#else
+#define HAY_CREDENCIALES_H 0
+#endif
+
+// La memoria que sobrevive a los reinicios: la red, su clave y el secreto.
+Preferences memoria;
+
+// Lo inventa la placa la primera vez que arranca y lo manda en cada consulta.
+// El backend solo le da el codigo para vincularla a quien manda este secreto:
+// sin eso, cualquiera que sepa el DISPOSITIVO_ID (esta en el repositorio)
+// podria pedir el codigo y quedarse con el pastillero.
+String secreto;
+
+// Mientras el pastillero no tiene duenio, el backend manda un codigo de 8
+// digitos. Se muestra abajo de la hora para que el cuidador lo cargue en la
+// app, desde donde este. Vacio = ya esta vinculado.
+String codigoVinculo = "";
 
 // Modo prueba: en el arranque muestra todas las pantallas del display una por
 // una, y usa el boton BOOT de la placa como boton de dispensar (asi se prueba
@@ -294,7 +325,7 @@ void dibujarPantalla() {
 
     pantalla.setTextSize(2);
     pantalla.setCursor(0, 0);
-    pantalla.print(r.hora);.
+    pantalla.print(r.hora);
     if (cantRecordatorios > 1) {
       pantalla.setTextSize(1);
       pantalla.setCursor(ANCHO - 18, 4);
@@ -320,9 +351,22 @@ void dibujarPantalla() {
       pantalla.setTextSize(4);
       pantalla.setCursor(2 + corrimiento, 4 + corrimiento);
       pantalla.print(hora);
-      pantalla.setTextSize(1);
-      pantalla.setCursor(46 + corrimiento, 46 + corrimiento);
-      pantalla.print("VOITOS");
+      if (codigoVinculo != "") {
+        // "1234 5678" a tamano 2 ocupa 108 de los 128 px.
+        pantalla.setTextSize(2);
+        pantalla.setCursor(8 + corrimiento, 44 + corrimiento);
+        pantalla.print(codigoVinculo.substring(0, 4) + " " + codigoVinculo.substring(4));
+      } else {
+        pantalla.setTextSize(1);
+        pantalla.setCursor(46 + corrimiento, 46 + corrimiento);
+        pantalla.print("VOITOS");
+      }
+    } else if (codigoVinculo != "") {
+      pantalla.setTextSize(2);
+      pantalla.setCursor(28 + corrimiento, 8 + corrimiento);
+      pantalla.print("CODIGO");
+      pantalla.setCursor(8 + corrimiento, 36 + corrimiento);
+      pantalla.print(codigoVinculo.substring(0, 4) + " " + codigoVinculo.substring(4));
     } else {
       pantalla.setTextSize(3);
       pantalla.setCursor(10 + corrimiento, 20 + corrimiento);
@@ -449,6 +493,9 @@ bool pedirGet(const String& ruta, String& respuesta) {
     return false;
   }
 
+  // En un header y no en la URL, para que no quede en los logs del servidor.
+  http.addHeader("X-Pastillero-Secreto", secreto);
+
   int codigo = http.GET();
 
   if (codigo != 200) {
@@ -477,7 +524,8 @@ bool pedirGet(const String& ruta, String& respuesta) {
 
 void consultarPendiente() {
   String cuerpo;
-  if (!pedirGet("/api/sensor/pendiente", cuerpo)) return;
+  // dispositivo_id: el backend manda solo lo del duenio de ESTE pastillero.
+  if (!pedirGet(String("/api/sensor/pendiente?dispositivo_id=") + DISPOSITIVO_ID, cuerpo)) return;
 
   // El filtro deja pasar solo lo que se usa, asi el documento ocupa poco.
   JsonDocument doc;
@@ -490,6 +538,14 @@ void consultarPendiente() {
   }
 
   JsonObject data = doc["data"];
+
+  // Sin duenio llega el codigo para vincularlo; ya vinculado, no viene nada.
+  String codigo = data["vinculo"]["codigo"] | "";
+  if (codigo != codigoVinculo) {
+    codigoVinculo = codigo;
+    Serial.println(codigo != "" ? "Codigo para vincular en la app: " + codigo
+                                : String("Pastillero vinculado a una cuenta."));
+  }
 
   // Los recordatorios llegan siempre, haya dosis o no.
   leerRecordatorios(data["recordatorios"]);
@@ -676,6 +732,188 @@ void probarPantallas() {
 }
 
 
+// WiFi: la red propia para configurarlo y la conexion con la red guardada
+
+// Cuanto espera a que conecte la red guardada antes de abrir VOITOS-XXXX.
+const unsigned long MS_INTENTO_WIFI = 20000;
+
+// Si HAY una red guardada y no conecta (se corto la luz y el router tarda en
+// volver, por ejemplo), la red propia queda abierta este rato y despues la
+// placa se reinicia y vuelve a probar. Sin esto, un corte del router dejaria
+// el pastillero esperando una configuracion que nadie va a hacer.
+const unsigned long MS_PORTAL_CON_RED_GUARDADA = 5UL * 60UL * 1000UL;
+
+// "VOITOS-" y los ultimos 4 hex de la MAC, para distinguir dos pastilleros.
+String nombreRedPropia() {
+  char n[16];
+  snprintf(n, sizeof n, "VOITOS-%04X", (uint16_t)(ESP.getEfuseMac() >> 32));
+  return String(n);
+}
+
+// Los nombres de las redes los elige cualquier vecino: no pueden meter HTML.
+String escaparHtml(const String& t) {
+  String r;
+  for (char c : t) {
+    if (c == '<') r += "&lt;";
+    else if (c == '>') r += "&gt;";
+    else if (c == '&') r += "&amp;";
+    else if (c == '"') r += "&quot;";
+    else r += c;
+  }
+  return r;
+}
+
+String paginaPortal(const String& cuerpo) {
+  return String("<!doctype html><meta charset=utf-8>"
+                "<meta name=viewport content='width=device-width,initial-scale=1'>"
+                "<title>Voitos</title><style>"
+                "body{font-family:sans-serif;max-width:420px;margin:24px auto;padding:0 16px;font-size:18px;color:#111}"
+                "input,button{display:block;width:100%;font-size:18px;padding:12px;margin:6px 0 18px;box-sizing:border-box}"
+                "button{background:#005829;color:#fff;border:0;border-radius:8px}"
+                ".aviso{background:#fde8e8;padding:12px;border-radius:8px}"
+                "</style><h1>Voitos</h1>") + cuerpo;
+}
+
+// Abre VOITOS-XXXX con una pagina para elegir el WiFi. No vuelve: cuando se
+// guarda una red (o se acaba el tiempo) reinicia la placa.
+void abrirPortal(const String& aviso) {
+  String red = nombreRedPropia();
+  Serial.print("Abriendo la red propia ");
+  Serial.println(red);
+
+  // Primero se buscan las redes de alrededor, para ofrecerlas en la lista.
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_AP_STA);
+  int encontradas = WiFi.scanNetworks();
+  String opciones;
+  for (int i = 0; i < encontradas; i++) {
+    opciones += "<option value=\"" + escaparHtml(WiFi.SSID(i)) + "\">";
+  }
+
+  // Abierta, sin clave: la usa una sola vez alguien que esta al lado del
+  // aparato, y una clave mas para tipear es justo lo que traba a quien lo
+  // configura. Lo que viaja (la clave de la casa) va solo del celular a la placa.
+  WiFi.softAP(red.c_str());
+  IPAddress ip = WiFi.softAPIP();
+
+  // Todo nombre de dominio apunta a la placa: asi el celular detecta que la
+  // red "pide iniciar sesion" y abre la pagina solo, sin tipear ninguna IP.
+  DNSServer dns;
+  dns.start(53, "*", ip);
+
+  WebServer web(80);
+  bool guardado = false;
+  bool habiaRed = memoria.isKey("red");
+
+  web.on("/", HTTP_GET, [&]() {
+    String avisoHtml = aviso != "" ? "<p class=aviso>" + escaparHtml(aviso) + "</p>" : "";
+    web.send(200, "text/html", paginaPortal(
+      avisoHtml +
+      "<p>Elegí el WiFi de la casa para que el pastillero se conecte solo.</p>"
+      "<form method=post action=/guardar>"
+      "<label>Red WiFi<input name=red list=redes required maxlength=32 autocomplete=off></label>"
+      "<datalist id=redes>" + opciones + "</datalist>"
+      "<label>Clave<input name=clave type=password maxlength=64></label>"
+      "<button>Conectar</button></form>"));
+  });
+
+  web.on("/guardar", HTTP_POST, [&]() {
+    String nueva = web.arg("red");
+    String clave = web.arg("clave");
+    nueva.trim();
+    if (nueva.length() == 0 || nueva.length() > 32 || clave.length() > 64) {
+      web.send(400, "text/html", paginaPortal("<p class=aviso>Falta el nombre de la red.</p><p><a href=/>Volver</a></p>"));
+      return;
+    }
+    memoria.putString("red", nueva);
+    memoria.putString("clave", clave);
+    web.send(200, "text/html", paginaPortal(
+      "<p>Listo. El pastillero se reinicia y se conecta a <b>" + escaparHtml(nueva) + "</b>.</p>"
+      "<p>Cuando se conecte, la pantalla muestra un <b>código de 8 números</b> abajo de la hora. "
+      "Cargalo en la app, en <b>Mi pastillero</b>, desde donde estés.</p>"
+      "<p>Si en un minuto vuelve a aparecer la red " + red + ", la clave estaba mal: "
+      "conectate de nuevo y probá otra vez.</p>"));
+    guardado = true;
+  });
+
+  // Cualquier otra direccion (las que usan los celulares para detectar el
+  // portal) se manda a la pagina.
+  web.onNotFound([&]() {
+    web.sendHeader("Location", "http://" + ip.toString() + "/", true);
+    web.send(302, "text/plain", "");
+  });
+
+  web.begin();
+
+  unsigned long desde = millis();
+  unsigned long ultimoCuadroPortal = 0;
+  String instruccion = "CONECTATE CON EL CELULAR A LA RED " + red;
+
+  while (!guardado && (!habiaRed || millis() - desde < MS_PORTAL_CON_RED_GUARDADA)) {
+    dns.processNextRequest();
+    web.handleClient();
+
+    if (hayPantalla && millis() - ultimoCuadroPortal >= MS_POR_CUADRO) {
+      ultimoCuadroPortal = millis();
+      pantalla.clearDisplay();
+      pantalla.setTextColor(SSD1306_WHITE);
+      pantalla.setTextWrap(false);
+      textoGrande("SIN WIFI", 2, 4, 0);
+      textoGrande(instruccion, 3, 32, desde);
+      pantalla.display();
+    }
+    delay(2);
+  }
+
+  // Un momento para que la pagina de "listo" llegue al celular.
+  delay(1500);
+  ESP.restart();
+}
+
+// Se conecta a la red guardada. Si no hay ninguna, o no conecta, abre la red
+// propia (y esa no vuelve: reinicia la placa).
+void conectarWifi() {
+  String red = memoria.getString("red", "");
+  String clave = memoria.getString("clave", "");
+
+#if HAY_CREDENCIALES_H
+  if (red == "") {
+    red = ssid;
+    clave = password;
+  }
+#endif
+
+  if (red == "") abrirPortal("");
+
+  mostrarMensaje("Conectando WiFi...");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(red.c_str(), clave.c_str());
+  Serial.print("Conectando a ");
+  Serial.print(red);
+
+  unsigned long desde = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - desde < MS_INTENTO_WIFI) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+
+  if (WiFi.status() != WL_CONNECTED) {
+    abrirPortal("No se pudo conectar a " + red + ". Revisá la clave, o elegí otra red.");
+  }
+}
+
+// Mantener apretado el boton al prender: 3 segundos borran la red guardada.
+bool botonSostenidoAlPrender() {
+  unsigned long desde = millis();
+  while (digitalRead(BUTTON_PIN) == LOW) {
+    if (millis() - desde > 3000) return true;
+    delay(10);
+  }
+  return false;
+}
+
+
 // SETUP
 void setup() {
   Serial.begin(115200);
@@ -718,18 +956,34 @@ void setup() {
   // Boton. INPUT_PULLUP: el pin queda en alto y baja a LOW cuando el pulsador
   // lo conecta a GND, por eso la interrupcion escucha el flanco de bajada.
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), alApretarBoton, FALLING);
 
-  // WiFi
-  WiFi.begin(ssid, password);
-  Serial.print("Conectando");
+  memoria.begin("voitos", false);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  // El secreto de la placa, una sola vez en su vida (ver arriba).
+  secreto = memoria.getString("secreto", "");
+  if (secreto == "") {
+    char hex[33];
+    snprintf(hex, sizeof hex, "%08lx%08lx%08lx%08lx",
+             (unsigned long)esp_random(), (unsigned long)esp_random(),
+             (unsigned long)esp_random(), (unsigned long)esp_random());
+    secreto = hex;
+    memoria.putString("secreto", secreto);
   }
 
-  Serial.println("\nConectado!");
+  // WiFi
+  if (botonSostenidoAlPrender()) {
+    memoria.remove("red");
+    memoria.remove("clave");
+    Serial.println("Boton sostenido al prender: se borro la red guardada.");
+    abrirPortal("");
+  }
+  conectarWifi();
+
+  // Recien ahora: si la interrupcion estuviera antes, sostener el boton para
+  // borrar la red dejaria una apretada guardada.
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), alApretarBoton, FALLING);
+
+  Serial.println("Conectado!");
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
   Serial.print("Backend: ");
