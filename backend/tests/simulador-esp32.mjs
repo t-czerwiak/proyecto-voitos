@@ -1,30 +1,10 @@
-// Simulador del pastillero: hace lo mismo que el firmware de polling, pero en
-// Node, para poder probar todo el circuito sin la placa.
-//
-// Replica la logica de docs/interno/sketch-polling/sketch-polling.ino:
-//   1. consulta GET /api/sensor/pendiente cada 30 segundos
-//   2. si hay una dosis, verifica que el modulo tenga stock
-//   3. "suena el buzzer" y espera el boton
-//   4. "mueve el servo" una vez por pastilla
-//   5. confirma con POST /api/sensor/confirmacion
-//
-// Imprime lo mismo que el monitor serie, asi lo que se ve aca es lo que se
-// deberia ver en el Arduino IDE con la placa de verdad.
-//
-//   node tests/simulador-esp32.mjs
-//   API=https://voitos-backend.onrender.com node tests/simulador-esp32.mjs
-//   SEGUNDOS_BOTON=3 node tests/simulador-esp32.mjs   (cuanto tarda en apretar)
-//   BOTON=manual node tests/simulador-esp32.mjs       (apretar con Enter)
-
 const API = process.env.API ?? "http://localhost:3000";
 const DISPOSITIVO_ID = process.env.DISPOSITIVO_ID ?? "ESP32-001";
 
-// Mismos valores que el firmware
 const MS_ENTRE_CONSULTAS = Number(process.env.SEGUNDOS_CONSULTA ?? 30) * 1000;
 const MS_ESPERANDO_BOTON = 15 * 60 * 1000;
 const MAX_PASTILLAS = 20;
 
-// Cuanto tarda la "persona" en apretar el boton. En manual se espera un Enter.
 const MODO_BOTON = process.env.BOTON ?? "auto";
 const MS_HASTA_APRETAR = Number(process.env.SEGUNDOS_BOTON ?? 4) * 1000;
 
@@ -33,7 +13,6 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 const hora = () => new Date().toLocaleTimeString("es-AR", { hour12: false });
 const log = (linea = "") => console.log(linea === "" ? "" : `[${hora()}] ${linea}`);
 
-// El estado del firmware, con los mismos nombres
 let esperandoBoton = false;
 let horarioPendiente = "";
 let cantidadPendiente = 1;
@@ -47,12 +26,10 @@ const pedir = async (ruta, opciones = {}) => {
   try {
     json = await r.json();
   } catch {
-    // puede no traer cuerpo
   }
   return { status: r.status, json };
 };
 
-// Equivale a moverServo() repetido: un ciclo por pastilla, con sus tiempos.
 const dispensar = async (cantidad) => {
   if (cantidad < 1) cantidad = 1;
   if (cantidad > MAX_PASTILLAS) cantidad = MAX_PASTILLAS;
@@ -61,7 +38,7 @@ const dispensar = async (cantidad) => {
 
   for (let i = 1; i <= cantidad; i++) {
     log(`  pastilla ${i} de ${cantidad}`);
-    // El servo tarda 2 segundos por ciclo (180 grados y vuelta)
+
     await esperar(2000);
   }
 
@@ -138,7 +115,6 @@ const consultarPendiente = async () => {
   log(`  modulo: ${modulo}`);
   log(`  quedan en el modulo: ${disponibles}`);
 
-  // Mismo corte que el firmware: no suena si el modulo no puede cumplir.
   if (disponibles >= 0 && disponibles < cantidad) {
     log("  Stock insuficiente, no se dispensa. Hay que recargar.");
     return;
@@ -191,12 +167,6 @@ const correr = async () => {
   console.log(`Boton: ${MODO_BOTON === "manual" ? "manual (Enter)" : `automatico a los ${MS_HASTA_APRETAR / 1000}s`}`);
   console.log();
 
-  // Esperar a que el backend responda antes de entrar al ciclo.
-  //
-  // En el plan free de Render el servicio se duerme a los 15 minutos sin
-  // trafico y devuelve 503 mientras despierta, lo que puede tardar cerca de un
-  // minuto. El firmware real tolera esto sin hacer nada especial: si la
-  // consulta falla, simplemente reintenta en el proximo ciclo.
   let intentos = 0;
   for (;;) {
     const { status } = await pedir("/api/sensor/pendiente");

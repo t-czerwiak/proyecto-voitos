@@ -4,8 +4,6 @@ import { ErrorHttp } from "../utils/errores";
 
 const APP_URL = (process.env.APP_URL ?? "http://localhost:8081").replace(/\/$/, "");
 
-// Este endpoint lo abre una persona desde el cliente de mail, no la app.
-// Por eso devuelve HTML y no JSON: lo que se ve es el resultado final.
 const pagina = (titulo: string, mensaje: string, ok: boolean) => `<!DOCTYPE html>
 <html lang="es">
 <head>

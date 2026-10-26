@@ -1,16 +1,3 @@
-// Recorre el mismo camino que hace la app: registro, login, pastillas,
-// agendar y actividades. Cada paso valida la respuesta del backend.
-//
-// La cuenta descartable que se crea se borra siempre al terminar, aunque la
-// corrida se corte a la mitad: esto va contra la base de produccion, y una
-// cuenta que sobrevive es basura que despues hay que limpiar a mano.
-//
-// Por eso necesita la SUPABASE_SERVICE_ROLE_KEY en el .env, igual que admin.mjs:
-// borrar la fila de usuarios y la cuenta de auth.users no se puede desde la API,
-// y no conviene que se pueda.
-//
-//   node tests/integracion.mjs    (con el backend corriendo en localhost:3000)
-
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 
@@ -52,13 +39,8 @@ const esperar = (cond, msg) => {
   if (!cond) throw new Error(msg);
 };
 
-// Los ids de las cuentas descartables, para poder borrarlas despues.
 const creados = [];
 
-// Borra las cuentas descartables de las dos tablas: la fila de public.usuarios y
-// la cuenta de auth.users. Si alguna no se pudo borrar lo dice, para que no se
-// acumule basura en silencio.
-// Una placa de mentira para probar el vinculo, sin tocar la ESP32-001 real.
 const PLACA = `TEST-${Date.now()}`;
 
 const limpiar = async () => {
@@ -86,8 +68,6 @@ const correr = async () => {
     });
     esperar(status === 201, `esperaba 201, vino ${status}: ${JSON.stringify(json.error)}`);
 
-    // Se anota apenas la cuenta existe: si algo de abajo falla, la cuenta esta
-    // creada igual, y sin este id no habria como borrarla.
     creados.push(json.data.usuario.id);
 
     esperar(json.data.token, "no vino token");
@@ -173,7 +153,6 @@ const correr = async () => {
 
   console.log("\n=== CONFIRMACION DEL PASTILLERO ===");
 
-  // La hora argentina dentro de N minutos, como la guarda la base.
   const enArgentina = (minutos) => {
     const d = new Date(Date.now() - 3 * 3600_000 + minutos * 60_000);
     return {
@@ -184,8 +163,7 @@ const correr = async () => {
       letra: ["D", "L", "M", "X", "J", "V", "S"][d.getUTCDay()],
     };
   };
-  // Crea una dosis a N minutos de ahora (negativo = ya paso). La confirmacion
-  // solo se acepta en el horario de la dosis, asi que cada prueba arma la suya.
+
   const dosisA = async (minutos) => {
     const t = enArgentina(minutos);
     const { json } = await pedir("/api/horarios", {
@@ -195,8 +173,6 @@ const correr = async () => {
     return json.data.id;
   };
 
-  // La pastilla de esta suite no tiene modulo cargado, asi que confirmar no
-  // le toca el stock al pastillero de verdad.
   const confirmar = (horario_id, extra = {}) =>
     pedir("/api/sensor/confirmacion", {
       metodo: "POST",
@@ -414,9 +390,6 @@ const correr = async () => {
   });
 };
 
-// La limpieza va afuera del try a proposito. Si la corrida se corta a la mitad
-// -el backend caido, una respuesta inesperada- la cuenta descartable ya quedo
-// creada igual, y sin esto sobreviviria en la base de produccion.
 try {
   await correr();
 } catch (e) {

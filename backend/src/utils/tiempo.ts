@@ -1,13 +1,9 @@
-// Utilidades de fecha/hora en zona horaria de Argentina (UTC-3).
-// Los horarios se guardan con la hora local del usuario, no en UTC,
-// asi que todas las comparaciones de "ahora" tienen que hacerse en esta zona.
-
-const TIMEZONE_OFFSET_HS = -3; // Argentina UTC-3
+const TIMEZONE_OFFSET_HS = -3;
 
 export interface AhoraArgentina {
-  hoy: string; // "2026-07-13"
-  hora: number; // 0-23
-  minuto: number; // 0-59
+  hoy: string;
+  hora: number;
+  minuto: number;
 }
 
 export const getHoraArgentina = (): AhoraArgentina => {
@@ -20,8 +16,6 @@ export const getHoraArgentina = (): AhoraArgentina => {
   };
 };
 
-// Convierte hora + minuto a minutos totales del dia, util para comparar
-// dos momentos del mismo dia (ej: saber si un horario ya paso).
 export const aMinutosDelDia = (hora: number, minuto: number): number =>
   hora * 60 + minuto;
 
@@ -40,17 +34,10 @@ export const sumarUnDia = (fecha: string): string => {
 export interface TramoVentana {
   dia: string;
   hora: number;
-  desde: number; // minuto inicial, inclusive
-  hasta: number; // minuto final, inclusive
+  desde: number;
+  hasta: number;
 }
 
-// Parte una ventana de "los ultimos N minutos" en tramos de (dia, hora), que es
-// como hay que consultarla porque dia, hora y minuto son tres columnas
-// separadas en la tabla horarios.
-//
-// La mayoria de las veces da un solo tramo. Da dos cuando la ventana cruza el
-// cambio de hora, y en ese caso el segundo tramo puede caer en el dia anterior
-// si son las 00:0X.
 export const getTramosVentana = (
   dia: string,
   hora: number,

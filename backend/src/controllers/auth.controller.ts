@@ -45,8 +45,6 @@ export const yo = async (req: Request, res: Response, next: NextFunction): Promi
   }
 };
 
-// Vuelve a mandar el mail de verificacion al dueño del token. No recibe ningun
-// parametro a proposito: solo se puede pedir para uno mismo.
 export const reenviarVerificacion = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await authService.reenviarVerificacion((req as any).user.id);
@@ -70,9 +68,6 @@ export const google = async (req: Request, res: Response, next: NextFunction): P
   }
 };
 
-// Pide el mail para cambiar la contrasena. Contesta siempre lo mismo, exista o
-// no la cuenta: si la respuesta cambiara, esto seria un buscador de casillas
-// registradas.
 export const recuperar = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = RecuperarSchema.safeParse(req.body);
   if (!result.success) {

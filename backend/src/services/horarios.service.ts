@@ -1,10 +1,6 @@
 import { supabase } from "../config/supabase";
 import { HorarioCreate, HorarioUpdate } from "../schemas/horarios.schema";
 
-// El calendario necesita todas las dosis del usuario para poder marcar los
-// dias, y horarios no tiene usuario_id: se llega por la pastilla. El !inner
-// hace que el filtro del join descarte filas en vez de traerlas con la
-// relacion en null.
 export const getAllHorarios = async (filtros: {
   pastilla_id?: string;
   usuario_id?: string;
