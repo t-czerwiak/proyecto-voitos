@@ -735,7 +735,7 @@ void probarPantallas() {
 // WiFi: la red propia para configurarlo y la conexion con la red guardada
 
 // Cuanto espera a que conecte la red guardada antes de abrir VOITOS-XXXX.
-const unsigned long MS_INTENTO_WIFI = 20000;
+const unsigned long MS_INTENTO_WIFI = 30000;
 
 // Si HAY una red guardada y no conecta (se corto la luz y el router tarda en
 // volver, por ejemplo), la red propia queda abierta este rato y despues la
@@ -847,7 +847,8 @@ void abrirPortal(const String& aviso) {
 
   unsigned long desde = millis();
   unsigned long ultimoCuadroPortal = 0;
-  String instruccion = "CONECTATE CON EL CELULAR A LA RED " + red;
+  String instruccion = String(aviso != "" ? "NO SE PUDO CONECTAR - " : "")
+                     + "CONECTATE CON EL CELULAR A LA RED " + red;
 
   while (!guardado && (!habiaRed || millis() - desde < MS_PORTAL_CON_RED_GUARDADA)) {
     dns.processNextRequest();
@@ -888,6 +889,24 @@ void dibujarConectando(const String& red, unsigned long desde) {
 
 // Se conecta a la red guardada. Si no hay ninguna, o no conecta, abre la red
 // propia (y esa no vuelve: reinicia la placa).
+// Por que se corto el ultimo intento. Lo llena el evento de desconexion del
+// WiFi; WiFi.status() solo dice "desconectado" y no alcanza para saber si fue
+// la clave o que la red no esta.
+volatile uint8_t motivoDesconexion = 0;
+
+String explicarFalla(const String& red) {
+  switch (motivoDesconexion) {
+    case 201:  // NO_AP_FOUND
+      return "No se encuentra la red " + red + ". Si es de 5 GHz el pastillero no la ve: elegí una de 2.4 GHz, o acercalo al router.";
+    case 2: case 15: case 202: case 204:  // AUTH_EXPIRE, 4WAY_HANDSHAKE_TIMEOUT, AUTH_FAIL, HANDSHAKE_TIMEOUT
+      return "La red " + red + " rechazó la clave. Revisala (mayúsculas y minúsculas cuentan).";
+    case 0:
+      return "La red " + red + " no respondió a tiempo. Probá de nuevo.";
+    default:
+      return "No se pudo conectar a " + red + " (motivo " + String(motivoDesconexion) + "). Revisá la clave, o elegí otra red.";
+  }
+}
+
 void conectarWifi() {
   String red = memoria.getString("red", "");
   String clave = memoria.getString("clave", "");
@@ -900,6 +919,10 @@ void conectarWifi() {
 #endif
 
   if (red == "") abrirPortal("");
+
+  WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
+    motivoDesconexion = info.wifi_sta_disconnected.reason;
+  }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(red.c_str(), clave.c_str());
@@ -921,7 +944,9 @@ void conectarWifi() {
   Serial.println();
 
   if (WiFi.status() != WL_CONNECTED) {
-    abrirPortal("No se pudo conectar a " + red + ". Revisá la clave, o elegí otra red.");
+    String motivo = explicarFalla(red);
+    Serial.println(motivo);
+    abrirPortal(motivo);
   }
 }
 
