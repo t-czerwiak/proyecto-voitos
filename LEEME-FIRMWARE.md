@@ -125,11 +125,12 @@ Pantalla de 0.96" SSD1306, 128x64, por I2C (cuatro pines: VCC, GND, SCL, SDA).
 | SCL | GPIO 22 |
 | SDA | GPIO **21** |
 
-El **botón de dispensar va al GPIO 35**, del pin a GND. El 35 es solo de
-entrada y **no tiene pull-up interno**: hace falta una **resistencia de 10 kΩ
-del 35 a 3V3**. Sin ella el pin queda flotando y la placa lee apretadas que
-nadie hizo (puede dispensar sola). Si se cablea en otros pines, se cambian
-`BUTTON_PIN`, `OLED_SDA` y `OLED_SCL` arriba del sketch.
+El **botón de dispensar va al GPIO 32**, del pin a GND, sin resistencia: el
+32 tiene pull-up interno. **No usar el 35** (ni 34, 36 o 39): son solo de
+entrada y no tienen pull-up, así que sin una resistencia externa el pin flota,
+la placa lee apretadas que nadie hizo (puede dispensar sola) y al arrancar
+"sostiene" el botón y borra el WiFi guardado. Si se cablea en otros pines, se
+cambian `BUTTON_PIN`, `OLED_SDA` y `OLED_SCL` arriba del sketch.
 
 Qué muestra, siempre con **la letra más grande que entra** (pensado para
 una persona mayor). Lo que no entra en el ancho corre de derecha a izquierda,

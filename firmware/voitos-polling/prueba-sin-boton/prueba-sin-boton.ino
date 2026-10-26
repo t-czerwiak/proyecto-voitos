@@ -97,7 +97,7 @@ Servo servo;
 const int SERVO_PIN = 18;
 const int BUZZER_PIN = 19;
 // En modo prueba, el BOOT de la DevKit (GPIO 0).
-const int BUTTON_PIN = MODO_PRUEBA ? 0 : 35;
+const int BUTTON_PIN = MODO_PRUEBA ? 0 : 32;
 
 
 const int OLED_SDA = 21;
@@ -1018,9 +1018,9 @@ void setup() {
   // Boton. Queda en alto y baja a LOW cuando el pulsador lo conecta a GND,
   // por eso la interrupcion escucha el flanco de bajada.
   //
-  // OJO: el GPIO 35 es solo de entrada y NO tiene pull-up interno, asi que
-  // INPUT_PULLUP no hace nada en ese pin. Hace falta una resistencia de 10k
-  // del 35 a 3V3; sin ella el pin flota y lee apretadas fantasma.
+  // Va en el 32 y no en el 35: el 35 no tiene pull-up interno, y sin una
+  // resistencia externa flotaba, leia apretadas fantasma y al arrancar
+  // "sostenia" el boton y borraba el WiFi recien guardado.
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   memoria.begin("voitos", false);
