@@ -480,3 +480,22 @@ export const crearActividad = (datos: {
 };
 
 export const borrarActividad = (id: string) => api.delete(`/api/actividades/${id}`);
+
+// ---------- Pastillero ----------
+//
+// Vincular el pastillero a la cuenta con el codigo de 8 digitos que muestra
+// su display. Sin vincular lo usa cualquier cuenta (modo exhibicion);
+// vinculado, solo dispensa y muestra lo de esta cuenta.
+
+export interface PastilleroVinculado {
+  dispositivo_id: string;
+  vinculado_at: string;
+}
+
+export const getMisPastilleros = () => api.get<PastilleroVinculado[]>("/api/pastilleros");
+
+export const vincularPastillero = (codigo: string) =>
+  api.post<PastilleroVinculado>("/api/pastilleros/vincular", { codigo });
+
+export const desvincularPastillero = (dispositivoId: string) =>
+  api.delete(`/api/pastilleros/${encodeURIComponent(dispositivoId)}`);
