@@ -1,16 +1,16 @@
 # Firmware de Voitos
 
-Actualizado el 24/08/2026.
+Actualizado el 26/10/2026.
 
-Acá vive un solo sketch: el que corre en la ESP32 del pastillero. Los de prueba
-y el firmware viejo de push se sacaron para que no haya duda de cuál hay que
-flashear. Siguen en la historia del repositorio si alguna vez hacen falta, en el
-commit `ac56ae4`:
+Quedan dos versiones del firmware del pastillero, las dos de **polling** (la
+placa le pregunta al backend). El de **push** (el backend le pegaba a la placa
+en la red local, `ServoPruebaWifi3`) se borró: no se usa más. Sigue en la
+historia del repositorio si alguna vez hace falta:
 
 ```bash
+git show 62db116:ServoPruebaWifi3/ServoPruebaWifi3.ino
 git show ac56ae4:pruebas/prueba-servo/prueba-servo.ino
 git show ac56ae4:pruebas/prueba-boton/prueba-boton.ino
-git show ac56ae4:firmware/voitos-push/voitos-push.ino
 ```
 
 ---
@@ -19,9 +19,19 @@ git show ac56ae4:firmware/voitos-push/voitos-push.ino
 
 ```
 firmware/
-  voitos-polling/          ← el que va al pastillero
-    prueba-display/        ← el mismo, en modo prueba (ver más abajo)
+  voitos-polling/            ← EL NUEVO: WiFi desde el celular y código para vincular
+    prueba-display/          ← el mismo, en modo prueba (ver más abajo)
+  voitos-polling-anterior/   ← el de antes (commit 95095cc), por si el nuevo falla
+sensorInfrarrojo/            ← prueba del sensor de Olivia, todavía sin integrar
 ```
+
+**`voitos-polling-anterior`** es el firmware tal como estaba antes de sumar
+la red `VOITOS-XXXX` y la vinculación: display con letra grande, recordatorios
+en loop y botón = "ya lo vi". Lleva el WiFi en `credenciales.h` (copiar
+`credenciales.h.ejemplo` en su carpeta) y no manda `dispositivo_id`, así que
+el backend lo trata como un pastillero sin dueño. Es para volver atrás rápido
+si el nuevo da problemas en la exhibición; cuando el nuevo esté probado, se
+borra.
 
 **No trae contraseñas, ni hace falta ponerlas.** El WiFi se le carga a la placa
 desde el celular la primera vez que prende (ver [Conectarlo al WiFi](#conectarlo-al-wifi)).

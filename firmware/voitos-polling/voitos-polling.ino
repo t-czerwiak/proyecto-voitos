@@ -870,6 +870,22 @@ void abrirPortal(const String& aviso) {
   ESP.restart();
 }
 
+// "CONECTANDO", el nombre de la red (corre si es largo) y una barra que se
+// llena hasta que se cumplen los MS_INTENTO_WIFI.
+void dibujarConectando(const String& red, unsigned long desde) {
+  if (!hayPantalla) return;
+  pantalla.clearDisplay();
+  pantalla.setTextColor(SSD1306_WHITE);
+  pantalla.setTextWrap(false);
+  textoGrande("CONECTANDO", 2, 2, 0);
+  textoGrande(red, 3, 24, desde);
+  unsigned long pasado = millis() - desde;
+  int lleno = pasado >= MS_INTENTO_WIFI ? ANCHO : (int)(pasado * ANCHO / MS_INTENTO_WIFI);
+  pantalla.drawRect(0, 56, ANCHO, 8, SSD1306_WHITE);
+  pantalla.fillRect(0, 56, lleno, 8, SSD1306_WHITE);
+  pantalla.display();
+}
+
 // Se conecta a la red guardada. Si no hay ninguna, o no conecta, abre la red
 // propia (y esa no vuelve: reinicia la placa).
 void conectarWifi() {
@@ -885,16 +901,22 @@ void conectarWifi() {
 
   if (red == "") abrirPortal("");
 
-  mostrarMensaje("Conectando WiFi...");
   WiFi.mode(WIFI_STA);
   WiFi.begin(red.c_str(), clave.c_str());
   Serial.print("Conectando a ");
   Serial.print(red);
 
+  // Mientras intenta, la pantalla dice a que red y cuanto falta para
+  // rendirse, en vez de quedar quieta: un aparato que no cambia parece colgado.
   unsigned long desde = millis();
+  unsigned long ultimoPunto = 0;
   while (WiFi.status() != WL_CONNECTED && millis() - desde < MS_INTENTO_WIFI) {
-    delay(500);
-    Serial.print(".");
+    dibujarConectando(red, desde);
+    if (millis() - ultimoPunto >= 500) {
+      ultimoPunto = millis();
+      Serial.print(".");
+    }
+    delay(MS_POR_CUADRO);
   }
   Serial.println();
 
@@ -1059,8 +1081,18 @@ void loop() {
   // Si se cayo el WiFi, reconectar. La placa puede quedar dias encendida.
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi caido, reconectando...");
+    if (!esperandoBoton && hayPantalla) {
+      pantalla.clearDisplay();
+      pantalla.setTextColor(SSD1306_WHITE);
+      pantalla.setTextWrap(false);
+      textoGrande("SIN WIFI", 2, 8, 0);
+      // "RECONECTANDO" no entra quieto a tamano 2 y esto se dibuja una sola vez.
+      textoGrande("ESPERANDO", 2, 36, 0);
+      pantalla.display();
+    }
     WiFi.reconnect();
     delay(3000);
+    if (WiFi.status() == WL_CONNECTED) dibujarPantalla();
     return;
   }
 
