@@ -7,7 +7,7 @@ export const HorarioCreateSchema = z.object({
   dia: z.string().min(1, "dia requerido"),
   hora: z.number().int().min(0).max(23, "hora debe estar entre 0 y 23"),
   minuto: z.number().int().min(0).max(59, "minuto debe estar entre 0 y 59"),
-  // Cuantas pastillas dispensar en esta dosis. Si no viene, la base pone 1.
+
   cantidad: z
     .number()
     .int()

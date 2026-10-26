@@ -3,8 +3,6 @@ import { z } from "zod";
 import * as pastillerosService from "../services/pastilleros.service";
 import { idDelUsuario } from "../utils/sesion";
 
-// Los 8 digitos que muestra el display. Se aceptan con espacios o guiones
-// porque la pantalla los muestra separados ("1234 5678").
 const VincularSchema = z.object({
   codigo: z
     .string()

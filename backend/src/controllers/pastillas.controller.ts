@@ -10,7 +10,6 @@ import { idDelUsuario, puedeOperar } from "../utils/sesion";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Del token, no de la query: el cliente no elige de quien son los datos.
     const usuario_id = idDelUsuario(req);
     const data = await pastillasService.getAllPastillas(usuario_id);
     res.json({ success: true, data });
@@ -39,8 +38,6 @@ export const create = async (req: Request, res: Response, next: NextFunction): P
     return;
   }
   try {
-    // El dueño lo pone el servidor, no el cliente. Si viniera del body,
-    // cualquiera podria crear registros a nombre de otra persona.
     const data = await pastillasService.createPastilla({
       ...result.data,
       usuario_id: idDelUsuario(req),
@@ -58,9 +55,6 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     return;
   }
   try {
-    // Sin esto, cualquiera con sesion podria operar sobre una pastilla ajena
-    // solo poniendo su id en la URL. Se responde 404 y no 403 para no revelar
-    // que ese id existe.
     if (!(await puedeOperar(req, await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Pastilla no encontrada" });
       return;
@@ -79,9 +73,6 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
 
 export const remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Sin esto, cualquiera con sesion podria operar sobre una pastilla ajena
-    // solo poniendo su id en la URL. Se responde 404 y no 403 para no revelar
-    // que ese id existe.
     if (!(await puedeOperar(req, await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Pastilla no encontrada" });
       return;
@@ -96,9 +87,6 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
 
 export const getHorarios = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Sin esto, cualquiera con sesion podria operar sobre una pastilla ajena
-    // solo poniendo su id en la URL. Se responde 404 y no 403 para no revelar
-    // que ese id existe.
     if (!(await puedeOperar(req, await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Pastilla no encontrada" });
       return;
@@ -111,9 +99,6 @@ export const getHorarios = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-// Suma o resta pastillas del modulo donde esta cargada esta. Se hace por
-// pastilla y no por modulo porque el cuidador piensa en "me quedan pocas
-// aspirinas", no en "el modulo 2 esta bajo".
 export const ajustarStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = StockAjusteSchema.safeParse(req.body);
   if (!result.success) {
@@ -121,9 +106,6 @@ export const ajustarStock = async (req: Request, res: Response, next: NextFuncti
     return;
   }
   try {
-    // Sin esto, cualquiera con sesion podria operar sobre una pastilla ajena
-    // solo poniendo su id en la URL. Se responde 404 y no 403 para no revelar
-    // que ese id existe.
     if (!(await puedeOperar(req, await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Pastilla no encontrada" });
       return;
@@ -136,16 +118,10 @@ export const ajustarStock = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-// Borra las dosis pendientes de una rutina, dejando la pastilla y el historial
-// en pie. Los filtros llegan por query string porque son opcionales: sin
-// ninguno, borra todas las pendientes de la pastilla.
 export const cancelarRutina = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const aNumero = (v: unknown) => (v === undefined ? undefined : Number(v));
 
   try {
-    // Sin esto, cualquiera con sesion podria operar sobre una pastilla ajena
-    // solo poniendo su id en la URL. Se responde 404 y no 403 para no revelar
-    // que ese id existe.
     if (!(await puedeOperar(req, await pastillasService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Pastilla no encontrada" });
       return;

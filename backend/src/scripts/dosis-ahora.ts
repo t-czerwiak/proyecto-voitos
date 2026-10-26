@@ -1,14 +1,3 @@
-// Crea una dosis programada para este mismo momento, asi se puede probar el
-// flujo completo sin tener que esperar a que llegue la hora de una dosis real.
-//
-// Uso:
-//   npm run dosis          -> 1 pastilla
-//   npm run dosis -- 5     -> 5 pastillas
-//   npm run dosis -- 5 <pastilla_id>
-//
-// Sin esto, POST /api/sensor/dispensar manda la senal pero no encuentra dosis
-// pendiente, asi que va sin horario_id y la dispensacion no queda registrada.
-
 import { supabase } from "../config/supabase";
 import { getHoraArgentina } from "../utils/tiempo";
 
@@ -21,7 +10,6 @@ const main = async () => {
     process.exit(1);
   }
 
-  // Si no aclaran cual, se usa la primera pastilla que haya cargada
   if (!pastillaId) {
     const { data, error } = await supabase
       .from("pastillas")

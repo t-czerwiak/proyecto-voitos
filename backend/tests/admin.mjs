@@ -1,21 +1,3 @@
-// Pruebas del rol admin.
-//
-// Verifican las dos caras, que son igual de importantes:
-//   - que el admin PUEDA hacer lo que le corresponde
-//   - que un usuario normal NO pueda, ni siquiera enterarse de que existe
-//
-// El rol se asigna directo en la base porque ningun endpoint lo otorga, que es
-// justamente la propiedad que hace segura esa decision. Por eso esta prueba
-// necesita la SUPABASE_SERVICE_ROLE_KEY: es la unica forma de crear un admin.
-//
-// Esa misma clave sirve para la otra cosa que hace falta: borrar las cuentas
-// descartables al terminar, aunque la corrida se corte a la mitad. Estas
-// pruebas van contra la base de produccion, y una cuenta que sobrevive es
-// basura que despues hay que limpiar a mano.
-//
-//   node tests/admin.mjs
-//   API=https://voitos-backend.onrender.com node tests/admin.mjs
-
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 
@@ -39,7 +21,6 @@ const pedir = async (ruta, { metodo = "GET", cuerpo, token } = {}) => {
   try {
     json = await r.json();
   } catch {
-    // puede no traer cuerpo
   }
   return { status: r.status, json };
 };
@@ -60,7 +41,6 @@ const esperar = (cond, msg) => {
   if (!cond) throw new Error(msg);
 };
 
-// Los ids de las cuentas descartables, para poder borrarlas despues.
 const creados = [];
 
 const registrar = async (etiqueta) => {
@@ -73,8 +53,6 @@ const registrar = async (etiqueta) => {
   });
   esperar(alta.status === 201, `no se pudo registrar ${etiqueta}: ${alta.status}`);
 
-  // Se anota apenas la cuenta existe, antes del login: si el login falla la
-  // cuenta ya esta creada igual, y sin este id no habria como borrarla.
   const id = alta.json.data.usuario.id;
   creados.push(id);
 
@@ -84,9 +62,6 @@ const registrar = async (etiqueta) => {
   return { mail, token: login.json.data.token, id };
 };
 
-// Borra las cuentas descartables de las dos tablas: la fila de public.usuarios y
-// la cuenta de auth.users. Si alguna no se pudo borrar lo dice, para que no se
-// acumule basura en silencio.
 const limpiar = async () => {
   for (const id of creados) {
     const { error } = await supabase.from("usuarios").delete().eq("id", id);
@@ -104,13 +79,10 @@ const correr = async () => {
   const admin = await registrar("jefe");
   const normal = await registrar("comun");
 
-  // El rol solo se puede dar desde la base: no hay endpoint que lo otorgue.
   await supabase.from("usuarios").update({ rol: "admin" }).eq("id", admin.id);
   console.log(`  admin:  ${admin.id}`);
   console.log(`  normal: ${normal.id}`);
 
-  // El usuario normal se crea una pastilla, para que el admin tenga algo ajeno
-  // sobre lo que operar
   const pastilla = await pedir("/api/pastillas", {
     metodo: "POST",
     token: normal.token,
@@ -187,7 +159,6 @@ const correr = async () => {
     });
     esperar(r.status === 200, `respondio ${r.status}, deberia poder borrarla`);
 
-    // Y de verdad se fue
     const quedan = await pedir("/api/pastillas", { token: normal.token });
     esperar(quedan.json.data.length === 0, "la pastilla sigue ahi");
   });
@@ -195,15 +166,12 @@ const correr = async () => {
   console.log("\n=== EL ROL NO SE PUEDE AUTOASIGNAR ===");
 
   await prueba("no hay endpoint que otorgue el rol admin", async () => {
-    // El unico lugar donde se puede tocar el propio perfil
     const r = await pedir(`/api/usuarios/${normal.id}`, {
       metodo: "PUT",
       token: normal.token,
       cuerpo: { rol: "admin" },
     });
 
-    // Puede responder 200 ignorando el campo, o 400 rechazandolo. Lo que
-    // importa es que el rol NO haya cambiado.
     const { data } = await supabase.from("usuarios").select("rol").eq("id", normal.id).single();
     esperar(data.rol === "cuidador", `el rol quedo en ${data.rol} despues de un PUT (status ${r.status})`);
   });
@@ -219,8 +187,6 @@ const correr = async () => {
   process.exit(fallos > 0 ? 1 : 0);
 };
 
-// Tambien se limpia cuando la corrida se corta: si no, cada error dejaria
-// cuentas vivas en la base de produccion.
 correr().catch(async (e) => {
   console.error("La corrida se corto:", e.message);
   await limpiar();

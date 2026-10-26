@@ -1,69 +1,23 @@
-// Plantillas HTML de los mails al cuidador.
-//
-// Los clientes de mail son muy limitados: varios borran las hojas de estilo, no
-// soportan flexbox ni grid, y muchos ignoran lo que no va en linea. Por eso
-// todo se arma con tablas y con style="" en cada elemento, que es lo unico que
-// se renderiza igual en todos lados. El bloque <style> del <head> se usa SOLO
-// para mejoras que pueden perderse sin que el mail se rompa: el ajuste a
-// pantalla chica.
-//
-// El ancho maximo de 600px es el estandar de facto: entra en la vista de
-// lectura de escritorio sin cortarse y se ve bien en celular.
-//
-// LA IDEA VISUAL, QUE AHORA ES LA DE LA APLICACION
-//
-// Antes el mail era una hoja blanca con una banda verde arriba: se veia bien,
-// pero no se parecia a nada de lo que la persona ve cuando abre Voitos. Ahora
-// es la misma pieza: el verde muy oscuro de fondo, la tarjeta apenas mas clara
-// con su borde, el verde neon como unico acento, y la misma escala de
-// tipografia —cuerpo de 16px, horas grandes— que se uso en la aplicacion.
-//
-// Que el mail sea oscuro no es solo estetica. Un mail claro que el cliente
-// pasa por su propio modo oscuro termina con colores que nadie eligio: Gmail
-// invierte los fondos y deja los textos donde caiga. Naciendo oscuro, lo que
-// se ve es lo que se diseño.
+const FONDO = "#010D07";
+const HOJA = "#04200F";
+const HOJA_ALTA = "#073019";
+const CABECERA = "#02200F";
+const BORDE = "#1A6B38";
 
-// La paleta es exactamente la de src/tema/colores.ts de la aplicacion, con los
-// mismos contrastes verificados (app/scripts/contraste.js).
-const FONDO = "#010D07";        // el fondo de la pagina
-const HOJA = "#04200F";         // la tarjeta
-const HOJA_ALTA = "#073019";    // los paneles de adentro de la tarjeta
-const CABECERA = "#02200F";     // la banda del logo
-const BORDE = "#1A6B38";        // borde de la tarjeta
-// Los filetes de adentro son del mismo verde que el borde: dan 2.63 contra la
-// tarjeta, que es lo mas visible sin que la ficha se vuelva una reja.
 const LINEA = "#1A6B38";
-const VERDE = "#00FF7F";        // el acento de la marca
-const SOBRE_VERDE = "#00190C";  // la letra que va ARRIBA del verde
-const AMBAR = "#E0A82E";        // atencion
-const TINTA = "#FFFFFF";        // titulares
-const TEXTO = "#CFE8DA";        // cuerpo
-const SUAVE = "#9FC4AF";        // secundario, etiquetas
-const PANEL = "#073019";        // fondo de los avisos y del pie
+const VERDE = "#00FF7F";
+const SOBRE_VERDE = "#00190C";
+const AMBAR = "#E0A82E";
+const TINTA = "#FFFFFF";
+const TEXTO = "#CFE8DA";
+const SUAVE = "#9FC4AF";
+const PANEL = "#073019";
 
-// Identificador del logo adjunto. email.service lo adjunta con este mismo cid.
 export const LOGO_CID = "voitos-logo";
 
-// Nunito primero, que es la de la aplicacion. Casi ningun cliente de mail la
-// tiene instalada y cargarla de un servidor externo no vale la pena —muchos lo
-// bloquean, y el que no, filtra al usuario a Google—, asi que atras va una
-// pila de fuentes de sistema que se le parecen: humanistas, redondeadas.
 const FUENTE =
   "Nunito,'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif";
 
-// Escapa el texto que viene de afuera antes de meterlo en el HTML del mail.
-//
-// Los mails se arman concatenando strings, asi que un dato con < o > entra
-// crudo en el marcado. React escapa solo en la app, pero aca no hay nada que
-// lo haga.
-//
-// El caso que importa no es el nombre de una pastilla, que va al mail del
-// propio usuario, sino dispositivo_id: llega por POST /api/sensor/confirmacion,
-// que es publico, asi que cualquiera puede mandar HTML ahi y terminar
-// inyectandolo en el mail de otra persona.
-//
-// Los clientes de mail no ejecutan scripts, pero si respetan el marcado: se
-// puede deformar el mensaje o colar contenido enganoso.
 const esc = (texto: string | number | null | undefined): string =>
   String(texto ?? "")
     .replace(/&/g, "&amp;")
@@ -77,14 +31,10 @@ const dosDigitos = (n: number) => String(n).padStart(2, "0");
 export const formatearHora = (hora: number, minuto: number) =>
   `${dosDigitos(hora)}:${dosDigitos(minuto)}`;
 
-// "2026-08-11" -> "hoy", "ayer" o "martes 11 de agosto".
-// Decir "hoy" ubica mucho mas rapido que una fecha completa, que obliga a
-// pensar que dia es hoy para saber si el aviso es viejo.
 export const formatearFecha = (fecha: string): string => {
   const partes = fecha.split("-");
   if (partes.length !== 3) return fecha;
 
-  // El sistema trabaja en hora de Argentina, no en la del servidor
   const ahora = new Date(Date.now() - 3 * 60 * 60 * 1000);
   const hoy = ahora.toISOString().split("T")[0];
 
@@ -108,24 +58,8 @@ export const formatearFecha = (fecha: string): string => {
   return `${nombreDia} ${Number(partes[2])} de ${nombreMes}`;
 };
 
-// ---------------------------------------------------------------------------
-// Piezas
-// ---------------------------------------------------------------------------
-
-// El simbolo que acompana a cada estado.
-//
-// El color solo no alcanza: quien no distingue el verde del ambar ve dos
-// etiquetas iguales. En la aplicacion esto se resuelve con un icono; en un
-// mail no hay iconos que se puedan garantizar, asi que va un caracter, que se
-// dibuja en todos lados y ademas lo lee un lector de pantalla.
 const simboloDe = (color: string) => (color === AMBAR ? "!" : "✓");
 
-// Encabezado de estado.
-//
-// Es lo primero que se lee, asi que carga toda la jerarquia: la etiqueta del
-// estado con su simbolo, el titular grande en blanco y un detalle opcional. El
-// filete vertical del color ata las tres lineas y repite el acento que ya
-// aparece bajo la cabecera.
 const encabezadoEstado = (
   etiqueta: string,
   color: string,
@@ -144,30 +78,20 @@ const encabezadoEstado = (
     </tr>
   </table>`;
 
-// Rotulo de seccion: separa bloques sin gritar
 const rotulo = (texto: string) => `
   <p class="suave" style="margin:32px 0 12px;color:${SUAVE};font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;">${texto}</p>`;
 
-// Una fila de dato: etiqueta a la izquierda, valor a la derecha.
-// Se lee como una ficha tecnica, que es exactamente lo que es.
 const fila = (etiqueta: string, valor: string) => `
   <tr>
     <td class="linea suave" style="padding:14px 0;border-bottom:1px solid ${LINEA};color:${SUAVE};font-size:15px;line-height:22px;">${etiqueta}</td>
     <td class="linea tinta" style="padding:14px 0;border-bottom:1px solid ${LINEA};color:${TINTA};font-size:16px;line-height:22px;font-weight:700;text-align:right;">${valor}</td>
   </tr>`;
 
-// Envuelve filas con un filete arriba, para que la ficha cierre por los cuatro lados
 const ficha = (filas: string) => `
   <table role="presentation" class="linea" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${LINEA};">
     ${filas}
   </table>`;
 
-// Boton de accion. En mail se hace con una tabla y padding, no con un <a>
-// estilado, porque Outlook ignora el padding de los enlaces.
-//
-// Verde lleno con letra oscura, igual que el boton principal de la aplicacion:
-// es la combinacion mas legible de la paleta (13.6:1) y se distingue del resto
-// por el relleno, no solo por el color.
 const boton = (texto: string, url: string, color = VERDE) => `
   <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0 4px;">
     <tr>
@@ -177,9 +101,6 @@ const boton = (texto: string, url: string, color = VERDE) => `
     </tr>
   </table>`;
 
-// Aviso secundario. Panel apenas mas claro que la tarjeta, con un filete de
-// color a la izquierda: se distingue del cuerpo sin robarle protagonismo al
-// encabezado de estado.
 const aviso = (titulo: string, detalle: string, color: string) => `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;">
     <tr>
@@ -190,16 +111,15 @@ const aviso = (titulo: string, detalle: string, color: string) => `
     </tr>
   </table>`;
 
-// Parrafo del cuerpo
 const p = (texto: string, margenArriba = 20) => `
   <p class="texto" style="margin:${margenArriba}px 0 0;color:${TEXTO};font-size:16px;line-height:25px;">${texto}</p>`;
 
 interface Layout {
-  preheader: string; // el resumen que Gmail muestra al lado del asunto
+  preheader: string;
   titulo: string;
   saludo: string;
   cuerpo: string;
-  acento: string; // color del estado: tine la linea bajo la cabecera
+  acento: string;
 }
 
 const envolver = ({ preheader, titulo, saludo, cuerpo, acento }: Layout) => `<!DOCTYPE html>
@@ -277,10 +197,6 @@ const envolver = ({ preheader, titulo, saludo, cuerpo, acento }: Layout) => `<!D
 
 </body>
 </html>`;
-
-// ---------------------------------------------------------------------------
-// Dosis retirada
-// ---------------------------------------------------------------------------
 
 export interface DatosOk {
   cuidadorNombre: string;
@@ -374,10 +290,6 @@ export const plantillaDispensacionOk = (d: DatosOk) => {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Dosis sin retirar
-// ---------------------------------------------------------------------------
-
 export interface DatosNoTomada {
   cuidadorNombre: string;
   pastilla: string;
@@ -393,9 +305,6 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
   const hhmm = formatearHora(d.hora, d.minuto);
   const pastillas = d.cantidad === 1 ? "1 pastilla" : `${d.cantidad} pastillas`;
 
-  // El numero va como enlace tel: para que desde el celular se llame de una.
-  // Es el gesto que este mail quiere provocar, asi que tiene que estar a un
-  // toque de distancia.
   const contactos = d.contactos.length
     ? `
       ${rotulo("Contactos de emergencia")}
@@ -464,10 +373,6 @@ export const plantillaDosisNoTomada = (d: DatosNoTomada) => {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Verificacion de la casilla
-// ---------------------------------------------------------------------------
-
 export interface DatosVerificacion {
   cuidadorNombre: string;
   enlace: string;
@@ -528,22 +433,10 @@ export const plantillaVerificacion = (d: DatosVerificacion) => {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Bienvenida, despues de verificar
-// ---------------------------------------------------------------------------
-
 export interface DatosBienvenida {
   cuidadorNombre: string;
   enlaceApp: string;
-  // Solo para las cuentas que nacieron entrando con Google.
-  //
-  // Esas cuentas no tienen contrasena, y no la necesitan: entran con Google y
-  // listo. Pero si algun dia Google no esta a mano —un telefono prestado, una
-  // computadora sin la sesion abierta— sin contrasena no hay forma de entrar.
-  // Este enlace deja elegir una, una sola vez, sin obligar a nada.
-  //
-  // Va ACA y no en un mail aparte a proposito: dos correos al mismo tiempo el
-  // dia que alguien se registra son uno de mas.
+
   enlacePassword?: string;
   horasParaVencer?: number;
 }
@@ -616,10 +509,6 @@ export const plantillaBienvenida = (d: DatosBienvenida) => {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Pastillero vacio
-// ---------------------------------------------------------------------------
-
 export interface DatosVacio {
   cuidadorNombre: string;
   pastilla: string;
@@ -676,17 +565,11 @@ export const plantillaPastilleroVacio = (d: DatosVacio) => {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Recuperar contrasena
-// ---------------------------------------------------------------------------
-
 export interface DatosRecuperacion {
   cuidadorNombre: string;
   enlace: string;
   horasParaVencer: number;
-  // Las cuentas creadas con Google no tienen contrasena. Para ellas esto no es
-  // "recuperar" sino "poner una por primera vez", y el mail tiene que decir eso
-  // o la persona cree que le mandaron algo que no pidio.
+
   tienePassword: boolean;
 }
 

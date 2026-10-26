@@ -3,14 +3,6 @@ import { UsuarioCreateSchema, UsuarioUpdateSchema } from "../schemas/usuarios.sc
 import * as usuariosService from "../services/usuarios.service";
 import { idDelUsuario } from "../utils/sesion";
 
-// Devuelve solo al usuario del token, no la lista completa.
-//
-// Antes cualquiera con sesion podia leer el nombre, apellido, mail y fecha de
-// nacimiento de todos los usuarios del sistema. La app nunca uso este endpoint, asi que
-// acotarlo no rompe nada.
-//
-// Se mantiene como lista (un arreglo de un elemento) para no cambiar la forma
-// de la respuesta.
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await usuariosService.getUsuarioById(idDelUsuario(req));
@@ -22,8 +14,6 @@ export const getAll = async (req: Request, res: Response, next: NextFunction): P
 
 export const getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Solo el propio perfil. Con otro id se responde 404 y no 403, para no
-    // confirmar que ese usuario existe.
     if (req.params.id !== idDelUsuario(req)) {
       res.status(404).json({ success: false, error: "Usuario no encontrado" });
       return;

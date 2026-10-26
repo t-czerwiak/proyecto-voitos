@@ -33,7 +33,6 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     return;
   }
   try {
-    // El modulo de un pastillero ajeno no se toca: 404 como si no existiera.
     if (!(await modulosService.getModuloById(req.params.id, idDelUsuario(req)))) {
       res.status(404).json({ success: false, error: "Modulo no encontrado" });
       return;
