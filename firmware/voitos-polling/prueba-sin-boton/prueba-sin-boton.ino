@@ -1,21 +1,18 @@
 // =====================================================================
-// PRUEBA DEL DISPLAY: es el firmware de voitos-polling con MODO_PRUEBA en 1.
+// PRUEBA SIN BOTON: es el firmware de voitos-polling con MODO_PRUEBA en 1,
+// para una placa con display (y servo, si hay) pero sin el pulsador.
 //
+//   - El boton de dispensar es el BOOT de la placa (GPIO 0).
 //   - Al arrancar recorre todas las pantallas del display (reposo con la hora,
 //     recordatorios de ejemplo, TU DOSIS, REVISAR) y las anuncia por el
 //     monitor serie a 115200.
-//   - Despues funciona EN VIVO contra el backend de produccion: lo que se
-//     agende en voitos.vercel.app aparece en la pantalla.
-//   - El boton de dispensar es el BOOT de la placa (GPIO 0), asi no hace falta
-//     tener el pulsador cableado.
-//   - Detecta solo si SDA/SCL estan cruzados (D22/D23) y la direccion 0x3C/0x3D.
-//
-// Antes de compilar: copiar credenciales.h.ejemplo como credenciales.h, en
-// ESTA carpeta, y completar la red WiFi.
+//   - Despues funciona EN VIVO contra el backend de produccion: WiFi desde el
+//     celular (red VOITOS-XXXX), codigo para vincular, recordatorios y dosis.
+//   - Display en SDA 21 / SCL 22; detecta solo si estan cruzados y la
+//     direccion 0x3C/0x3D. Servo en el 18.
 //
 // ponytail: es una copia del sketch principal. Si el principal cambia, esta
-// se regenera copiandolo, poniendo MODO_PRUEBA en 1 y OLED_SDA en 21 (en la
-// placa de prueba el boton es el BOOT, asi que el 21 queda libre).
+// se regenera copiandolo y poniendo MODO_PRUEBA en 1; no editarla a mano.
 // =====================================================================
 
 // Voitos - firmware de POLLING

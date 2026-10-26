@@ -20,7 +20,7 @@ git show ac56ae4:pruebas/prueba-boton/prueba-boton.ino
 ```
 firmware/
   voitos-polling/            ← EL NUEVO: WiFi desde el celular y código para vincular
-    prueba-display/          ← el mismo, en modo prueba (ver más abajo)
+    prueba-sin-boton/        ← el mismo, con el BOOT como botón (ver más abajo)
   voitos-polling-anterior/   ← el de antes (commit 95095cc), por si el nuevo falla
 sensorInfrarrojo/            ← prueba del sensor de Olivia, todavía sin integrar
 ```
@@ -304,7 +304,7 @@ Arriba del sketch:
 
 ---
 
-## Prueba del display (`prueba-display/`)
+## Prueba sin botón (`prueba-sin-boton/`)
 
 Es el mismo firmware con el modo prueba prendido, para probar la pantalla
 con la app de verdad sin tener el resto del hardware armado.
@@ -323,7 +323,8 @@ con la app de verdad sin tener el resto del hardware armado.
 **Cómo usarlo:**
 
 1. Instalar las librerías de arriba (ArduinoJson y Adafruit SSD1306).
-2. Abrir `prueba-display.ino`, placa **DOIT ESP32 DEVKIT V1**, subir.
+2. Abrir `prueba-sin-boton.ino`, placa **DOIT ESP32 DEVKIT V1**, subir. Si hay
+   servo, la señal va al **D18** (y VCC/GND del servo a 5V/VIN y GND).
 3. Si no tiene red guardada, conectarse con el celular a `VOITOS-XXXX` y elegir
    el WiFi (ver [Conectarlo al WiFi](#conectarlo-al-wifi)). Para borrarla,
    mantener el **BOOT** apretado justo después de enchufarla (no mientras se
