@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import {
+  getUsuarioActual,
   getActividades,
   getHorariosDelUsuario,
   cancelarRutina,
@@ -52,6 +53,8 @@ export default function Calendario() {
   const [mes, setMes] = useState(new Date().getMonth());
   const [anio, setAnio] = useState(new Date().getFullYear());
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoyISO());
+  const cumple = getUsuarioActual()?.fecha_nacimiento?.slice(5, 10) ?? null;
+  const esCumple = (fecha: string) => cumple !== null && fecha.slice(5, 10) === cumple;
 
   const [actividades, setActividades] = useState<Actividad[]>([]);
 
@@ -257,6 +260,7 @@ export default function Calendario() {
 
                   const partes: string[] = [fechaLarga(fecha)];
                   if (hoy) partes.push("hoy");
+                  if (esCumple(fecha)) partes.push("tu cumpleaños");
                   if (susRutinas.length)
                     partes.push(
                       susRutinas.length === 1
@@ -297,6 +301,15 @@ export default function Calendario() {
                       >
                         {dia}
                       </Text>
+
+                      {esCumple(fecha) && (
+                        <Ionicons
+                          name="gift"
+                          size={13}
+                          color={elegido ? colores.sobreAcento : colores.atencion.solido}
+                          style={styles.regalo}
+                        />
+                      )}
 
                       <View style={styles.marcadores}>
                         {susActividades.length > 0 && (
@@ -360,6 +373,13 @@ export default function Calendario() {
                 </Text>
                 {esHoy(fechaSeleccionada) && <Estado texto="Hoy" tono="ok" icono="today" />}
               </View>
+
+              {esCumple(fechaSeleccionada) && (
+                <View style={styles.cumple}>
+                  <Ionicons name="gift" size={22} color={colores.atencion.solido} />
+                  <Text style={styles.cumpleTexto}>Es tu cumpleaños. ¡Feliz cumpleaños!</Text>
+                </View>
+              )}
 
               {cargando ? (
                 <Cargando texto="Buscando lo agendado..." />
@@ -640,6 +660,30 @@ const useEstilos = crearEstilos((colores) => ({
     width: 12,
     height: 5,
     borderRadius: 3,
+  },
+
+  regalo: {
+    position: "absolute",
+    top: 4,
+    right: 6,
+  },
+
+  cumple: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.sm,
+    backgroundColor: colores.atencion.fondo,
+    borderWidth: 1,
+    borderColor: colores.atencion.borde,
+    borderRadius: radio.md,
+    padding: espacio.md,
+    marginBottom: espacio.md,
+  },
+
+  cumpleTexto: {
+    ...texto.cuerpoFuerte,
+    color: colores.atencion.texto,
+    flex: 1,
   },
 
   marcadorActividad: {

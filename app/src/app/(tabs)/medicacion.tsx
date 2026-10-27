@@ -1,7 +1,14 @@
 import React, { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { getPastillas, Pastilla } from "../../lib/voitos";
+import {
+  getPastillas,
+  getMisPastilleros,
+  nombrePastillero,
+  Pastilla,
+  type PastilleroVinculado,
+} from "../../lib/voitos";
+import IconoPastilla, { etiquetaTamano } from "../../components/IconoPastilla";
 import {
   Pantalla,
   Encabezado,
@@ -23,12 +30,17 @@ export default function Pastillas() {
   const escritorio = useEscritorio();
 
   const [pastillas, setPastillas] = useState<Pastilla[]>([]);
+  const [pastilleros, setPastilleros] = useState<PastilleroVinculado[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
   useFocusEffect(
     useCallback(() => {
       let vigente = true;
+
+      getMisPastilleros()
+        .then((lista) => vigente && setPastilleros(lista))
+        .catch(() => {});
 
       getPastillas()
         .then((lista) => {
@@ -77,7 +89,7 @@ export default function Pastillas() {
         variante="secundario"
         icono="refresh-outline"
         onPress={() => router.push("/recargar-medicacion")}
-        ayuda="Sumar pastillas a un módulo, o eliminar una que ya no se usa"
+        ayuda="Sumar pastillas al pastillero, o eliminar una que ya no se usa"
       />
     </View>
   );
@@ -94,7 +106,7 @@ export default function Pastillas() {
         <Vacio
           icono="medkit-outline"
           titulo="Todavía no cargaste ninguna pastilla"
-          detalle="El primer paso es cargar la pastilla y decir cuántas pusiste en el módulo del pastillero."
+          detalle="El primer paso es cargar la pastilla y decir cuántas pusiste en el pastillero."
           accion={{
             titulo: "Cargar la primera",
             onPress: () => router.push("/agregar-medicacion"),
@@ -108,8 +120,9 @@ export default function Pastillas() {
             const poco = !sinModulo && quedan <= STOCK_BAJO;
 
             const dondeEsta = sinModulo
-              ? "No está cargada en ningún módulo"
-              : `Módulo ${p.modulo!.numero}`;
+              ? "No está cargada en ningún pastillero"
+              : `En ${nombrePastillero(pastilleros, p.modulo!.dispositivo_id) ?? "el pastillero"}`;
+            const tamano = etiquetaTamano(p.tipo);
 
             const cuantas = sinModulo
               ? "El pastillero no la va a poder dispensar"
@@ -121,7 +134,15 @@ export default function Pastillas() {
               <View key={p.id} style={escritorio ? styles.grillaItem : undefined}>
                 <Tarjeta>
                   <View accessible accessibilityLabel={`${p.nombre}. ${dondeEsta}. ${cuantas}.`}>
-                    <Text style={styles.nombre}>{p.nombre}</Text>
+                    <View style={styles.cabeceraPastilla}>
+                      <View style={styles.icono}>
+                        <IconoPastilla tipo={p.tipo} tam={40} />
+                      </View>
+                      <View style={styles.textos}>
+                        <Text style={styles.nombre}>{p.nombre}</Text>
+                        {tamano && <Text style={styles.tamano}>{tamano}</Text>}
+                      </View>
+                    </View>
 
                     <Text style={styles.detalle}>{dondeEsta}</Text>
 
@@ -159,8 +180,8 @@ export default function Pastillas() {
           titulo="Se están por acabar"
           texto={
             faltantes.length === 1
-              ? `Queda poco de ${faltantes[0].nombre}. Recargá el módulo antes de que una dosis quede sin salir.`
-              : `Queda poco de ${faltantes.length} pastillas. Recargá los módulos antes de que una dosis quede sin salir.`
+              ? `Queda poco de ${faltantes[0].nombre}. Recargá el pastillero antes de que una dosis quede sin salir.`
+              : `Queda poco de ${faltantes.length} pastillas. Recargá el pastillero antes de que una dosis quede sin salir.`
           }
         />
       )}
@@ -197,6 +218,30 @@ const useEstilos = crearEstilos((colores) => ({
     ...texto.seccion,
     color: colores.texto,
     marginBottom: espacio.md,
+  },
+
+  cabeceraPastilla: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.md,
+  },
+
+  icono: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colores.superficieAlta,
+  },
+
+  textos: {
+    flex: 1,
+  },
+
+  tamano: {
+    ...texto.dato,
+    color: colores.textoTenue,
   },
 
   nombre: {

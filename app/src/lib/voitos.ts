@@ -162,6 +162,7 @@ export interface Modulo {
   numero: number;
   nombre: string;
   cantidad_actual: number;
+  dispositivo_id?: string;
 }
 
 export interface Pastilla {
@@ -169,6 +170,7 @@ export interface Pastilla {
   usuario_id: string;
   nombre: string;
   tipo?: string;
+  dispositivo_id?: string | null;
   modulo?: Modulo | null;
 }
 
@@ -183,6 +185,7 @@ export const crearPastilla = (datos: {
   tipo?: string;
   cantidad_inicial?: number;
   modulo_numero?: number;
+  dispositivo_id?: string | null;
 }) => {
   const usuario = sesion.getUsuario();
   if (!usuario) throw new Error("No hay sesion iniciada");
@@ -412,8 +415,19 @@ export const borrarActividad = (id: string) => api.delete(`/api/actividades/${id
 
 export interface PastilleroVinculado {
   dispositivo_id: string;
+  nombre: string | null;
   vinculado_at: string;
 }
+
+export const renombrarPastillero = (dispositivoId: string, nombre: string | null) =>
+  api.patch<PastilleroVinculado>(`/api/pastilleros/${encodeURIComponent(dispositivoId)}`, { nombre });
+
+export const nombrePastillero = (lista: PastilleroVinculado[], dispositivoId?: string | null) => {
+  const p = lista.find((x) => x.dispositivo_id === dispositivoId);
+  if (p?.nombre) return p.nombre;
+  if (p && lista.length > 1) return p.dispositivo_id;
+  return p ? "Tu pastillero" : null;
+};
 
 export const getMisPastilleros = () => api.get<PastilleroVinculado[]>("/api/pastilleros");
 
