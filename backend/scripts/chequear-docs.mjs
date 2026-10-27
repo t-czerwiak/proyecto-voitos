@@ -1,15 +1,3 @@
-// Falla si hay una ruta en el codigo que no aparece en docs/API.md.
-//
-// Existe porque la doc se quedo un mes atras sin que nadie lo notara: entre el
-// 10/8 y el 15/9 entraron 19 rutas y no se documento ninguna. Ahora es un
-// comando que se corre antes de commitear un cambio de endpoints.
-//
-//   npm run docs:check
-//
-// ponytail: solo mira que la ruta este en la tabla (metodo + path), no que el
-// body o la respuesta documentados sigan siendo ciertos. Eso lo sigue cuidando
-// quien hace el cambio.
-
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 

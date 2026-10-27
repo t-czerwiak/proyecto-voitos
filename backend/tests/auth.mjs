@@ -1,15 +1,3 @@
-// Pruebas de recuperacion de contrasena y del candado de Google.
-//
-// Mezcla las dos caras, como admin.mjs: que el flujo funcione para quien
-// corresponde, y que NO funcione para quien no.
-//
-// Necesita la SUPABASE_SERVICE_ROLE_KEY porque hay dos cosas que solo se pueden
-// hacer desde la base: marcar una cuenta como verificada (ningun endpoint lo
-// otorga) y leer el token_reset, que a proposito nunca sale por la API.
-//
-//   node tests/auth.mjs
-//   API=https://voitos-backend.onrender.com node tests/auth.mjs
-
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 
@@ -31,7 +19,6 @@ const pedir = async (ruta, { metodo = "POST", cuerpo } = {}) => {
   try {
     json = await r.json();
   } catch {
-    // puede no traer cuerpo
   }
   return { status: r.status, json };
 };
@@ -64,18 +51,11 @@ const registrar = async (etiqueta, verificado) => {
   const id = alta.json.data.usuario.id;
   creados.push(id);
 
-  // El estado de verificacion solo se puede tocar desde la base: es justamente
-  // la propiedad que hace confiable al candado de Google.
   await supabase.from("usuarios").update({ verificado }).eq("id", id);
 
   return { mail, id };
 };
 
-// ID token de Google armado a mano, con la firma rota a proposito.
-//
-// Sirve para probar el candado sin una cuenta de Google real: lo que se
-// verifica es que el backend decida a quien rechazar ANTES de mirar la firma, y
-// que a quien deja pasar lo termine rechazando Google por la firma invalida.
 const tokenFalsoDeGoogle = (mail) => {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
   return [
@@ -194,11 +174,6 @@ const correr = async () => {
     esperar(filtrados.length === 0, `se filtraron: ${filtrados.join(", ")}`);
   });
 
-  // La prueba de arriba mira los nombres de los campos. Esta mira la
-  // consecuencia, que es lo que de verdad importa: con el token de verificacion
-  // en la mano, cualquiera daba por confirmada una casilla que nunca leyo. Eso
-  // alcanza para abrir una cuenta con el mail de otra persona, verificarla, y
-  // quedarse esperando a que esa persona entre con Google.
   await prueba("no se puede verificar una cuenta sin haber abierto el mail", async () => {
     const mail = `auth-test-autover-${Date.now()}@voitos.test`;
     const alta = await pedir("/api/auth/registro", {
@@ -207,7 +182,6 @@ const correr = async () => {
     const id = alta.json.data.usuario.id;
     creados.push(id);
 
-    // Se prueba con cualquier cosa que parezca un token de los nuestros
     const posibles = Object.values(alta.json.data.usuario).filter(
       (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v)
     );
@@ -248,8 +222,7 @@ const correr = async () => {
     const r = await pedir("/api/auth/google", {
       cuerpo: { id_token: tokenFalsoDeGoogle(verificado.mail) },
     });
-    // 401 y no 200: el candado dejo pasar, y despues Supabase rechazo la firma
-    // falsa. Eso prueba que la validacion de verdad sigue estando.
+
     esperar(r.status === 401, `dio ${r.status}: ${JSON.stringify(r.json)}`);
   });
 

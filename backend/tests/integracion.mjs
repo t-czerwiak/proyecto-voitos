@@ -1,16 +1,3 @@
-// Recorre el mismo camino que hace la app: registro, login, pastillas,
-// agendar y actividades. Cada paso valida la respuesta del backend.
-//
-// La cuenta descartable que se crea se borra siempre al terminar, aunque la
-// corrida se corte a la mitad: esto va contra la base de produccion, y una
-// cuenta que sobrevive es basura que despues hay que limpiar a mano.
-//
-// Por eso necesita la SUPABASE_SERVICE_ROLE_KEY en el .env, igual que admin.mjs:
-// borrar la fila de usuarios y la cuenta de auth.users no se puede desde la API,
-// y no conviene que se pueda.
-//
-//   node tests/integracion.mjs    (con el backend corriendo en localhost:3000)
-
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 
@@ -24,8 +11,8 @@ let usuario = null;
 let ok = 0;
 let fallos = 0;
 
-const pedir = async (ruta, { metodo = "GET", cuerpo, conToken = true } = {}) => {
-  const headers = { "Content-Type": "application/json" };
+const pedir = async (ruta, { metodo = "GET", cuerpo, conToken = true, extra = {} } = {}) => {
+  const headers = { "Content-Type": "application/json", ...extra };
   if (conToken && token) headers.Authorization = `Bearer ${token}`;
   const r = await fetch(`${API}${ruta}`, {
     method: metodo,
@@ -52,13 +39,13 @@ const esperar = (cond, msg) => {
   if (!cond) throw new Error(msg);
 };
 
-// Los ids de las cuentas descartables, para poder borrarlas despues.
 const creados = [];
 
-// Borra las cuentas descartables de las dos tablas: la fila de public.usuarios y
-// la cuenta de auth.users. Si alguna no se pudo borrar lo dice, para que no se
-// acumule basura en silencio.
+const PLACA = `TEST-${Date.now()}`;
+
 const limpiar = async () => {
+  await supabase.from("modulos").delete().eq("dispositivo_id", PLACA);
+  await supabase.from("pastilleros").delete().eq("dispositivo_id", PLACA);
   for (const id of creados) {
     const { error } = await supabase.from("usuarios").delete().eq("id", id);
     if (error) console.log(`  quedo la fila ${id} en usuarios: ${error.message}`);
@@ -82,8 +69,6 @@ const correr = async () => {
     });
     esperar(status === 201, `esperaba 201, vino ${status}: ${JSON.stringify(json.error)}`);
 
-    // Se anota apenas la cuenta existe: si algo de abajo falla, la cuenta esta
-    // creada igual, y sin este id no habria como borrarla.
     creados.push(json.data.usuario.id);
 
     esperar(json.data.token, "no vino token");
@@ -169,7 +154,6 @@ const correr = async () => {
 
   console.log("\n=== CONFIRMACION DEL PASTILLERO ===");
 
-  // La hora argentina dentro de N minutos, como la guarda la base.
   const enArgentina = (minutos) => {
     const d = new Date(Date.now() - 3 * 3600_000 + minutos * 60_000);
     return {
@@ -180,8 +164,7 @@ const correr = async () => {
       letra: ["D", "L", "M", "X", "J", "V", "S"][d.getUTCDay()],
     };
   };
-  // Crea una dosis a N minutos de ahora (negativo = ya paso). La confirmacion
-  // solo se acepta en el horario de la dosis, asi que cada prueba arma la suya.
+
   const dosisA = async (minutos) => {
     const t = enArgentina(minutos);
     const { json } = await pedir("/api/horarios", {
@@ -191,8 +174,6 @@ const correr = async () => {
     return json.data.id;
   };
 
-  // La pastilla de esta suite no tiene modulo cargado, asi que confirmar no
-  // le toca el stock al pastillero de verdad.
   const confirmar = (horario_id, extra = {}) =>
     pedir("/api/sensor/confirmacion", {
       metodo: "POST",
@@ -339,7 +320,152 @@ const correr = async () => {
     const { status, json } = await pedir("/api/modulos");
     esperar(status === 200, `esperaba 200, vino ${status}`);
     esperar(Array.isArray(json.data), "no vino una lista");
-    esperar(typeof json.data[0]?.cantidad_actual === "number", "falta cantidad_actual");
+    esperar(json.data.every((m) => typeof m.cantidad_actual === "number"), "falta cantidad_actual");
+  });
+
+  console.log("\n=== VINCULAR PASTILLERO ===");
+
+  await supabase.from("pastilleros").insert({ dispositivo_id: PLACA });
+  const { data: moduloPlaca } = await supabase
+    .from("modulos")
+    .insert({ numero: 1, nombre: "test", dispositivo_id: PLACA, cantidad_actual: 7 })
+    .select("id")
+    .single();
+  const moduloDeLaPastilla = async () =>
+    (await pedir("/api/pastillas")).json.data.find((p) => p.id === pastillaId)?.modulo ?? null;
+  const SECRETO = "secreto-de-prueba-1234";
+  const consultaPlaca = (secreto) =>
+    pedir(`/api/sensor/pendiente?dispositivo_id=${PLACA}`, {
+      conToken: false,
+      extra: secreto ? { "X-Pastillero-Secreto": secreto } : {},
+    });
+  let codigo = null;
+
+  await prueba("una placa sin duenio recibe un codigo de 8 digitos", async () => {
+    const { json } = await consultaPlaca(SECRETO);
+    codigo = json.data.vinculo?.codigo;
+    esperar(json.data.vinculo?.vinculado === false, `vino ${JSON.stringify(json.data.vinculo)}`);
+    esperar(/^[0-9]{8}$/.test(codigo ?? ""), `codigo invalido: ${codigo}`);
+    esperar((await consultaPlaca(SECRETO)).json.data.vinculo.codigo === codigo, "la segunda consulta cambio el codigo");
+  });
+
+  await prueba("sin el secreto, o con otro, no se entrega el codigo", async () => {
+    esperar(!(await consultaPlaca()).json.data.vinculo.codigo, "sin secreto vino el codigo");
+    esperar(!(await consultaPlaca("otro-secreto")).json.data.vinculo.codigo, "con otro secreto vino el codigo");
+  });
+
+  await prueba("un codigo mal escrito da 400 y uno que no existe 404", async () => {
+    const mal = await pedir("/api/pastilleros/vincular", { metodo: "POST", cuerpo: { codigo: "12ab" } });
+    esperar(mal.status === 400, `esperaba 400, vino ${mal.status}`);
+    const otro = String((Number(codigo) + 1) % 100000000).padStart(8, "0");
+    const no = await pedir("/api/pastilleros/vincular", { metodo: "POST", cuerpo: { codigo: otro } });
+    esperar(no.status === 404, `esperaba 404, vino ${no.status}`);
+  });
+
+  await prueba("vincular con el codigo (aunque venga con espacio) la deja en la cuenta", async () => {
+    const { status } = await pedir("/api/pastilleros/vincular", {
+      metodo: "POST",
+      cuerpo: { codigo: `${codigo.slice(0, 4)} ${codigo.slice(4)}` },
+    });
+    esperar(status === 201, `esperaba 201, vino ${status}`);
+    const { json } = await pedir("/api/pastilleros");
+    esperar(json.data.some((p) => p.dispositivo_id === PLACA), "no aparece en mis pastilleros");
+    esperar((await consultaPlaca(SECRETO)).json.data.vinculo.vinculado === true, "la placa no se entero");
+  });
+
+  await prueba("vinculada, una pastilla sin modulo propio usa el del pastillero", async () => {
+    const modulo = await moduloDeLaPastilla();
+    esperar(modulo?.id === moduloPlaca.id, `vino ${JSON.stringify(modulo)}`);
+    esperar(modulo.cantidad_actual === 7, "no trae el stock del modulo del pastillero");
+  });
+
+  await prueba("vinculada, la placa ve las dosis de su duenio y las otras ya no", async () => {
+    const enLaPlaca = (await consultaPlaca(SECRETO)).json.data.recordatorios;
+    esperar(enLaPlaca.some((x) => x.texto === "Ibuprofeno x3"), "la placa vinculada no ve la dosis de su duenio");
+    esperar(!(await recordatoriosAhora()).some((x) => x.texto === "Ibuprofeno x3"), "un pastillero sin duenio sigue viendo la dosis");
+  });
+
+  await prueba("el codigo usado no sirve dos veces y con el nuevo se vincula otra cuenta", async () => {
+    const usado = await pedir("/api/pastilleros/vincular", { metodo: "POST", cuerpo: { codigo } });
+    esperar(usado.status === 404, `el codigo usado volvio a servir: ${usado.status}`);
+    const nuevo = (await consultaPlaca(SECRETO)).json.data.vinculo.codigo;
+    esperar(/^[0-9]{8}$/.test(nuevo ?? "") && nuevo !== codigo, `no llego un codigo nuevo: ${nuevo}`);
+
+    const reg = await pedir("/api/auth/registro", {
+      metodo: "POST",
+      conToken: false,
+      cuerpo: { nombre: "Otra", apellido: "Cuenta", mail: `demo-test-2-${Date.now()}@voitos.test`, password: "demo1234" },
+    });
+    esperar(reg.status === 201, `registro de la segunda cuenta: ${reg.status}`);
+    creados.push(reg.json.data.usuario.id);
+
+    const mio = token;
+    token = reg.json.data.token;
+    const { status } = await pedir("/api/pastilleros/vincular", { metodo: "POST", cuerpo: { codigo: nuevo } });
+    const { json } = await pedir("/api/pastilleros");
+    token = mio;
+
+    esperar(status === 201, `la segunda cuenta no pudo vincular: ${status}`);
+    esperar(json.data.some((p) => p.dispositivo_id === PLACA), "la segunda cuenta no ve el pastillero");
+    const enLaPlaca = (await consultaPlaca(SECRETO)).json.data.recordatorios;
+    esperar(enLaPlaca.some((x) => x.texto === "Ibuprofeno x3"), "con dos cuentas dejo de ver la dosis de la primera");
+  });
+
+  await prueba("desvincular la deja sin duenio, y otra vez da 404", async () => {
+    const { status } = await pedir(`/api/pastilleros/${PLACA}`, { metodo: "DELETE" });
+    esperar(status === 200, `esperaba 200, vino ${status}`);
+    const otra = await pedir(`/api/pastilleros/${PLACA}`, { metodo: "DELETE" });
+    esperar(otra.status === 404, `esperaba 404, vino ${otra.status}`);
+    esperar((await recordatoriosAhora()).some((x) => x.texto === "Ibuprofeno x3"), "la dosis no volvio al pastillero sin duenio");
+    esperar((await moduloDeLaPastilla())?.id !== moduloPlaca.id, "desvinculada sigue usando el modulo del pastillero");
+  });
+
+  console.log("\n=== TUS DATOS ===");
+
+  await prueba("cambiar el nombre y el apellido", async () => {
+    const { status, json } = await pedir(`/api/usuarios/${usuario.id}`, {
+      metodo: "PUT",
+      cuerpo: { nombre: "Demo2", apellido: "Cambiado" },
+    });
+    esperar(status === 200, `esperaba 200, vino ${status}`);
+    esperar(json.data.nombre === "Demo2" && json.data.apellido === "Cambiado", `vino ${JSON.stringify(json.data)}`);
+  });
+
+  await prueba("el mail no se cambia desde el perfil", async () => {
+    const { json } = await pedir(`/api/usuarios/${usuario.id}`, {
+      metodo: "PUT",
+      cuerpo: { mail: "otro@voitos.test" },
+    });
+    esperar(json.data?.mail !== "otro@voitos.test", "se cambio el mail");
+  });
+
+  const JPEG =
+    "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAEAAQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzeiiiuc+bP//Z";
+
+  await prueba("subir una foto de perfil y quitarla", async () => {
+    const mala = await pedir("/api/usuarios/yo/foto", { metodo: "POST", cuerpo: { imagen: "data:text/plain;base64,aG9sYQ==" } });
+    esperar(mala.status === 400, `algo que no es JPEG dio ${mala.status}`);
+
+    const { status, json } = await pedir("/api/usuarios/yo/foto", { metodo: "POST", cuerpo: { imagen: JPEG } });
+    esperar(status === 200, `esperaba 200, vino ${status}: ${JSON.stringify(json.error)}`);
+    esperar(json.data.foto_url, "no vino foto_url");
+    const foto = await fetch(json.data.foto_url);
+    esperar(foto.status === 200, `la foto no se puede abrir: ${foto.status}`);
+
+    const quitada = await pedir("/api/usuarios/yo/foto", { metodo: "DELETE" });
+    esperar(quitada.json.data.foto_url === null, "no se quito la foto");
+  });
+
+  await prueba("cambiar la contrasena pide la actual", async () => {
+    const mal = await pedir("/api/auth/cambiar-password", { metodo: "POST", cuerpo: { actual: "incorrecta", nueva: "nueva1234" } });
+    esperar(mal.status === 401, `con la actual mal esperaba 401, vino ${mal.status}`);
+
+    const bien = await pedir("/api/auth/cambiar-password", { metodo: "POST", cuerpo: { actual: "demo1234", nueva: "nueva1234" } });
+    esperar(bien.status === 200, `esperaba 200, vino ${bien.status}: ${JSON.stringify(bien.json.error)}`);
+
+    const login = await pedir("/api/auth/login", { metodo: "POST", conToken: false, cuerpo: { mail, password: "nueva1234" } });
+    esperar(login.status === 200, `no se puede entrar con la nueva: ${login.status}`);
+    token = login.json.data.token;
   });
 
   console.log("\n=== LIMPIEZA ===");
@@ -353,9 +479,6 @@ const correr = async () => {
   });
 };
 
-// La limpieza va afuera del try a proposito. Si la corrida se corta a la mitad
-// -el backend caido, una respuesta inesperada- la cuenta descartable ya quedo
-// creada igual, y sin esto sobreviviria en la base de produccion.
 try {
   await correr();
 } catch (e) {

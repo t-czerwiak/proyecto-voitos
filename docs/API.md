@@ -108,6 +108,7 @@ Pasado el límite responden **429**.
 | GET | `/api/auth/yo` | Sí | Perfil del dueño del token |
 | GET | `/api/auth/verificar/:token` | No | Confirma la casilla. Devuelve **HTML** |
 | POST | `/api/auth/reenviar-verificacion` | Sí | Vuelve a mandar el mail de verificación |
+| POST | `/api/auth/cambiar-password` | Sí | Cambia la contraseña: `{ "actual", "nueva" }` (nueva de 6 o más) |
 
 **Body de `POST /api/auth/registro`:**
 ```json
@@ -257,7 +258,7 @@ flujo para ponerse una. El mail lo dice con otras palabras en ese caso.
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| GET | `/api/sensor/pendiente` | La ESP32 consulta cada 30 s si hay una dosis para dispensar |
+| GET | `/api/sensor/pendiente` | La ESP32 consulta cada 30 s si hay una dosis para dispensar. Query opcional `?dispositivo_id=` y header `X-Pastillero-Secreto` (ver [Pastilleros](#pastilleros-protegido)) |
 | POST | `/api/sensor/dispensar` | El backend le manda la orden al dispositivo por la red local |
 | POST | `/api/sensor/confirmacion` | La ESP32 confirma que dispensó tras apretar el botón físico |
 
@@ -301,6 +302,16 @@ En los dos casos la dispensación se registra igual: por
 - Si no hay nada pendiente, `pendiente` es `false` y el resto `null`.
 - `recordatorios`: lo que el **display OLED** del pastillero tiene que mostrar
   ahora (ver abajo). Viene siempre, haya dosis pendiente o no.
+- `vinculo`: solo si la placa mandó `?dispositivo_id=` y está dada de alta en
+  `pastilleros`. `{ "vinculado": true|false, "codigo": "12345678" }`:
+  `vinculado` dice si tiene al menos una cuenta, y el `codigo` llega siempre
+  (vinculado o no) pero **solo si el header `X-Pastillero-Secreto` es el
+  correcto**. La placa lo muestra en el display para que otra cuenta se pueda
+  sumar.
+- Con `dispositivo_id`, la dosis y los recordatorios son los de **todas las
+  cuentas vinculadas** a esa placa. Sin cuentas (o sin `dispositivo_id`, las
+  placas viejas), son los de todas las cuentas **menos** las que ya tienen un
+  pastillero.
 
 #### Recordatorios en el display
 
@@ -443,13 +454,26 @@ del token responde 404.
 | GET | `/api/usuarios` | El perfil propio (no lista a nadie más) |
 | GET | `/api/usuarios/:id` | El perfil propio, por id |
 | POST | `/api/usuarios` | Crea un perfil suelto. **Redundante**: el alta real es `/api/auth/registro` |
-| PUT | `/api/usuarios/:id` | Edita `nombre`, `apellido`, `mail`, `fecha_nacimiento` |
+| PUT | `/api/usuarios/:id` | Edita `nombre`, `apellido`, `fecha_nacimiento` (el `mail` no: es el de la cuenta de Auth) |
+| POST | `/api/usuarios/yo/foto` | Sube la foto de perfil: `{ "imagen": "data:image/jpeg;base64,..." }` |
+| DELETE | `/api/usuarios/yo/foto` | Quita la foto de perfil |
 | DELETE | `/api/usuarios/:id` | Borra la cuenta entera (pantalla `/perfil`) |
 
 `DELETE` borra el perfil **y** la cuenta de Supabase Auth: si quedara solo la
 de Auth, esa persona podría loguearse y la app no encontraría su perfil. Por las
 FK en cascada se lleva pastillas, horarios, dispensaciones, contactos y
 actividades. Los módulos quedan, vacíos (ver [Base de datos](#base-de-datos)).
+
+**Foto de perfil.** La app la achica a 256×256 y la manda como JPEG en base64
+(hasta 400 kB; esa ruta tiene su propio límite de body, el resto de la API
+sigue en 16 kB). El backend la guarda en el bucket público `avatares` de
+Supabase Storage como `<id>.jpg` y deja la URL en `usuarios.foto_url`, con
+`?v=<fecha>` para que el navegador no muestre la vieja.
+
+**Cambiar la contraseña** pide la actual (se valida iniciando sesión con ella)
+y tiene el mismo límite de intentos que el login. Supabase cierra las otras
+sesiones abiertas: el token viejo deja de servir. Una cuenta que solo entró con
+Google no tiene contraseña: para ponerle una se usa "olvidé mi contraseña".
 
 ### Pastillas (protegido)
 
@@ -609,23 +633,64 @@ el hardware. Una ESP32 maneja varios módulos; hoy hay uno solo, `voitos_1`
 al recargar, y el backend lo descuenta solo en cada dispensación confirmada. El
 `numero` y el `dispositivo_id` no se editan: describen hardware.
 
-Los módulos **no se filtran por dueño, a propósito**: cualquier sesión ve y
-puede editar todos. En el MVP hay un solo pastillero, y en la exhibición cada
-visitante se hace su propia cuenta y programa una dispensación en ese mismo
-aparato. Atar el módulo a una cuenta rompería justamente esa demo.
+Los módulos se filtran por las **cuentas vinculadas al pastillero**: los de un
+pastillero al que no estás vinculado (y que tiene alguna cuenta) no aparecen en
+la lista, dan 404 por id y no se usan al cargar una pastilla. Los de un
+pastillero **sin cuentas** los ve y edita cualquier sesión.
 
-**Idea para después (no implementada):** vincular cada pastillero a la cuenta
-del cuidador o familiar que lo usa, para que nadie más pueda cambiarle la
-pastilla, el stock ni dispensar en él. Formas posibles de hacer el vínculo:
+**Módulo compartido.** Una pastilla que no está cargada en un módulo propio, de
+una cuenta vinculada a un pastillero, usa el primer módulo de ese pastillero:
+es la misma tolva física. Así, en la exhibición, las pastillas de todos los
+visitantes muestran el módulo y su stock (que es uno solo y se descuenta con
+cada dispensación), en vez de "sin módulo". Vale para `GET /api/pastillas`, al
+crear una pastilla y para lo que la placa recibe en `pendiente`.
 
-- un código de 8 dígitos que aparece en el display del pastillero y se ingresa
-  en la app;
-- un código QR pegado en el aparato o mostrado en el display;
-- un mail especial de activación que llega con el pastillero.
+### Pastilleros (protegido)
 
-Cualquiera de las tres termina en lo mismo en el backend: una columna de dueño
-en `modulos` (o en una tabla de dispositivos) y el mismo chequeo de propiedad
-que ya tienen pastillas y contactos (`puedeOperar`).
+| Método | Ruta | Descripción |
+| ------ | ---- | ----------- |
+| GET | `/api/pastilleros` | Los pastilleros vinculados a la cuenta |
+| POST | `/api/pastilleros/vincular` | Vincular con el código de 8 dígitos del display |
+| DELETE | `/api/pastilleros/:dispositivo_id` | Desvincular la cuenta de ese pastillero |
+
+Un pastillero es una placa ESP32 (`dispositivo_id`, el mismo que tienen sus
+módulos). Como los módulos, **se dan de alta a mano** en la tabla
+`pastilleros`. **Varias cuentas se pueden vincular al mismo pastillero**
+(tabla `pastillero_usuarios`): en la exhibición cada visitante se hace su
+cuenta y se vincula al mismo aparato. Vinculado, la placa dispensa y muestra
+lo de todas sus cuentas, y solo esas cuentas ven sus módulos. Sin ninguna
+cuenta, cualquiera lo usa.
+
+La app lleva a vincular el pastillero apenas se entra (registro, login o
+Google) si la cuenta todavía no tiene ninguno, con la opción de hacerlo más
+tarde.
+
+**Cómo se vincula, sin estar en la misma red:**
+
+1. El cuidador le carga el WiFi de su casa a la placa una sola vez, desde la red
+   propia que abre la ESP32 (`VOITOS-XXXX`, ver `LEEME-FIRMWARE.md` en la rama
+   de hardware). Es el único paso que necesita estar al lado del aparato.
+2. Con internet, la placa consulta `pendiente` cada 30 s y recibe un código de
+   8 dígitos que muestra abajo de la hora. Vale 30 minutos o **un solo
+   vínculo**: después de usarse, la placa recibe otro.
+3. El cuidador escribe ese código en la app desde donde esté:
+   `POST /api/pastilleros/vincular`.
+
+**Body de `POST /api/pastilleros/vincular`:**
+```json
+{ "codigo": "1234 5678" }
+```
+Espacios y guiones se ignoran. 400 si no son 8 números, 404 si no existe, ya
+venció o ya se usó. Responde 201 con `dispositivo_id` y `vinculado_at`.
+Vincular de nuevo un pastillero que ya es tuyo no lo duplica.
+
+**El secreto de la placa.** El `dispositivo_id` está en el repositorio, así
+que cualquiera podría pedir el código haciéndose pasar por la placa. Por eso el
+código solo se entrega con el header `X-Pastillero-Secreto`: lo inventa la
+placa la primera vez que arranca y lo guarda en su memoria, y el backend se
+queda con el hash del primero que llega (confianza en el primer uso).
+Cuando se desvincula la última cuenta se borra también ese hash, para que una
+placa reseteada pueda volver a presentarse.
 
 ### Alertas (protegido)
 
@@ -749,11 +814,13 @@ Supabase (PostgreSQL), proyecto `pshejdspqqhuhyjbzslx`.
 
 | Tabla | Columnas principales |
 | ----- | -------------------- |
-| `usuarios` | `id` (= id de Supabase Auth), `nombre`, `apellido`, `mail`, `fecha_nacimiento`, `rol` (`cuidador`/`admin`), `verificado`, `token_verificacion` + `token_expira`, `token_reset` + `token_reset_expira` |
+| `usuarios` | `id` (= id de Supabase Auth), `nombre`, `apellido`, `mail`, `fecha_nacimiento`, `foto_url`, `rol` (`cuidador`/`admin`), `verificado`, `token_verificacion` + `token_expira`, `token_reset` + `token_reset_expira` |
 | `pastillas` | `id`, `usuario_id`, `nombre`, `tipo` |
 | `horarios` | `id`, `pastilla_id`, `dia`, `hora`, `minuto`, `cantidad` (1-20), `dispensado`, `senal_enviada`, `notificado`, `recordatorio_min` |
 | `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `detectadas` (0-20 o null, lo que vio el sensor), `timestamp` |
 | `modulos` | `id`, `numero`, `nombre`, `dispositivo_id`, `pastilla_id` (null = vacío), `cantidad_actual`. Único por (`dispositivo_id`, `numero`) |
+| `pastilleros` | `dispositivo_id` (PK), `secreto_hash`, `codigo` (8 dígitos, único) + `codigo_vence` |
+| `pastillero_usuarios` | (`dispositivo_id`, `usuario_id`) PK, `vinculado_at`. CASCADE con las dos tablas |
 | `contactos_emergencia` | `id`, `usuario_id`, `nombre`, `apellido`, `numero`, `dni` |
 | `actividades` | `id`, `usuario_id`, `nombre`, `fecha`, `hora`, `tipo`, `dias`, `recordatorio_min` |
 
@@ -770,7 +837,7 @@ Supabase (PostgreSQL), proyecto `pshejdspqqhuhyjbzslx`.
 **RLS (Row Level Security):** activado en **todas** las tablas. El backend usa
 la service_role key, que saltea RLS por diseño (es la clave de servidor de
 confianza). Como ningún cliente accede directo a Supabase, no hay tablas
-expuestas a la anon key pública. `dispensaciones` y `modulos` tienen RLS sin
+expuestas a la anon key pública. `dispensaciones`, `modulos`, `pastilleros` y `pastillero_usuarios` tienen RLS sin
 políticas, o sea denegar todo a cualquier otro rol.
 
 **Plan free:** Supabase pausa el proyecto por inactividad. Se reactiva desde el

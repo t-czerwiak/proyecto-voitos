@@ -7,32 +7,13 @@ import { formatearFecha, formatearHora } from "./plantillas-mail";
 const APP_URL = (process.env.APP_URL ?? "http://localhost:8081").replace(/\/$/, "");
 import { getModuloDePastilla, descontarDelModulo } from "./modulos.service";
 import { avisarDispensacionOk, avisarPastilleroVacio } from "./email.service";
+import { Alcance, alcanceDe, filtrarPorAlcance } from "./pastilleros.service";
 
-// Cuanto tiempo despues de su horario una dosis sigue estando disponible para
-// el dispositivo.
-//
-// No se busca la hora exacta porque una dosis caeria entre dos consultas y se
-// perderia para siempre. Pero el numero tampoco es libre: tiene que coincidir
-// con el resto del sistema, y antes no lo hacia.
-//
-// Estaba en 5 porque se escribio cuando la ESP32 consultaba cada 5 minutos. Hoy
-// consulta cada 30 segundos, y los otros dos plazos del sistema son de 15:
-// MINUTOS_DE_GRACIA en dosis-a-dispensar y MINUTOS_PARA_AVISAR en
-// dosis-no-tomadas, que a su vez coincide con el ciclo de alarmas del firmware
-// (suena a los 0, 5, 10 y 15).
-//
-// Con 5 quedaba una zona muerta entre el minuto 5 y el 15: el pastillero ya no
-// veia la dosis, pero el sistema todavia no la daba por perdida. Si alguien
-// tardaba seis minutos en llegar, la dosis desaparecia sin que nada lo dijera, y
-// diez minutos despues llegaba un mail de "no se tomo" sobre una dosis que el
-// aparato nunca llego a ofrecer. Paso de verdad el 24/08.
 const MINUTOS_VENTANA = 15;
 
-export const getPendiente = async () => {
+export const getPendiente = async (alcance: Alcance) => {
   const { hoy, hora, minuto } = getHoraArgentina();
 
-  // La ventana puede cruzar el cambio de hora, y a las 00:0X hasta el cambio
-  // de dia, asi que el dia va dentro del filtro y no como un .eq() aparte.
   const filtro = getTramosVentana(hoy, hora, minuto, MINUTOS_VENTANA)
     .map(
       (t) =>
@@ -40,22 +21,23 @@ export const getPendiente = async () => {
     )
     .join(",");
 
-  const { data, error } = await supabase
+  const consulta = supabase
     .from("horarios")
-    .select("id, pastilla_id, hora, minuto, cantidad")
+    .select("id, pastilla_id, hora, minuto, cantidad, pastillas!inner(usuario_id)")
     .eq("dispensado", false)
-    .or(filtro)
+    .or(filtro);
+
+  const { data: fila, error } = await filtrarPorAlcance(consulta, alcance, "pastillas.usuario_id")
     .limit(1)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
+  const data = fila ? (({ pastillas, ...h }: any) => h)(fila) : null;
 
   if (!data) {
     return { pendiente: false, horario: null, modulo: null, disponibles: null };
   }
 
-  // Buscar que modulo tiene cargada esa pastilla, que es el que la ESP32 tiene
-  // que activar. Si ningun modulo la tiene cargada, modulo queda null.
   const modulo = await getModuloDePastilla(data.pastilla_id);
 
   return {
@@ -66,23 +48,8 @@ export const getPendiente = async () => {
   };
 };
 
-// Cuanto espera la respuesta del dispositivo antes de darlo por inalcanzable.
 const TIMEOUT_DISPOSITIVO_MS = 6000;
 
-// Le manda la orden de dispensar al dispositivo por WiFi.
-//
-// Esto es el sentido inverso al de getPendiente: aca el backend es el que
-// inicia la conexion. Funciona porque el backend y el dispositivo estan en la
-// misma red local, asi que se alcanzan por IP privada.
-//
-// El dispositivo expone GET /dispense (hace sonar el buzzer y queda esperando
-// el boton). Que la senal llegue NO significa que la pastilla se dispenso: eso
-// recien pasa cuando la persona aprieta el boton, y se registra por
-// POST /api/sensor/confirmacion.
-//
-// El horario_id viaja como query param porque el dispositivo lo necesita para
-// poder confirmar despues: confirmacion lo exige (es FK contra horarios) y en
-// este sentido el dispositivo no tiene forma de saber cual es.
 export const enviarSenalDispensar = async (body: Dispensar) => {
   const destino = body.destino ?? process.env.ESP32_URL;
 
@@ -93,9 +60,6 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
     );
   }
 
-  // Si no lo aclaran, se busca la dosis pendiente en este momento. Asi un push
-  // sin body igual queda registrado. Si no hay ninguna, la senal se manda lo
-  // mismo (sirve para probar el hardware) pero sin horario que confirmar.
   let horario_id = body.horario_id ?? null;
   let cantidadDelHorario: number | null = null;
   let pastillaId: string | null = null;
@@ -109,17 +73,14 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
     cantidadDelHorario = data?.cantidad ?? null;
     pastillaId = data?.pastilla_id ?? null;
   } else {
-    const pendiente = await getPendiente();
+    const pendiente = await getPendiente(await alcanceDe());
     horario_id = pendiente.horario?.id ?? null;
     cantidadDelHorario = pendiente.horario?.cantidad ?? null;
     pastillaId = pendiente.horario?.pastilla_id ?? null;
   }
 
-  // Prioridad: lo que pidieron en el body, si no lo del horario, si no 1.
   const cantidad = body.cantidad ?? cantidadDelHorario ?? 1;
 
-  // No tiene sentido hacer sonar la alarma si el modulo no tiene con que
-  // cumplir la dosis: la persona iria hasta el pastillero al pedo.
   if (pastillaId) {
     const modulo = await getModuloDePastilla(pastillaId);
 
@@ -132,7 +93,6 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
     }
   }
 
-  // Se acepta tanto "192.168.1.50" como "http://192.168.1.50:80"
   const base = destino.startsWith("http://") || destino.startsWith("https://")
     ? destino
     : `http://${destino}`;
@@ -142,8 +102,6 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
 
   const url = `${base}/dispense?${params.toString()}`;
 
-  // fetch no tiene timeout propio: sin esto, si el dispositivo esta apagado el
-  // request queda colgado hasta que lo corta el sistema operativo.
   const cancelar = AbortSignal.timeout(TIMEOUT_DISPOSITIVO_MS);
 
   let respuesta: Response;
@@ -169,23 +127,14 @@ export const enviarSenalDispensar = async (body: Dispensar) => {
     enviado: true,
     destino: url,
     respuesta_dispositivo: texto,
-    // El que se le mando al dispositivo, que es el que va a confirmar.
-    // null significa que no habia dosis pendiente: la senal sirvio para probar
-    // el hardware pero no se va a registrar nada.
+
     horario_id,
     cantidad,
   };
 };
 
-// Hasta cuantos minutos despues de su hora se acepta confirmar una dosis.
-//
-// La dosis se ofrece durante 15 minutos (MINUTOS_VENTANA) y el firmware espera
-// el boton hasta 15 minutos mas desde que la recibio: en el peor caso apretan a
-// los 30. Lo que sobra cubre servo, reintentos de red y relojes desfasados.
 const MINUTOS_PARA_CONFIRMAR = 45;
 
-// Minutos entre la hora de la dosis (guardada en hora argentina) y ahora.
-// Negativo si todavia no llego.
 const minutosDesdeLaDosis = (dia: string, hora: number, minuto: number) => {
   const dd = (n: number) => String(n).padStart(2, "0");
   const momento = Date.parse(`${dia}T${dd(hora)}:${dd(minuto)}:00-03:00`);
@@ -193,8 +142,6 @@ const minutosDesdeLaDosis = (dia: string, hora: number, minuto: number) => {
 };
 
 export const createConfirmacion = async (body: Confirmacion) => {
-  // Se trae de una sola consulta todo lo que hace falta despues: la cantidad
-  // pedida, la pastilla y el cuidador a quien avisarle.
   const { data: horario } = await supabase
     .from("horarios")
     .select(
@@ -204,19 +151,12 @@ export const createConfirmacion = async (body: Confirmacion) => {
     .eq("id", body.horario_id)
     .maybeSingle();
 
-  // Cuantas pastillas se dispensaron. Manda lo que reporta el dispositivo,
-  // que es lo que realmente paso. Si no lo reporta (firmware viejo), se asume
-  // que dispenso las que pedia el horario.
   const cantidad = body.cantidad ?? horario?.cantidad ?? 1;
 
   if (!horario) {
     throw new ErrorHttp(404, "Horario no encontrado");
   }
 
-  // La dosis tiene que estar en su horario. Es la mitad del backend del
-  // "triple chequeo": el pastillero solo confirma lo que el backend le ofrecio
-  // en /pendiente, pero si por cualquier motivo llega la confirmacion de una
-  // dosis de manana, o de una de hace horas, no se marca nada.
   const minutos = minutosDesdeLaDosis(horario.dia, horario.hora, horario.minuto);
   if (minutos < 0) {
     throw new ErrorHttp(409, "Esa dosis todavia no es: no se puede confirmar antes de su hora");
@@ -225,12 +165,6 @@ export const createConfirmacion = async (body: Confirmacion) => {
     throw new ErrorHttp(409, "Esa dosis ya paso hace mucho para confirmarla");
   }
 
-  // Marcar horario como dispensado, SOLO si todavia no lo estaba.
-  //
-  // Antes el update no miraba dispensado: una segunda confirmacion del mismo
-  // horario registraba otra dispensacion y descontaba el stock otra vez. El
-  // filtro va en el mismo update (y no en un chequeo previo) para que dos
-  // confirmaciones simultaneas no pasen las dos: la base deja ganar a una sola.
   const { data: marcado, error: updateError } = await supabase
     .from("horarios")
     .update({ dispensado: true })
@@ -244,7 +178,6 @@ export const createConfirmacion = async (body: Confirmacion) => {
     throw new ErrorHttp(409, "Esa dosis ya estaba registrada como dispensada");
   }
 
-  // Registrar la dispensacion
   const { data, error: insertError } = await supabase
     .from("dispensaciones")
     .insert({
@@ -252,21 +185,14 @@ export const createConfirmacion = async (body: Confirmacion) => {
       dispositivo_id: body.dispositivo_id,
       bateria: body.bateria,
       cantidad,
-      // Cuantas vio caer el sensor. null si el firmware no tiene sensor.
+
       detectadas: body.detectadas ?? null,
-      // De quien era la dosis. Se guarda aca y no se deduce despues para que el
-      // historial no dependa de que la cadena horarios -> pastillas -> usuarios
-      // siga entera.
+
       usuario_id: (horario as any)?.pastillas?.usuario_id ?? null,
     })
     .select()
     .single();
 
-  // Las dos escrituras no son una transaccion (el cliente de Supabase no
-  // expone transacciones). Si falla la segunda, el horario quedaria marcado
-  // como dispensado pero sin registro en el historial, y esa dosis
-  // desapareceria de las alertas sin haberse tomado. Por eso se deshace el
-  // update a mano antes de propagar el error.
   if (insertError) {
     await supabase
       .from("horarios")
@@ -275,7 +201,6 @@ export const createConfirmacion = async (body: Confirmacion) => {
     throw new Error(insertError.message);
   }
 
-  // Descontar del stock del modulo lo que salio
   let quedanEnModulo: number | null = null;
   if (horario?.pastilla_id) {
     const modulo = await getModuloDePastilla(horario.pastilla_id);
@@ -284,24 +209,10 @@ export const createConfirmacion = async (body: Confirmacion) => {
     }
   }
 
-  // Avisarle al cuidador. Sin await: los mails salen por su cuenta.
-  //
-  // Esperarlos rompia el hardware. La ESP32 corta a los 10 segundos, y cuando
-  // el modulo queda vacio se disparan DOS mails; con un SMTP que no responde,
-  // eso son 8 segundos cada uno y la placa nunca recibia la respuesta. Reportaba
-  // "Fallo la confirmacion. HTTP -11" (read timeout) sobre una dispensacion que
-  // en realidad se habia guardado perfecto.
-  //
-  // Un aviso que tarda no puede hacerle creer al pastillero que fallo algo que
-  // funciono. La dispensacion ya quedo registrada arriba; los mails son
-  // consecuencia, no requisito.
   const pastilla = (horario as any)?.pastillas;
   const cuidador = pastilla?.usuarios;
 
   if (cuidador?.mail && quedanEnModulo === 0) {
-    // Aviso aparte cuando el modulo se vacia. Va como mail propio y no como
-    // una linea dentro del de confirmacion porque pide una accion concreta
-    // (recargar) y se pierde mezclado con el resto.
     const { data: proxima } = await supabase
       .from("horarios")
       .select("dia, hora, minuto")

@@ -1,16 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import { UsuarioCreateSchema, UsuarioUpdateSchema } from "../schemas/usuarios.schema";
+import { FotoSchema, UsuarioCreateSchema, UsuarioUpdateSchema } from "../schemas/usuarios.schema";
 import * as usuariosService from "../services/usuarios.service";
 import { idDelUsuario } from "../utils/sesion";
 
-// Devuelve solo al usuario del token, no la lista completa.
-//
-// Antes cualquiera con sesion podia leer el nombre, apellido, mail y fecha de
-// nacimiento de todos los usuarios del sistema. La app nunca uso este endpoint, asi que
-// acotarlo no rompe nada.
-//
-// Se mantiene como lista (un arreglo de un elemento) para no cambiar la forma
-// de la respuesta.
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await usuariosService.getUsuarioById(idDelUsuario(req));
@@ -22,8 +14,6 @@ export const getAll = async (req: Request, res: Response, next: NextFunction): P
 
 export const getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Solo el propio perfil. Con otro id se responde 404 y no 403, para no
-    // confirmar que ese usuario existe.
     if (req.params.id !== idDelUsuario(req)) {
       res.status(404).json({ success: false, error: "Usuario no encontrado" });
       return;
@@ -86,6 +76,29 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
 
     await usuariosService.deleteUsuario(req.params.id);
     res.json({ success: true, message: "Usuario eliminado" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const subirFoto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const result = FotoSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ success: false, error: result.error.flatten() });
+    return;
+  }
+  try {
+    const data = await usuariosService.guardarFoto(idDelUsuario(req), result.data.imagen);
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const quitarFoto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await usuariosService.quitarFoto(idDelUsuario(req));
+    res.json({ success: true, data });
   } catch (error) {
     next(error);
   }

@@ -3,8 +3,7 @@ export interface Usuario {
   nombre: string;
   apellido: string;
   mail: string;
-  // Date pelado de Postgres: "YYYY-MM-DD", sin hora ni zona. La edad no se
-  // guarda, se calcula a partir de esto.
+
   fecha_nacimiento?: string | null;
   created_at: string;
 }
@@ -20,13 +19,13 @@ export interface Pastilla {
 export interface Horario {
   id: string;
   pastilla_id: string;
-  dia: string; // fecha especifica "YYYY-MM-DD"
+  dia: string;
   hora: number;
   minuto: number;
-  cantidad: number; // cuantas pastillas dispensar en esta dosis (1 a 20)
+  cantidad: number;
   dispensado: boolean;
-  notificado: boolean; // si ya se le aviso al cuidador que no se tomo
-  recordatorio_min: number | null; // minutos antes en el display OLED (null = sin)
+  notificado: boolean;
+  recordatorio_min: number | null;
   created_at: string;
 }
 
@@ -45,35 +44,29 @@ export interface Dispensacion {
   horario_id: string;
   dispositivo_id: string;
   bateria: number;
-  cantidad: number; // cuantas pastillas se dispensaron realmente (1 a 20)
-  detectadas: number | null; // cuantas vio caer el sensor (null = sin sensor)
+  cantidad: number;
+  detectadas: number | null;
   timestamp: string;
 }
 
-// Un modulo del pastillero: un servo con su tolva y su filtro.
-//
-// Una ESP32 puede manejar VARIOS. Hoy hay uno solo armado. Los modulos se dan
-// de alta a mano cuando se arma el hardware; el backend no los crea nunca.
 export interface Modulo {
   id: string;
-  numero: number; // identificador del modulo. El Arduino lo mapea a su pin.
-  nombre: string; // como se lo llama en la app: "voitos_1"
-  pastilla_id: string | null; // que pastilla tiene cargada (null si vacio)
-  cantidad_actual: number; // cuantas pastillas quedan cargadas
-  dispositivo_id: string; // la placa que lo tiene. Coincide con el firmware.
+  numero: number;
+  nombre: string;
+  pastilla_id: string | null;
+  cantidad_actual: number;
+  dispositivo_id: string;
   created_at: string;
 }
 
-// Recordatorios del calendario del cuidador (gimnasia, turnos medicos).
-// No tienen relacion con el pastillero ni con la ESP32.
 export interface Actividad {
   id: string;
   usuario_id: string;
   nombre: string;
-  fecha: string; // "YYYY-MM-DD"
-  hora: string; // "HH:MM"
+  fecha: string;
+  hora: string;
   tipo: "rutina" | "una-vez";
-  dias?: string[]; // ["L","X","V"] cuando tipo es "rutina"
-  recordatorio_min: number | null; // minutos antes en el display OLED (null = sin)
+  dias?: string[];
+  recordatorio_min: number | null;
   created_at: string;
 }

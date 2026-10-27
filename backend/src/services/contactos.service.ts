@@ -48,9 +48,6 @@ export const deleteContacto = async (id: string) => {
   if (error) throw new Error(error.message);
 };
 
-// Verifica que el registro sea del usuario antes de dejar operar sobre el.
-// Sin esto, cualquiera con sesion puede leer o borrar el de otro poniendo su
-// id en la URL.
 export const esDelUsuario = async (id: string, usuario_id: string) => {
   const { data, error } = await supabase
     .from("contactos_emergencia")

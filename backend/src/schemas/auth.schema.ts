@@ -1,13 +1,11 @@
 import { z } from "zod";
 import { FechaNacimientoSchema } from "./fechaNacimiento";
 
-// Supabase Auth exige un minimo de 6 caracteres para la password.
 export const RegistroSchema = z.object({
   nombre: z.string().min(1, "nombre requerido"),
   apellido: z.string().min(1, "apellido requerido"),
   mail: z.string().email("mail invalido"),
-  // Opcional a proposito: quien se esta registrando quiere entrar, no llenar
-  // una ficha. El campo esta en el formulario y se puede dejar vacio.
+
   fecha_nacimiento: FechaNacimientoSchema.optional(),
   password: z.string().min(6, "la password debe tener al menos 6 caracteres"),
 });
@@ -17,8 +15,6 @@ export const LoginSchema = z.object({
   password: z.string().min(1, "password requerida"),
 });
 
-// El ID token que devuelve el boton de Google en el navegador. El backend no
-// confia en el: se lo pasa a Supabase, que valida la firma contra Google.
 export const LoginGoogleSchema = z.object({
   id_token: z.string().min(1, "id_token requerido"),
 });
@@ -37,3 +33,10 @@ export type Login = z.infer<typeof LoginSchema>;
 export type LoginGoogle = z.infer<typeof LoginGoogleSchema>;
 export type Recuperar = z.infer<typeof RecuperarSchema>;
 export type ConfirmarReset = z.infer<typeof ConfirmarResetSchema>;
+
+export const CambiarPasswordSchema = z.object({
+  actual: z.string().min(1, "Escribí tu contraseña actual"),
+  nueva: z.string().min(6, "La contraseña nueva tiene que tener al menos 6 caracteres"),
+});
+
+export type CambiarPassword = z.infer<typeof CambiarPasswordSchema>;

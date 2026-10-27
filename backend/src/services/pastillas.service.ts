@@ -1,17 +1,12 @@
 import { supabase } from "../config/supabase";
 import { PastillaCreate, PastillaUpdate } from "../schemas/pastillas.schema";
-import { asignarPastillaAModulo } from "./modulos.service";
+import { asignarPastillaAModulo, getModuloCompartido } from "./modulos.service";
 
-// Supabase devuelve la relacion modulos como array porque la FK va de modulos
-// a pastillas. Para la app es mas comodo un solo modulo (o null): una pastilla
-// vive en un modulo a la vez, que es la restriccion fisica del pastillero.
-const conModulo = (fila: any) => {
+const conModulo = (fila: any, compartido: any = null) => {
   const { modulos, ...pastilla } = fila;
-  return { ...pastilla, modulo: modulos?.[0] ?? null };
+  return { ...pastilla, modulo: modulos?.[0] ?? compartido };
 };
 
-// El modulo viaja pegado a la pastilla porque la pantalla de agendar necesita
-// el stock para avisar si alcanza, y pedirlo aparte serian N consultas mas.
 export const getAllPastillas = async (usuario_id?: string) => {
   let query = supabase
     .from("pastillas")
@@ -21,12 +16,10 @@ export const getAllPastillas = async (usuario_id?: string) => {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []).map(conModulo);
+  const compartido = usuario_id ? await getModuloCompartido(usuario_id) : null;
+  return (data ?? []).map((fila) => conModulo(fila, compartido));
 };
 
-// El usuario_id no es opcional a proposito: filtrar por dueño es lo que impide
-// que alguien lea una pastilla ajena poniendo su id en la URL. Devuelve null si
-// no existe O si es de otro, para no revelar cuales existen.
 export const getPastillaById = async (id: string, usuario_id: string) => {
   const { data, error } = await supabase
     .from("pastillas")
@@ -35,11 +28,9 @@ export const getPastillaById = async (id: string, usuario_id: string) => {
     .eq("usuario_id", usuario_id)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return data ? conModulo(data) : null;
+  return data ? conModulo(data, await getModuloCompartido(usuario_id)) : null;
 };
 
-// Verifica que la pastilla sea del usuario antes de dejar operar sobre ella.
-// Se usa en update, delete y en todo lo que reciba un id por la URL.
 export const esDelUsuario = async (id: string, usuario_id: string) => {
   const { data, error } = await supabase
     .from("pastillas")
@@ -51,11 +42,6 @@ export const esDelUsuario = async (id: string, usuario_id: string) => {
   return data !== null;
 };
 
-// Al crear una pastilla se la deja cargada en un modulo con su stock inicial.
-//
-// modulo puede volver null, y no es un error: significa que no habia ninguna
-// tolva libre donde ponerla. La pastilla queda registrada igual y se puede
-// agendar; el pastillero no va a poder dispensarla hasta que se la cargue.
 export const createPastilla = async (body: PastillaCreate) => {
   const { cantidad_inicial, modulo_numero, ...datosPastilla } = body;
 
@@ -67,15 +53,12 @@ export const createPastilla = async (body: PastillaCreate) => {
 
   if (error) throw new Error(error.message);
 
-  if (cantidad_inicial === undefined) return { ...data, modulo: null };
+  const modulo =
+    cantidad_inicial === undefined
+      ? null
+      : await asignarPastillaAModulo(data.id, cantidad_inicial, datosPastilla.usuario_id, modulo_numero);
 
-  const modulo = await asignarPastillaAModulo(
-    data.id,
-    cantidad_inicial,
-    modulo_numero
-  );
-
-  return { ...data, modulo };
+  return { ...data, modulo: modulo ?? (await getModuloCompartido(datosPastilla.usuario_id)) };
 };
 
 export const updatePastilla = async (id: string, body: PastillaUpdate) => {
@@ -108,16 +91,6 @@ export const getHorariosByPastilla = async (id: string) => {
   return data;
 };
 
-// Cancela una rutina: borra las dosis que todavia no salieron.
-//
-// Los filtros son necesarios porque una pastilla puede tener varias rutinas a
-// la vez (la misma aspirina a las 8 y a las 20). Sin hora y minuto, borrar una
-// se llevaria puestas las otras. El rango de fechas separa dos rutinas del
-// mismo horario agendadas en periodos distintos.
-//
-// Las ya dispensadas NO se tocan: son el historial de lo que salio del
-// pastillero, y ademas borrarlas se llevaria las filas de dispensaciones, que
-// cuelgan de horarios con ON DELETE CASCADE.
 export const cancelarRutina = async (
   pastilla_id: string,
   filtros: { hora?: number; minuto?: number; desde?: string; hasta?: string } = {}

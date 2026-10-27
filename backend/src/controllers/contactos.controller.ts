@@ -5,7 +5,6 @@ import { idDelUsuario, puedeOperar } from "../utils/sesion";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Del token, no de la query: el cliente no elige de quien son los datos.
     const usuario_id = idDelUsuario(req);
     const data = await contactosService.getAllContactos(usuario_id);
     res.json({ success: true, data });
@@ -16,7 +15,6 @@ export const getAll = async (req: Request, res: Response, next: NextFunction): P
 
 export const getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Se responde 404 y no 403 para no revelar que ese id existe.
     if (!(await puedeOperar(req, await contactosService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Contacto no encontrado" });
       return;
@@ -40,8 +38,6 @@ export const create = async (req: Request, res: Response, next: NextFunction): P
     return;
   }
   try {
-    // El dueño lo pone el servidor, no el cliente. Si viniera del body,
-    // cualquiera podria crear registros a nombre de otra persona.
     const data = await contactosService.createContacto({
       ...result.data,
       usuario_id: idDelUsuario(req),
@@ -59,7 +55,6 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     return;
   }
   try {
-    // Se responde 404 y no 403 para no revelar que ese id existe.
     if (!(await puedeOperar(req, await contactosService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Contacto no encontrado" });
       return;
@@ -78,7 +73,6 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
 
 export const remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Se responde 404 y no 403 para no revelar que ese id existe.
     if (!(await puedeOperar(req, await contactosService.esDelUsuario(req.params.id, idDelUsuario(req))))) {
       res.status(404).json({ success: false, error: "Contacto no encontrado" });
       return;

@@ -5,6 +5,7 @@ import {
   LoginGoogleSchema,
   RecuperarSchema,
   ConfirmarResetSchema,
+  CambiarPasswordSchema,
 } from "../schemas/auth.schema";
 import * as authService from "../services/auth.service";
 
@@ -45,8 +46,6 @@ export const yo = async (req: Request, res: Response, next: NextFunction): Promi
   }
 };
 
-// Vuelve a mandar el mail de verificacion al dueño del token. No recibe ningun
-// parametro a proposito: solo se puede pedir para uno mismo.
 export const reenviarVerificacion = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await authService.reenviarVerificacion((req as any).user.id);
@@ -70,9 +69,6 @@ export const google = async (req: Request, res: Response, next: NextFunction): P
   }
 };
 
-// Pide el mail para cambiar la contrasena. Contesta siempre lo mismo, exista o
-// no la cuenta: si la respuesta cambiara, esto seria un buscador de casillas
-// registradas.
 export const recuperar = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const result = RecuperarSchema.safeParse(req.body);
   if (!result.success) {
@@ -96,6 +92,20 @@ export const confirmarRecuperacion = async (req: Request, res: Response, next: N
   try {
     const data = await authService.confirmarRecuperacion(result.data);
     res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const cambiarPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const result = CambiarPasswordSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ success: false, error: result.error.flatten() });
+    return;
+  }
+  try {
+    await authService.cambiarPassword((req as any).user.id, result.data);
+    res.json({ success: true, data: null, message: "Listo, cambiaste la contraseña" });
   } catch (error) {
     next(error);
   }
