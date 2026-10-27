@@ -36,19 +36,21 @@ export const getModuloById = async (id: string, usuario_id: string) => {
   return data;
 };
 
-export const getModuloCompartido = async (usuario_id: string) => {
+export const getModuloCompartido = async (usuario_id: string, dispositivo_id?: string | null) => {
   const { data: vinculos, error: errorVinculos } = await supabase
     .from("pastillero_usuarios")
     .select("dispositivo_id")
     .eq("usuario_id", usuario_id);
 
   if (errorVinculos) throw new Error(errorVinculos.message);
-  if (!vinculos?.length) return null;
+  const mios = (vinculos ?? []).map((v) => v.dispositivo_id);
+  const elegidos = dispositivo_id ? mios.filter((d) => d === dispositivo_id) : mios;
+  if (!elegidos.length) return null;
 
   const { data, error } = await supabase
     .from("modulos")
-    .select("id, numero, nombre, cantidad_actual")
-    .in("dispositivo_id", vinculos.map((v) => v.dispositivo_id))
+    .select("id, numero, nombre, cantidad_actual, dispositivo_id")
+    .in("dispositivo_id", elegidos)
     .order("numero", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -60,7 +62,7 @@ export const getModuloCompartido = async (usuario_id: string) => {
 export const getModuloDePastilla = async (pastilla_id: string) => {
   const { data, error } = await supabase
     .from("modulos")
-    .select("id, numero, nombre, cantidad_actual")
+    .select("id, numero, nombre, cantidad_actual, dispositivo_id")
     .eq("pastilla_id", pastilla_id)
     .limit(1)
     .maybeSingle();
@@ -70,12 +72,12 @@ export const getModuloDePastilla = async (pastilla_id: string) => {
 
   const { data: pastilla, error: errorPastilla } = await supabase
     .from("pastillas")
-    .select("usuario_id")
+    .select("usuario_id, dispositivo_id")
     .eq("id", pastilla_id)
     .maybeSingle();
 
   if (errorPastilla) throw new Error(errorPastilla.message);
-  return pastilla ? await getModuloCompartido(pastilla.usuario_id) : null;
+  return pastilla ? await getModuloCompartido(pastilla.usuario_id, pastilla.dispositivo_id) : null;
 };
 
 export const updateModulo = async (id: string, body: ModuloUpdate) => {
@@ -117,13 +119,15 @@ export const asignarPastillaAModulo = async (
   pastilla_id: string,
   cantidad: number,
   usuario_id: string,
-  numeroPedido?: number
+  numeroPedido?: number,
+  dispositivo_id?: string | null
 ) => {
   const ajenos = await dispositivosAjenos(usuario_id);
+  const deEse = (consulta: any) => (dispositivo_id ? consulta.eq("dispositivo_id", dispositivo_id) : consulta);
 
   if (numeroPedido !== undefined) {
     const { data: existente } = await sinAjenos(
-      supabase.from("modulos").select("id").eq("numero", numeroPedido),
+      deEse(supabase.from("modulos").select("id").eq("numero", numeroPedido)),
       ajenos
     )
       .limit(1)
@@ -143,7 +147,7 @@ export const asignarPastillaAModulo = async (
   }
 
   const { data: libre } = await sinAjenos(
-    supabase.from("modulos").select("id").is("pastilla_id", null),
+    deEse(supabase.from("modulos").select("id").is("pastilla_id", null)),
     ajenos
   )
     .order("numero", { ascending: true })
