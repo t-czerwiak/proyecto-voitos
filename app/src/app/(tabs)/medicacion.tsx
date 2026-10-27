@@ -11,6 +11,8 @@ import {
   Aviso,
   Vacio,
   Cargando,
+  Columnas,
+  useEscritorio,
 } from "../../ui";
 import { crearEstilos, espacio, texto } from "../../tema";
 
@@ -18,6 +20,7 @@ const STOCK_BAJO = 5;
 
 export default function Pastillas() {
   const styles = useEstilos();
+  const escritorio = useEscritorio();
 
   const [pastillas, setPastillas] = useState<Pastilla[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -52,53 +55,35 @@ export default function Pastillas() {
     (p) => p.modulo && p.modulo.cantidad_actual <= STOCK_BAJO
   );
 
-  return (
-    <Pantalla>
-      <Encabezado
-        titulo="Pastillas"
-        bajada="Lo que hay cargado en el pastillero y lo que se puede hacer con eso."
-        volverA="/home"
+  const acciones = (
+    <View style={styles.acciones}>
+      <Boton
+        titulo="Agendar una dosis"
+        icono="calendar-outline"
+        onPress={() => router.push("/agendar-medicacion")}
+        ayuda="Elegís la pastilla, la hora y los días de la semana"
       />
 
-      <Aviso texto={error} />
+      <Boton
+        titulo="Cargar una pastilla nueva"
+        variante="secundario"
+        icono="add-circle-outline"
+        onPress={() => router.push("/agregar-medicacion")}
+        ayuda="Para una pastilla que todavía no está en el pastillero"
+      />
 
-      {faltantes.length > 0 && (
-        <Aviso
-          tipo="atencion"
-          titulo="Se están por acabar"
-          texto={
-            faltantes.length === 1
-              ? `Queda poco de ${faltantes[0].nombre}. Recargá el módulo antes de que una dosis quede sin salir.`
-              : `Queda poco de ${faltantes.length} pastillas. Recargá los módulos antes de que una dosis quede sin salir.`
-          }
-        />
-      )}
+      <Boton
+        titulo="Recargar o borrar"
+        variante="secundario"
+        icono="refresh-outline"
+        onPress={() => router.push("/recargar-medicacion")}
+        ayuda="Sumar pastillas a un módulo, o eliminar una que ya no se usa"
+      />
+    </View>
+  );
 
-      <View style={styles.acciones}>
-        <Boton
-          titulo="Agendar una dosis"
-          icono="calendar-outline"
-          onPress={() => router.push("/agendar-medicacion")}
-          ayuda="Elegís la pastilla, la hora y los días de la semana"
-        />
-
-        <Boton
-          titulo="Cargar una pastilla nueva"
-          variante="secundario"
-          icono="add-circle-outline"
-          onPress={() => router.push("/agregar-medicacion")}
-          ayuda="Para una pastilla que todavía no está en el pastillero"
-        />
-
-        <Boton
-          titulo="Recargar o borrar"
-          variante="secundario"
-          icono="refresh-outline"
-          onPress={() => router.push("/recargar-medicacion")}
-          ayuda="Sumar pastillas a un módulo, o eliminar una que ya no se usa"
-        />
-      </View>
-
+  const lista = (
+    <>
       <Text style={styles.tituloSeccion} accessibilityRole="header">
         Lo que hay cargado
       </Text>
@@ -116,39 +101,87 @@ export default function Pastillas() {
           }}
         />
       ) : (
-        pastillas.map((p) => {
-          const sinModulo = !p.modulo;
-          const quedan = p.modulo?.cantidad_actual ?? 0;
-          const poco = !sinModulo && quedan <= STOCK_BAJO;
+        <View style={escritorio ? styles.grilla : undefined}>
+          {pastillas.map((p) => {
+            const sinModulo = !p.modulo;
+            const quedan = p.modulo?.cantidad_actual ?? 0;
+            const poco = !sinModulo && quedan <= STOCK_BAJO;
 
-          const dondeEsta = sinModulo
-            ? "No está cargada en ningún módulo"
-            : `Módulo ${p.modulo!.numero}`;
+            const dondeEsta = sinModulo
+              ? "No está cargada en ningún módulo"
+              : `Módulo ${p.modulo!.numero}`;
 
-          const cuantas = sinModulo
-            ? "El pastillero no la va a poder dispensar"
-            : quedan === 1
-              ? "Queda 1 pastilla"
-              : `Quedan ${quedan} pastillas`;
+            const cuantas = sinModulo
+              ? "El pastillero no la va a poder dispensar"
+              : quedan === 1
+                ? "Queda 1 pastilla"
+                : `Quedan ${quedan} pastillas`;
 
-          return (
-            <Tarjeta key={p.id}>
-              <View accessible accessibilityLabel={`${p.nombre}. ${dondeEsta}. ${cuantas}.`}>
-                <Text style={styles.nombre}>{p.nombre}</Text>
+            return (
+              <View key={p.id} style={escritorio ? styles.grillaItem : undefined}>
+                <Tarjeta>
+                  <View accessible accessibilityLabel={`${p.nombre}. ${dondeEsta}. ${cuantas}.`}>
+                    <Text style={styles.nombre}>{p.nombre}</Text>
 
-                <Text style={styles.detalle}>{dondeEsta}</Text>
+                    <Text style={styles.detalle}>{dondeEsta}</Text>
 
-                <View style={styles.estado}>
-                  <Estado
-                    texto={cuantas}
-                    tono={sinModulo ? "atencion" : poco ? "atencion" : "ok"}
-                    icono={sinModulo ? "alert-circle" : poco ? "warning" : "checkmark-circle"}
-                  />
-                </View>
+                    <View style={styles.estado}>
+                      <Estado
+                        texto={cuantas}
+                        tono={sinModulo ? "atencion" : poco ? "atencion" : "ok"}
+                        icono={sinModulo ? "alert-circle" : poco ? "warning" : "checkmark-circle"}
+                      />
+                    </View>
+                  </View>
+                </Tarjeta>
               </View>
-            </Tarjeta>
-          );
-        })
+            );
+          })}
+        </View>
+      )}
+    </>
+  );
+
+  return (
+    <Pantalla>
+      <Encabezado
+        titulo="Pastillas"
+        bajada="Lo que hay cargado en el pastillero y lo que se puede hacer con eso."
+        volverA="/home"
+        principal
+      />
+
+      <Aviso texto={error} />
+
+      {faltantes.length > 0 && (
+        <Aviso
+          tipo="atencion"
+          titulo="Se están por acabar"
+          texto={
+            faltantes.length === 1
+              ? `Queda poco de ${faltantes[0].nombre}. Recargá el módulo antes de que una dosis quede sin salir.`
+              : `Queda poco de ${faltantes.length} pastillas. Recargá los módulos antes de que una dosis quede sin salir.`
+          }
+        />
+      )}
+
+      {escritorio ? (
+        <Columnas
+          principal={lista}
+          lateral={
+            <>
+              <Text style={styles.tituloSeccion} accessibilityRole="header">
+                Qué querés hacer
+              </Text>
+              {acciones}
+            </>
+          }
+        />
+      ) : (
+        <>
+          {acciones}
+          {lista}
+        </>
       )}
     </Pantalla>
   );
@@ -179,5 +212,15 @@ const useEstilos = crearEstilos((colores) => ({
 
   estado: {
     marginTop: espacio.md,
+  },
+
+  grilla: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+
+  grillaItem: {
+    width: "48.5%",
   },
 }));

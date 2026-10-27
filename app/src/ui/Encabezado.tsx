@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Href, router } from "expo-router";
 import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema";
+import { useEscritorio } from "./Columnas";
 
 type Props = {
   titulo: string;
@@ -12,11 +13,15 @@ type Props = {
   volverA?: Href;
 
   sinVolver?: boolean;
+
+  principal?: boolean;
 };
 
-export default function Encabezado({ titulo, bajada, volverA, sinVolver }: Props) {
+export default function Encabezado({ titulo, bajada, volverA, sinVolver, principal }: Props) {
   const styles = useEstilos();
   const colores = useColores();
+  const escritorio = useEscritorio();
+  const conVolver = !sinVolver && !(principal && escritorio);
 
   const volver = () => {
     if (volverA) {
@@ -32,7 +37,7 @@ export default function Encabezado({ titulo, bajada, volverA, sinVolver }: Props
 
   return (
     <View style={styles.caja}>
-      {!sinVolver && (
+      {conVolver && (
         <Pressable
           onPress={volver}
           style={({ pressed }) => [styles.volver, pressed && styles.volverActivo]}
