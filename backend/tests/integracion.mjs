@@ -232,7 +232,7 @@ const correr = async () => {
   await prueba("crear actividad de una vez", async () => {
     const { status, json } = await pedir("/api/actividades", {
       metodo: "POST",
-      cuerpo: { usuario_id: usuario.id, nombre: "Turno medico", fecha: hoy, hora: "14:30", tipo: "una-vez" },
+      cuerpo: { usuario_id: usuario.id, nombre: "Turno medico", fecha: "2099-01-01", hora: "14:30", tipo: "una-vez" },
     });
     esperar(status === 201, `esperaba 201, vino ${status}: ${JSON.stringify(json.error)}`);
     actividadId = json.data.id;
@@ -259,6 +259,14 @@ const correr = async () => {
       cuerpo: { usuario_id: usuario.id, nombre: "Mal", fecha: hoy, hora: "8am", tipo: "una-vez" },
     });
     esperar(status === 400, `esperaba 400, vino ${status}`);
+  });
+
+  await prueba("actividad en una fecha que ya paso da 400", async () => {
+    const { status } = await pedir("/api/actividades", {
+      metodo: "POST",
+      cuerpo: { usuario_id: usuario.id, nombre: "Pasada", fecha: "2020-01-01", hora: "08:00", tipo: "una-vez" },
+    });
+    esperar(status === 400, `vino ${status}`);
   });
 
   await prueba("tipo invalido da 400", async () => {
