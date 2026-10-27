@@ -108,6 +108,7 @@ Pasado el límite responden **429**.
 | GET | `/api/auth/yo` | Sí | Perfil del dueño del token |
 | GET | `/api/auth/verificar/:token` | No | Confirma la casilla. Devuelve **HTML** |
 | POST | `/api/auth/reenviar-verificacion` | Sí | Vuelve a mandar el mail de verificación |
+| POST | `/api/auth/cambiar-password` | Sí | Cambia la contraseña: `{ "actual", "nueva" }` (nueva de 6 o más) |
 
 **Body de `POST /api/auth/registro`:**
 ```json
@@ -453,13 +454,26 @@ del token responde 404.
 | GET | `/api/usuarios` | El perfil propio (no lista a nadie más) |
 | GET | `/api/usuarios/:id` | El perfil propio, por id |
 | POST | `/api/usuarios` | Crea un perfil suelto. **Redundante**: el alta real es `/api/auth/registro` |
-| PUT | `/api/usuarios/:id` | Edita `nombre`, `apellido`, `mail`, `fecha_nacimiento` |
+| PUT | `/api/usuarios/:id` | Edita `nombre`, `apellido`, `fecha_nacimiento` (el `mail` no: es el de la cuenta de Auth) |
+| POST | `/api/usuarios/yo/foto` | Sube la foto de perfil: `{ "imagen": "data:image/jpeg;base64,..." }` |
+| DELETE | `/api/usuarios/yo/foto` | Quita la foto de perfil |
 | DELETE | `/api/usuarios/:id` | Borra la cuenta entera (pantalla `/perfil`) |
 
 `DELETE` borra el perfil **y** la cuenta de Supabase Auth: si quedara solo la
 de Auth, esa persona podría loguearse y la app no encontraría su perfil. Por las
 FK en cascada se lleva pastillas, horarios, dispensaciones, contactos y
 actividades. Los módulos quedan, vacíos (ver [Base de datos](#base-de-datos)).
+
+**Foto de perfil.** La app la achica a 256×256 y la manda como JPEG en base64
+(hasta 400 kB; esa ruta tiene su propio límite de body, el resto de la API
+sigue en 16 kB). El backend la guarda en el bucket público `avatares` de
+Supabase Storage como `<id>.jpg` y deja la URL en `usuarios.foto_url`, con
+`?v=<fecha>` para que el navegador no muestre la vieja.
+
+**Cambiar la contraseña** pide la actual (se valida iniciando sesión con ella)
+y tiene el mismo límite de intentos que el login. Supabase cierra las otras
+sesiones abiertas: el token viejo deja de servir. Una cuenta que solo entró con
+Google no tiene contraseña: para ponerle una se usa "olvidé mi contraseña".
 
 ### Pastillas (protegido)
 
@@ -800,7 +814,7 @@ Supabase (PostgreSQL), proyecto `pshejdspqqhuhyjbzslx`.
 
 | Tabla | Columnas principales |
 | ----- | -------------------- |
-| `usuarios` | `id` (= id de Supabase Auth), `nombre`, `apellido`, `mail`, `fecha_nacimiento`, `rol` (`cuidador`/`admin`), `verificado`, `token_verificacion` + `token_expira`, `token_reset` + `token_reset_expira` |
+| `usuarios` | `id` (= id de Supabase Auth), `nombre`, `apellido`, `mail`, `fecha_nacimiento`, `foto_url`, `rol` (`cuidador`/`admin`), `verificado`, `token_verificacion` + `token_expira`, `token_reset` + `token_reset_expira` |
 | `pastillas` | `id`, `usuario_id`, `nombre`, `tipo` |
 | `horarios` | `id`, `pastilla_id`, `dia`, `hora`, `minuto`, `cantidad` (1-20), `dispensado`, `senal_enviada`, `notificado`, `recordatorio_min` |
 | `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `detectadas` (0-20 o null, lo que vio el sensor), `timestamp` |

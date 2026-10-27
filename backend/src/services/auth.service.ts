@@ -1,5 +1,5 @@
 import { supabase, crearClienteAuth } from "../config/supabase";
-import { Registro, Login, LoginGoogle, Recuperar, ConfirmarReset } from "../schemas/auth.schema";
+import { Registro, Login, LoginGoogle, Recuperar, ConfirmarReset, CambiarPassword } from "../schemas/auth.schema";
 import { ErrorHttp } from "../utils/errores";
 import { randomBytes } from "crypto";
 import { avisarVerificacion, avisarBienvenida, avisarRecuperacion } from "./email.service";
@@ -11,7 +11,7 @@ const APP_URL = (process.env.APP_URL ?? "http://localhost:8081").replace(/\/$/, 
 const API_URL = (process.env.API_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
 const CAMPOS_PUBLICOS =
-  "id, nombre, apellido, mail, fecha_nacimiento, verificado, created_at";
+  "id, nombre, apellido, mail, fecha_nacimiento, verificado, foto_url, created_at";
 
 const getPerfil = async (id: string) => {
   const { data, error } = await supabase
@@ -374,4 +374,21 @@ export const confirmarRecuperacion = async ({ token, password }: ConfirmarReset)
   if (errorUpdate) throw new Error(errorUpdate.message);
 
   return login({ mail: usuario.mail, password });
+};
+
+export const cambiarPassword = async (id: string, { actual, nueva }: CambiarPassword) => {
+  const { data: usuario, error } = await supabase.from("usuarios").select("mail").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!usuario) throw new ErrorHttp(404, "Usuario no encontrado");
+
+  const { error: errorActual } = await crearClienteAuth().auth.signInWithPassword({
+    email: usuario.mail,
+    password: actual,
+  });
+  if (errorActual) throw new ErrorHttp(401, "La contraseña actual no es correcta");
+
+  if (actual === nueva) throw new ErrorHttp(400, "La contraseña nueva tiene que ser distinta de la actual");
+
+  const { error: errorNueva } = await supabase.auth.admin.updateUserById(id, { password: nueva });
+  if (errorNueva) throw new ErrorHttp(400, "No se pudo cambiar la contraseña. Probá con otra.");
 };

@@ -19,4 +19,6 @@ router.get("/yo", authMiddleware, authController.yo);
 
 router.post("/reenviar-verificacion", authMiddleware, authController.reenviarVerificacion);
 
+router.post("/cambiar-password", authMiddleware, authController.cambiarPassword);
+
 export default router;
