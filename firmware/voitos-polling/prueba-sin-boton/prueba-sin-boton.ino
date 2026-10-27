@@ -38,13 +38,16 @@
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+//back-end
 #include <HTTPClient.h>
-#include <ESP32Servo.h>
 #include <ArduinoJson.h>
+#include <ESP32Servo.h>
+#include <time.h>
+//Pantalla oled
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <time.h>
+//para el wifi
 #include <WebServer.h>
 #include <DNSServer.h>
 #include <Preferences.h>
@@ -1019,12 +1022,6 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
-  // Boton. Queda en alto y baja a LOW cuando el pulsador lo conecta a GND,
-  // por eso la interrupcion escucha el flanco de bajada.
-  //
-  // Va en el 32 y no en el 35: el 35 no tiene pull-up interno, y sin una
-  // resistencia externa flotaba, leia apretadas fantasma y al arrancar
-  // "sostenia" el boton y borraba el WiFi recien guardado.
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   memoria.begin("voitos", false);
