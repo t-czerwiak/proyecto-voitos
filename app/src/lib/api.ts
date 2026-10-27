@@ -65,6 +65,8 @@ export interface Usuario {
   fecha_nacimiento?: string | null;
 
   verificado?: boolean;
+
+  foto_url?: string | null;
 }
 
 export const sesion = {

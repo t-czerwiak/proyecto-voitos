@@ -70,7 +70,7 @@ export default function Pantalla({
               accessibilityLabel="Voitos"
             />
             <Text style={styles.fotoFrase}>
-              El pastillero entrega cada dosis a su hora. Vos la agendás desde acá y te enterás cuando sale.
+              Más tranquilidad para ellos, más tranquilidad para vos.
             </Text>
           </View>
         </View>
