@@ -8,10 +8,13 @@ export const elegirFoto = (): Promise<string | null> =>
   new Promise((resolver, rechazar) => {
     const entrada = document.createElement("input");
     entrada.type = "file";
-    entrada.accept = "image/*";
+    entrada.accept = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
+    entrada.style.display = "none";
+    document.body.appendChild(entrada);
 
     entrada.onchange = () => {
       const archivo = entrada.files?.[0];
+      entrada.remove();
       if (!archivo) return resolver(null);
 
       const imagen = new Image();
@@ -31,7 +34,7 @@ export const elegirFoto = (): Promise<string | null> =>
 
       imagen.onerror = () => {
         URL.revokeObjectURL(url);
-        rechazar(new Error("No se pudo abrir esa imagen. Probá con una foto JPG o PNG."));
+        rechazar(new Error("No se pudo abrir esa imagen. Probá con una foto JPG o PNG (las HEIC del iPhone no se pueden)."));
       };
 
       imagen.src = url;
