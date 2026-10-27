@@ -4,7 +4,7 @@ export const getUsuarios = async () => {
   const { data, error } = await supabase
     .from("usuarios")
     .select(
-      "id, nombre, apellido, mail, fecha_nacimiento, verificado, rol, created_at"
+      "id, nombre, apellido, mail, fecha_nacimiento, verificado, rol, foto_url, created_at"
     )
     .order("created_at", { ascending: false });
 
