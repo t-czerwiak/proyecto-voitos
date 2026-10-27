@@ -607,6 +607,8 @@ relación con el pastillero ni con la ESP32.
 - Una de **una vez** necesita `fecha`. Una **rutina** se repite por día de la
   semana, así que manda `fecha: ""` y al menos un día en `dias`
   (`L M X J V S D`).
+- Una de una vez no puede quedar en el pasado: si `fecha` + `hora` ya pasaron
+  (hora de Argentina), da 400. Vale para `POST` y `PUT`.
 - `hora` es texto `"HH:MM"`, no dos números como en horarios.
 - `recordatorio_min`: igual que en horarios (5, 10, 15, 30, 60 o `null`).
 
