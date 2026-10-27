@@ -107,15 +107,37 @@ export default function Hoy() {
         />
       )}
 
-      <Boton
-        titulo="Tu perfil"
-        variante={escritorio ? "secundario" : "enlace"}
-        icono="person-circle-outline"
-        ancho={escritorio ? "auto" : "completo"}
-        onPress={() => router.push("/perfil")}
-        ayuda="Tus datos, tus pastillas, y cerrar sesión"
-      />
+      {!escritorio && (
+        <Boton
+          titulo="Tu perfil"
+          variante="enlace"
+          icono="person-circle-outline"
+          onPress={() => router.push("/perfil")}
+          ayuda="Tus datos, tus pastillas, y cerrar sesión"
+        />
+      )}
     </>
+  );
+
+  const otrasActividades = !cargando && actividadesDeHoy.length > 0 && (
+    <View style={styles.seccion}>
+      <Text style={styles.tituloSeccion} accessibilityRole="header">
+        Otras actividades de hoy
+      </Text>
+
+      {actividadesDeHoy.map((a) => (
+        <Tarjeta key={a.id}>
+          <View
+            style={styles.actividad}
+            accessible
+            accessibilityLabel={`A las ${a.hora}, ${a.nombre}`}
+          >
+            <Text style={styles.actividadHora}>{a.hora}</Text>
+            <Text style={styles.actividadNombre}>{a.nombre}</Text>
+          </View>
+        </Tarjeta>
+      ))}
+    </View>
   );
 
   return (
@@ -234,51 +256,65 @@ export default function Hoy() {
                   )}
                 </View>
 
-                {actividadesDeHoy.length > 0 && (
-                  <View style={styles.seccion}>
-                    <Text style={styles.tituloSeccion} accessibilityRole="header">
-                      Otras actividades de hoy
-                    </Text>
-
-                    {actividadesDeHoy.map((a) => (
-                      <Tarjeta key={a.id}>
-                        <View
-                          style={styles.actividad}
-                          accessible
-                          accessibilityLabel={`A las ${a.hora}, ${a.nombre}`}
-                        >
-                          <Text style={styles.actividadHora}>{a.hora}</Text>
-                          <Text style={styles.actividadNombre}>{a.nombre}</Text>
-                        </View>
-                      </Tarjeta>
-                    ))}
-                  </View>
-                )}
+                {!escritorio && otrasActividades}
               </>
             )}
           </>
         }
         lateral={
           <>
-            <View style={styles.seccion}>
-              <Text style={styles.tituloSeccion} accessibilityRole="header">
-                Dónde ir
-              </Text>
+            {escritorio && otrasActividades}
 
-              <Acceso
-                icono="calendar"
-                titulo="Calendario"
-                detalle="Todas las dosis agendadas, día por día, y las rutinas en curso."
-                onPress={() => router.push("/calendario")}
-              />
+            {escritorio && (
+              <View style={styles.seccion}>
+                <Text style={styles.tituloSeccion} accessibilityRole="header">
+                  Cargar algo nuevo
+                </Text>
 
-              <Acceso
-                icono="medkit"
-                titulo="Pastillas"
-                detalle="Cargar una pastilla nueva, agendar dosis y recargar los módulos."
-                onPress={() => router.push("/medicacion")}
-              />
-            </View>
+                <View style={styles.pie}>
+                  <Boton
+                    titulo="Agendar una dosis"
+                    variante="secundario"
+                    icono="alarm-outline"
+                    onPress={() => router.push("/agendar-medicacion")}
+                  />
+                  <Boton
+                    titulo="Agregar una pastilla"
+                    variante="secundario"
+                    icono="medkit-outline"
+                    onPress={() => router.push("/agregar-medicacion")}
+                  />
+                  <Boton
+                    titulo="Agregar una actividad"
+                    variante="secundario"
+                    icono="calendar-outline"
+                    onPress={() => router.push("/agregar-actividad")}
+                  />
+                </View>
+              </View>
+            )}
+
+            {!escritorio && (
+              <View style={styles.seccion}>
+                <Text style={styles.tituloSeccion} accessibilityRole="header">
+                  Dónde ir
+                </Text>
+
+                <Acceso
+                  icono="calendar"
+                  titulo="Calendario"
+                  detalle="Todas las dosis agendadas, día por día, y las rutinas en curso."
+                  onPress={() => router.push("/calendario")}
+                />
+
+                <Acceso
+                  icono="medkit"
+                  titulo="Pastillas"
+                  detalle="Cargar una pastilla nueva, agendar dosis y recargar los módulos."
+                  onPress={() => router.push("/medicacion")}
+                />
+              </View>
+            )}
 
             {!escritorio && <View style={styles.pie}>{acciones}</View>}
 

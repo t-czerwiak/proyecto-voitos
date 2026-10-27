@@ -84,7 +84,7 @@ export default function MiPastillero() {
   };
 
   return (
-    <Pantalla angosta>
+    <Pantalla angosta formulario>
       {primeraVez ? (
         <Encabezado
           titulo="Vinculá tu pastillero"
@@ -92,7 +92,7 @@ export default function MiPastillero() {
           bajada="Es lo primero: así tus dosis salen por tu pastillero y lo ves en la app."
         />
       ) : (
-        <Encabezado titulo="Mi pastillero" volverA="/perfil" />
+        <Encabezado titulo="Mi pastillero" volverA="/perfil" principal />
       )}
 
       <Aviso texto={error} />

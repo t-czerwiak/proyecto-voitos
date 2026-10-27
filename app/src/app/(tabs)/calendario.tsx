@@ -31,6 +31,7 @@ import {
   Vacio,
   Cargando,
   Estado,
+  Columnas,
 } from "../../ui";
 import { crearEstilos, useColores, espacio, radio, texto, toque } from "../../tema";
 
@@ -196,318 +197,328 @@ export default function Calendario() {
         titulo="Calendario"
         bajada="Tocá un día para ver qué hay agendado."
         volverA="/home"
+        principal
       />
 
       <Aviso texto={errorCarga} />
 
-      <View style={styles.navegacion}>
-        <Pressable
-          onPress={() => cambiarMes(-1)}
-          style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
-          accessibilityRole="button"
-          accessibilityLabel="Mes anterior"
-        >
-          <Ionicons name="chevron-back" size={24} color={colores.acento} />
-        </Pressable>
-
-        <Text style={styles.mes} accessibilityRole="header">
-          {MESES_LARGOS[mes]} {anio}
-        </Text>
-
-        <Pressable
-          onPress={() => cambiarMes(1)}
-          style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
-          accessibilityRole="button"
-          accessibilityLabel="Mes siguiente"
-        >
-          <Ionicons name="chevron-forward" size={24} color={colores.acento} />
-        </Pressable>
-      </View>
-
-      <View style={styles.grilla}>
-        <View style={styles.semana}>
-          {DIAS_SEMANA.map((dia) => (
-            <Text
-              key={dia}
-              style={styles.diaSemana}
-
-              accessibilityElementsHidden
-            >
-              {dia}
-            </Text>
-          ))}
-        </View>
-
-        <View style={styles.dias}>
-          {diasCalendario.map((dia, i) => {
-            if (dia === null) {
-              return <View key={`vacio-${i}`} style={styles.celda} />;
-            }
-
-            const fecha = fechaDe(dia);
-            const elegido = fecha === fechaSeleccionada;
-            const hoy = esHoy(fecha);
-            const susRutinas = rutinasEn(fecha);
-            const susActividades = actividadesEn(fecha);
-
-            const partes: string[] = [fechaLarga(fecha)];
-            if (hoy) partes.push("hoy");
-            if (susRutinas.length)
-              partes.push(
-                susRutinas.length === 1
-                  ? "1 dosis agendada"
-                  : `${susRutinas.length} dosis agendadas`
-              );
-            if (susActividades.length)
-              partes.push(
-                susActividades.length === 1
-                  ? "1 actividad"
-                  : `${susActividades.length} actividades`
-              );
-            if (!susRutinas.length && !susActividades.length) partes.push("sin nada agendado");
-
-            return (
-              <Pressable
-                key={dia}
-                onPress={() => setFechaSeleccionada(fecha)}
-                style={({ pressed }) => [
-                  styles.celda,
-                  styles.celdaTocable,
-                  hoy && styles.celdaHoy,
-                  elegido && styles.celdaElegida,
-                  pressed && styles.celdaActiva,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={partes.join(", ")}
-                accessibilityState={{ selected: elegido }}
-
-                aria-selected={elegido}
-              >
-                <Text
-                  style={[
-                    styles.numero,
-                    hoy && styles.numeroHoy,
-                    elegido && styles.numeroElegido,
-                  ]}
-                >
-                  {dia}
-                </Text>
-
-                <View style={styles.marcadores}>
-                  {susActividades.length > 0 && (
-                    <View style={[styles.marcador, styles.marcadorActividad]} />
-                  )}
-                  {susRutinas.slice(0, 3).map((r) => (
-                    <View
-                      key={r.id}
-                      style={[styles.marcador, { backgroundColor: r.color }]}
-                    />
-                  ))}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={styles.bajoGrilla}>
-        <Boton
-          titulo="Ir a hoy"
-          variante="enlace"
-          icono="today-outline"
-          onPress={irAHoy}
-          ancho="auto"
-        />
-      </View>
-
-      {activas.length > 0 && (
-        <View style={styles.referencia}>
-          <Text style={styles.tituloReferencia}>Qué es cada color</Text>
-
-          {activas.map((r) => (
-            <View
-              key={r.id}
-              style={styles.filaReferencia}
-              accessible
-              accessibilityLabel={`${r.nombre}, a las ${r.horaTexto}`}
-            >
-              <View style={[styles.muestra, { backgroundColor: r.color }]} />
-              <Text style={styles.textoReferencia}>
-                {r.nombre} · {r.horaTexto}
-              </Text>
-            </View>
-          ))}
-
-          <View style={styles.filaReferencia} accessible accessibilityLabel="Actividades">
-            <View style={[styles.muestra, styles.marcadorActividad]} />
-            <Text style={styles.textoReferencia}>Actividades</Text>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.seccion}>
-        <View style={styles.tituloDia}>
-          <Text style={styles.tituloSeccion} accessibilityRole="header">
-            {fechaLarga(fechaSeleccionada)}
-          </Text>
-          {esHoy(fechaSeleccionada) && <Estado texto="Hoy" tono="ok" icono="today" />}
-        </View>
-
-        {cargando ? (
-          <Cargando texto="Buscando lo agendado..." />
-        ) : (
+      <Columnas
+        principal={
           <>
-            <Text style={styles.subtitulo}>Medicación</Text>
+            <View style={styles.navegacion}>
+              <Pressable
+                onPress={() => cambiarMes(-1)}
+                style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
+                accessibilityRole="button"
+                accessibilityLabel="Mes anterior"
+              >
+                <Ionicons name="chevron-back" size={24} color={colores.acento} />
+              </Pressable>
 
-            {dosisDelDia.length === 0 ? (
-              <Vacio
-                icono="medkit-outline"
-                titulo="No hay dosis para este día"
-                detalle="Las dosis se agendan desde Pastillas, eligiendo los días de la semana."
-                accion={{
-                  titulo: "Agendar una dosis",
-                  onPress: () => router.push("/agendar-medicacion"),
-                }}
-              />
-            ) : (
-              dosisDelDia.map((dosis) => {
-                const suRutina = rutinaDeHorario(activas, dosis);
-                return (
-                  <FilaDosis
-                    key={dosis.id}
-                    dosis={dosis}
-                    color={suRutina?.color}
-                    detalle={
-                      suRutina
-                        ? `Rutina: ${suRutina.dias.join(" ")} a las ${suRutina.horaTexto}`
-                        : "Dosis suelta"
-                    }
-                  />
-                );
-              })
-            )}
-
-            <Text style={styles.subtitulo}>Actividades</Text>
-
-            {actividadesDelDia.length === 0 ? (
-              <Vacio
-                icono="walk-outline"
-                titulo="No hay actividades para este día"
-                detalle="Sirven para anotar lo que no dispensa el pastillero: una caminata, el kinesiólogo, una visita."
-              />
-            ) : (
-              actividadesDelDia.map((a) => (
-                <Tarjeta key={a.id}>
-                  <View
-                    style={styles.actividad}
-                    accessible
-                    accessibilityLabel={`A las ${a.hora}, ${a.nombre}. ${
-                      a.tipo === "rutina" ? "Se repite todas las semanas" : "Una sola vez"
-                    }.`}
-                  >
-                    <Text style={styles.actividadHora}>{a.hora}</Text>
-
-                    <View style={styles.actividadDatos}>
-                      <Text style={styles.actividadNombre}>{a.nombre}</Text>
-                      <Text style={styles.actividadTipo}>
-                        {a.tipo === "rutina" ? "Todas las semanas" : "Una sola vez"}
-                      </Text>
-                    </View>
-                  </View>
-                </Tarjeta>
-              ))
-            )}
-
-            <View style={styles.agregar}>
-              <Boton
-                titulo="Agregar una actividad"
-                variante="secundario"
-                icono="add-outline"
-                onPress={() =>
-                  router.push({
-                    pathname: "/agregar-actividad",
-                    params: { fecha: fechaSeleccionada },
-                  })
-                }
-                ayuda={`Se agrega el ${fechaLarga(fechaSeleccionada)}`}
-              />
-            </View>
-          </>
-        )}
-      </View>
-
-      {activas.length > 0 && (
-        <View style={styles.seccion}>
-          <Text style={styles.tituloSeccion} accessibilityRole="header">
-            Rutinas en curso
-          </Text>
-
-          <Aviso texto={errorRutina} />
-
-          {activas.map((r) => (
-            <Tarjeta key={r.id} franja={r.color}>
-              <Text style={styles.rutinaNombre}>{r.nombre}</Text>
-
-              <Text style={styles.rutinaHora}>
-                Todos los días marcados, a las {r.horaTexto}
+              <Text style={styles.mes} accessibilityRole="header">
+                {MESES_LARGOS[mes]} {anio}
               </Text>
 
-              <View
-                style={styles.diasRutina}
-                accessible
-                accessibilityLabel={`Se repite los ${r.dias
-                  .map((d) => NOMBRE_DIA[d])
-                  .join(", ")}`}
+              <Pressable
+                onPress={() => cambiarMes(1)}
+                style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
+                accessibilityRole="button"
+                accessibilityLabel="Mes siguiente"
               >
-                {DIAS_SEMANA.map((d) => {
-                  const activo = r.dias.includes(d);
+                <Ionicons name="chevron-forward" size={24} color={colores.acento} />
+              </Pressable>
+            </View>
+
+            <View style={styles.grilla}>
+              <View style={styles.semana}>
+                {DIAS_SEMANA.map((dia) => (
+                  <Text
+                    key={dia}
+                    style={styles.diaSemana}
+
+                    accessibilityElementsHidden
+                  >
+                    {dia}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={styles.dias}>
+                {diasCalendario.map((dia, i) => {
+                  if (dia === null) {
+                    return <View key={`vacio-${i}`} style={styles.celda} />;
+                  }
+
+                  const fecha = fechaDe(dia);
+                  const elegido = fecha === fechaSeleccionada;
+                  const hoy = esHoy(fecha);
+                  const susRutinas = rutinasEn(fecha);
+                  const susActividades = actividadesEn(fecha);
+
+                  const partes: string[] = [fechaLarga(fecha)];
+                  if (hoy) partes.push("hoy");
+                  if (susRutinas.length)
+                    partes.push(
+                      susRutinas.length === 1
+                        ? "1 dosis agendada"
+                        : `${susRutinas.length} dosis agendadas`
+                    );
+                  if (susActividades.length)
+                    partes.push(
+                      susActividades.length === 1
+                        ? "1 actividad"
+                        : `${susActividades.length} actividades`
+                    );
+                  if (!susRutinas.length && !susActividades.length) partes.push("sin nada agendado");
+
                   return (
-                    <Text
-                      key={d}
-                      style={[
-                        styles.diaRutina,
-                        activo && {
-                          color: "#0A0A0A",
-                          backgroundColor: r.color,
-                        },
+                    <Pressable
+                      key={dia}
+                      onPress={() => setFechaSeleccionada(fecha)}
+                      style={({ pressed }) => [
+                        styles.celda,
+                        styles.celdaTocable,
+                        hoy && styles.celdaHoy,
+                        elegido && styles.celdaElegida,
+                        pressed && styles.celdaActiva,
                       ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={partes.join(", ")}
+                      accessibilityState={{ selected: elegido }}
+
+                      aria-selected={elegido}
                     >
-                      {d}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.numero,
+                          hoy && styles.numeroHoy,
+                          elegido && styles.numeroElegido,
+                        ]}
+                      >
+                        {dia}
+                      </Text>
+
+                      <View style={styles.marcadores}>
+                        {susActividades.length > 0 && (
+                          <View style={[styles.marcador, styles.marcadorActividad]} />
+                        )}
+                        {susRutinas.slice(0, 3).map((r) => (
+                          <View
+                            key={r.id}
+                            style={[styles.marcador, { backgroundColor: r.color }]}
+                          />
+                        ))}
+                      </View>
+                    </Pressable>
                   );
                 })}
               </View>
+            </View>
 
-              {r.proxima && (
-                <Text style={styles.rutinaProxima}>
-                  La próxima es {fechaRelativa(r.proxima)} a las {r.horaTexto}
-                </Text>
-              )}
+            <View style={styles.bajoGrilla}>
+              <Boton
+                titulo="Ir a hoy"
+                variante="enlace"
+                icono="today-outline"
+                onPress={irAHoy}
+                ancho="auto"
+              />
+            </View>
 
-              <Text style={styles.rutinaDetalle}>
-                {r.cantidad === 1 ? "1 pastilla" : `${r.cantidad} pastillas`} por dosis ·{" "}
-                {r.pendientes} de {r.dosis} sin salir
-              </Text>
+            {activas.length > 0 && (
+              <View style={styles.referencia}>
+                <Text style={styles.tituloReferencia}>Qué es cada color</Text>
 
-              <Text style={styles.rutinaDetalle}>
-                {r.semanas === 1 ? "1 semana" : `${r.semanas} semanas`} · del{" "}
-                {comoFecha(r.desde)} al {comoFecha(r.hasta)}
-              </Text>
+                {activas.map((r) => (
+                  <View
+                    key={r.id}
+                    style={styles.filaReferencia}
+                    accessible
+                    accessibilityLabel={`${r.nombre}, a las ${r.horaTexto}`}
+                  >
+                    <View style={[styles.muestra, { backgroundColor: r.color }]} />
+                    <Text style={styles.textoReferencia}>
+                      {r.nombre} · {r.horaTexto}
+                    </Text>
+                  </View>
+                ))}
 
-              <View style={styles.borrar}>
-                <Boton
-                  titulo="Borrar la rutina"
-                  variante="peligro"
-                  icono="trash-outline"
-                  onPress={() => handleBorrarRutina(r)}
-                  deshabilitado={borrando}
-                  ayuda={`Se borran las ${r.pendientes} dosis que todavía no salieron`}
-                />
+                <View style={styles.filaReferencia} accessible accessibilityLabel="Actividades">
+                  <View style={[styles.muestra, styles.marcadorActividad]} />
+                  <Text style={styles.textoReferencia}>Actividades</Text>
+                </View>
               </View>
-            </Tarjeta>
-          ))}
-        </View>
-      )}
+            )}
+          </>
+        }
+        lateral={
+          <>
+            <View style={styles.seccion}>
+              <View style={styles.tituloDia}>
+                <Text style={styles.tituloSeccion} accessibilityRole="header">
+                  {fechaLarga(fechaSeleccionada)}
+                </Text>
+                {esHoy(fechaSeleccionada) && <Estado texto="Hoy" tono="ok" icono="today" />}
+              </View>
+
+              {cargando ? (
+                <Cargando texto="Buscando lo agendado..." />
+              ) : (
+                <>
+                  <Text style={styles.subtitulo}>Medicación</Text>
+
+                  {dosisDelDia.length === 0 ? (
+                    <Vacio
+                      icono="medkit-outline"
+                      titulo="No hay dosis para este día"
+                      detalle="Las dosis se agendan desde Pastillas, eligiendo los días de la semana."
+                      accion={{
+                        titulo: "Agendar una dosis",
+                        onPress: () => router.push("/agendar-medicacion"),
+                      }}
+                    />
+                  ) : (
+                    dosisDelDia.map((dosis) => {
+                      const suRutina = rutinaDeHorario(activas, dosis);
+                      return (
+                        <FilaDosis
+                          key={dosis.id}
+                          dosis={dosis}
+                          color={suRutina?.color}
+                          detalle={
+                            suRutina
+                              ? `Rutina: ${suRutina.dias.join(" ")} a las ${suRutina.horaTexto}`
+                              : "Dosis suelta"
+                          }
+                        />
+                      );
+                    })
+                  )}
+
+                  <Text style={styles.subtitulo}>Actividades</Text>
+
+                  {actividadesDelDia.length === 0 ? (
+                    <Vacio
+                      icono="walk-outline"
+                      titulo="No hay actividades para este día"
+                      detalle="Sirven para anotar lo que no dispensa el pastillero: una caminata, el kinesiólogo, una visita."
+                    />
+                  ) : (
+                    actividadesDelDia.map((a) => (
+                      <Tarjeta key={a.id}>
+                        <View
+                          style={styles.actividad}
+                          accessible
+                          accessibilityLabel={`A las ${a.hora}, ${a.nombre}. ${
+                            a.tipo === "rutina" ? "Se repite todas las semanas" : "Una sola vez"
+                          }.`}
+                        >
+                          <Text style={styles.actividadHora}>{a.hora}</Text>
+
+                          <View style={styles.actividadDatos}>
+                            <Text style={styles.actividadNombre}>{a.nombre}</Text>
+                            <Text style={styles.actividadTipo}>
+                              {a.tipo === "rutina" ? "Todas las semanas" : "Una sola vez"}
+                            </Text>
+                          </View>
+                        </View>
+                      </Tarjeta>
+                    ))
+                  )}
+
+                  <View style={styles.agregar}>
+                    <Boton
+                      titulo="Agregar una actividad"
+                      variante="secundario"
+                      icono="add-outline"
+                      onPress={() =>
+                        router.push({
+                          pathname: "/agregar-actividad",
+                          params: { fecha: fechaSeleccionada },
+                        })
+                      }
+                      ayuda={`Se agrega el ${fechaLarga(fechaSeleccionada)}`}
+                    />
+                  </View>
+                </>
+              )}
+            </View>
+
+            {activas.length > 0 && (
+              <View style={styles.seccion}>
+                <Text style={styles.tituloSeccion} accessibilityRole="header">
+                  Rutinas en curso
+                </Text>
+
+                <Aviso texto={errorRutina} />
+
+                {activas.map((r) => (
+                  <Tarjeta key={r.id} franja={r.color}>
+                    <Text style={styles.rutinaNombre}>{r.nombre}</Text>
+
+                    <Text style={styles.rutinaHora}>
+                      Todos los días marcados, a las {r.horaTexto}
+                    </Text>
+
+                    <View
+                      style={styles.diasRutina}
+                      accessible
+                      accessibilityLabel={`Se repite los ${r.dias
+                        .map((d) => NOMBRE_DIA[d])
+                        .join(", ")}`}
+                    >
+                      {DIAS_SEMANA.map((d) => {
+                        const activo = r.dias.includes(d);
+                        return (
+                          <Text
+                            key={d}
+                            style={[
+                              styles.diaRutina,
+                              activo && {
+                                color: "#0A0A0A",
+                                backgroundColor: r.color,
+                              },
+                            ]}
+                          >
+                            {d}
+                          </Text>
+                        );
+                      })}
+                    </View>
+
+                    {r.proxima && (
+                      <Text style={styles.rutinaProxima}>
+                        La próxima es {fechaRelativa(r.proxima)} a las {r.horaTexto}
+                      </Text>
+                    )}
+
+                    <Text style={styles.rutinaDetalle}>
+                      {r.cantidad === 1 ? "1 pastilla" : `${r.cantidad} pastillas`} por dosis ·{" "}
+                      {r.pendientes} de {r.dosis} sin salir
+                    </Text>
+
+                    <Text style={styles.rutinaDetalle}>
+                      {r.semanas === 1 ? "1 semana" : `${r.semanas} semanas`} · del{" "}
+                      {comoFecha(r.desde)} al {comoFecha(r.hasta)}
+                    </Text>
+
+                    <View style={styles.borrar}>
+                      <Boton
+                        titulo="Borrar la rutina"
+                        variante="peligro"
+                        icono="trash-outline"
+                        onPress={() => handleBorrarRutina(r)}
+                        deshabilitado={borrando}
+                        ayuda={`Se borran las ${r.pendientes} dosis que todavía no salieron`}
+                      />
+                    </View>
+                  </Tarjeta>
+                ))}
+              </View>
+            )}
+          </>
+        }
+      />
     </Pantalla>
   );
 }

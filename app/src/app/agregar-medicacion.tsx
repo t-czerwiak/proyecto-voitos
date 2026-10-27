@@ -54,7 +54,7 @@ export default function AgregarMedicacion() {
   };
 
   return (
-    <Pantalla>
+    <Pantalla formulario>
       <Encabezado
         titulo="Cargar una pastilla"
         bajada="Esto se hace una sola vez por medicamento. Después se agenda y se recarga."
