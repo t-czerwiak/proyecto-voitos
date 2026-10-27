@@ -161,7 +161,7 @@ export default function AgendarMedicacion() {
           : `${cuerpo}. Arranca el ${comoFecha(fechas[0])}.`
       );
 
-      setTimeout(() => router.back(), 3000);
+      setTimeout(() => router.replace("/home"), 2500);
     } catch (e: any) {
       setError(e.message);
     } finally {

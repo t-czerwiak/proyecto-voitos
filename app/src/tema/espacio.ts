@@ -23,4 +23,6 @@ export const toque = {
 
 export const ANCHO_MAXIMO = 620;
 
+export const ANCHO_ESCRITORIO_MAXIMO = 1080;
+
 export const ANCHO_FORMULARIO = 400;

@@ -27,11 +27,14 @@ import {
   Vacio,
   Cargando,
   CampoFechaNacimiento,
+  Columnas,
+  useEscritorio,
 } from "../ui";
 import { crearEstilos, espacio, radio, texto } from "../tema";
 
 export default function Perfil() {
   const styles = useEstilos();
+  const escritorio = useEscritorio();
 
   const [usuario, setUsuario] = useState<Usuario | null>(getUsuarioActual());
   const [pastillas, setPastillas] = useState<Pastilla[]>([]);
@@ -152,7 +155,7 @@ export default function Perfil() {
   };
 
   return (
-    <Pantalla angosta>
+    <Pantalla angosta={!escritorio} ancha={escritorio}>
       <Encabezado titulo="Tu perfil" volverA="/home" />
 
       <Aviso texto={error} />
@@ -172,143 +175,160 @@ export default function Perfil() {
         </View>
       </View>
 
-      {proximaGeneral && (
-        <Tarjeta destacada etiqueta="Lo próximo">
-          <Text style={styles.proxima}>
-            {comoHora(proximaGeneral.hora, proximaGeneral.minuto)}
-          </Text>
-          <Text style={styles.proximaDetalle}>
-            {proximaGeneral.pastillas?.nombre ?? "Una dosis"} ·{" "}
-            {fechaRelativa(proximaGeneral.dia)}
-          </Text>
-        </Tarjeta>
-      )}
-
-      <Text style={styles.seccion}>Tus pastillas</Text>
-
-      {cargando ? (
-        <Cargando texto="Buscando tus pastillas..." />
-      ) : pastillas.length === 0 ? (
-        <Vacio
-          titulo="Todavía no cargaste ninguna"
-          detalle="Cuando agregues una pastilla, acá vas a ver su estado y cuándo le toca."
-          accion={{
-            titulo: "Agregar una pastilla",
-            onPress: () => router.push("/agregar-medicacion"),
-          }}
-        />
-      ) : (
-        pastillas.map((p) => {
-          const proxima = proximaPorPastilla.get(p.id) ?? null;
-          const quedan = p.modulo?.cantidad_actual ?? null;
-
-          return (
-            <Tarjeta key={p.id}>
-              <Text style={styles.pastilla}>{p.nombre}</Text>
-
-              <View style={styles.estados}>
-                {proxima ? (
-                  <Estado
-                    texto={`${comoHora(proxima.hora, proxima.minuto)} · ${fechaRelativa(proxima.dia)}`}
-                    tono="ok"
-                    icono="time-outline"
-                  />
-                ) : (
-                  <Estado texto="Sin dosis agendadas" tono="neutro" icono="time-outline" />
-                )}
-
-                {quedan !== null && (
-                  <Estado
-                    texto={`Quedan ${quedan}`}
-                    tono={quedan === 0 ? "atencion" : "neutro"}
-                    icono="medkit-outline"
-                  />
-                )}
-              </View>
-            </Tarjeta>
-          );
-        })
-      )}
-
-      <Text style={styles.seccion}>Tu pastillero</Text>
-
-      <Boton
-        titulo="Mi pastillero"
-        variante="secundario"
-        icono="hardware-chip-outline"
-        onPress={() => router.push("/mi-pastillero")}
-        ayuda="Vincularlo a tu cuenta con el código de su pantalla"
-      />
-
-      <Text style={styles.seccion}>Tus datos</Text>
-
-      <Tarjeta>
-        {editando ? (
+      <Columnas
+        principal={
           <>
-            <CampoFechaNacimiento
-              valor={fechaNueva}
-              alCambiar={setFechaNueva}
-              error={errorFecha}
-              ayuda="Se guarda al tocar Guardar."
+            {proximaGeneral && escritorio && (
+              <Text style={[styles.seccion, styles.seccionPrimera]}>Lo próximo</Text>
+            )}
+
+            {proximaGeneral && (
+              <Tarjeta destacada etiqueta="Lo próximo">
+                <Text style={styles.proxima}>
+                  {comoHora(proximaGeneral.hora, proximaGeneral.minuto)}
+                </Text>
+                <Text style={styles.proximaDetalle}>
+                  {proximaGeneral.pastillas?.nombre ?? "Una dosis"} ·{" "}
+                  {fechaRelativa(proximaGeneral.dia)}
+                </Text>
+              </Tarjeta>
+            )}
+
+            <Text style={styles.seccion}>Tus pastillas</Text>
+
+            {cargando ? (
+              <Cargando texto="Buscando tus pastillas..." />
+            ) : pastillas.length === 0 ? (
+              <Vacio
+                titulo="Todavía no cargaste ninguna"
+                detalle="Cuando agregues una pastilla, acá vas a ver su estado y cuándo le toca."
+                accion={{
+                  titulo: "Agregar una pastilla",
+                  onPress: () => router.push("/agregar-medicacion"),
+                }}
+              />
+            ) : (
+              <View style={escritorio ? styles.grilla : undefined}>
+                {pastillas.map((p) => {
+                  const proxima = proximaPorPastilla.get(p.id) ?? null;
+                  const quedan = p.modulo?.cantidad_actual ?? null;
+
+                  return (
+                    <View key={p.id} style={escritorio ? styles.grillaItem : undefined}>
+                      <Tarjeta>
+                        <Text style={styles.pastilla}>{p.nombre}</Text>
+
+                        <View style={styles.estados}>
+                          {proxima ? (
+                            <Estado
+                              texto={`${comoHora(proxima.hora, proxima.minuto)} · ${fechaRelativa(proxima.dia)}`}
+                              tono="ok"
+                              icono="time-outline"
+                            />
+                          ) : (
+                            <Estado texto="Sin dosis agendadas" tono="neutro" icono="time-outline" />
+                          )}
+
+                          {quedan !== null && (
+                            <Estado
+                              texto={`Quedan ${quedan}`}
+                              tono={quedan === 0 ? "atencion" : "neutro"}
+                              icono="medkit-outline"
+                            />
+                          )}
+                        </View>
+                      </Tarjeta>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </>
+        }
+        lateral={
+          <>
+            <Text style={[styles.seccion, escritorio && styles.seccionPrimera]}>Tu pastillero</Text>
+
+            <Boton
+              titulo="Mi pastillero"
+              variante="secundario"
+              icono="hardware-chip-outline"
+              onPress={() => router.push("/mi-pastillero")}
+              ayuda="Vincularlo a tu cuenta con el código de su pantalla"
             />
 
-            <View style={styles.filaBotones}>
+            <Text style={styles.seccion}>Tus datos</Text>
+
+            <Tarjeta>
+              {editando ? (
+                <>
+                  <CampoFechaNacimiento
+                    valor={fechaNueva}
+                    alCambiar={setFechaNueva}
+                    error={errorFecha}
+                    ayuda="Se guarda al tocar Guardar."
+                  />
+
+                  <View style={styles.filaBotones}>
+                    <Boton
+                      titulo="Cancelar"
+                      variante="secundario"
+                      ancho="auto"
+                      onPress={() => setEditando(false)}
+                    />
+                    <Boton
+                      titulo="Guardar"
+                      ancho="auto"
+                      onPress={guardarFecha}
+                      cargando={guardando}
+                    />
+                  </View>
+                </>
+              ) : (
+                <View>
+                  <Text style={styles.datoEtiqueta}>Fecha de nacimiento</Text>
+                  <Text style={styles.datoValor}>
+                    {usuario?.fecha_nacimiento
+                      ? fechaConAnio(usuario.fecha_nacimiento)
+                      : "Sin completar"}
+                  </Text>
+                  {edad !== null && <Text style={styles.datoEdad}>{edad} años</Text>}
+
+                  <Boton
+                    titulo="Cambiar la fecha"
+                    variante="secundario"
+                    icono="create-outline"
+                    onPress={empezarAEditar}
+                    ayuda="Editar tu fecha de nacimiento"
+                    estilo={styles.botonCambiar}
+                  />
+                </View>
+              )}
+            </Tarjeta>
+
+            <Text style={styles.seccion}>Tu cuenta</Text>
+
+            <View style={styles.salidas}>
               <Boton
-                titulo="Cancelar"
+                titulo="Cerrar sesión"
                 variante="secundario"
-                ancho="auto"
-                onPress={() => setEditando(false)}
+                icono="log-out-outline"
+                onPress={salir}
+                ayuda="Vas a tener que iniciar sesión de nuevo para volver"
               />
+
               <Boton
-                titulo="Guardar"
-                ancho="auto"
-                onPress={guardarFecha}
-                cargando={guardando}
+                titulo="Borrar mi cuenta"
+                variante="peligro"
+                icono="trash-outline"
+                onPress={borrarCuenta}
+                cargando={borrando}
+                ayuda="Se borra todo lo tuyo y no se puede deshacer"
               />
             </View>
           </>
-        ) : (
-          <View>
-            <Text style={styles.datoEtiqueta}>Fecha de nacimiento</Text>
-            <Text style={styles.datoValor}>
-              {usuario?.fecha_nacimiento
-                ? fechaConAnio(usuario.fecha_nacimiento)
-                : "Sin completar"}
-            </Text>
-            {edad !== null && <Text style={styles.datoEdad}>{edad} años</Text>}
-
-            <Boton
-              titulo="Cambiar la fecha"
-              variante="secundario"
-              icono="create-outline"
-              onPress={empezarAEditar}
-              ayuda="Editar tu fecha de nacimiento"
-              estilo={styles.botonCambiar}
-            />
-          </View>
-        )}
-      </Tarjeta>
-
-      <Text style={styles.seccion}>Tu cuenta</Text>
-
-      <View style={styles.salidas}>
-        <Boton
-          titulo="Cerrar sesión"
-          variante="secundario"
-          icono="log-out-outline"
-          onPress={salir}
-          ayuda="Vas a tener que iniciar sesión de nuevo para volver"
-        />
-
-        <Boton
-          titulo="Borrar mi cuenta"
-          variante="peligro"
-          icono="trash-outline"
-          onPress={borrarCuenta}
-          cargando={borrando}
-          ayuda="Se borra todo lo tuyo y no se puede deshacer"
-        />
-      </View>
+        }
+      />
     </Pantalla>
   );
 }
@@ -410,6 +430,20 @@ const useEstilos = crearEstilos((colores) => ({
     flexDirection: "row",
     gap: espacio.md,
     marginTop: espacio.lg,
+  },
+
+  seccionPrimera: {
+    marginTop: 0,
+  },
+
+  grilla: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+
+  grillaItem: {
+    width: "48.5%",
   },
 
   salidas: {
