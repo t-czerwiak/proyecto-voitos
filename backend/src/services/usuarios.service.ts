@@ -45,6 +45,8 @@ export const deleteUsuario = async (id: string) => {
   const { error } = await supabase.from("usuarios").delete().eq("id", id);
   if (error) throw new Error(error.message);
 
+  await supabase.storage.from("avatares").remove([`${id}.jpg`]);
+
   const { error: errorAuth } = await supabase.auth.admin.deleteUser(id);
   if (errorAuth) {
     console.error(
