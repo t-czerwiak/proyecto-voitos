@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { router } from "expo-router";
-import { registrarse } from "../../lib/voitos";
+import { registrarse, destinoAlEntrar } from "../../lib/voitos";
 import BotonGoogle from "../../components/BotonGoogle";
 import { Pantalla, Encabezado, Campo, CampoFechaNacimiento, Boton, Aviso } from "../../ui";
 
@@ -46,7 +46,7 @@ export default function CrearCuenta() {
 
         ...(fechaNacimiento ? { fecha_nacimiento: fechaNacimiento } : {}),
       });
-      router.push("/home");
+      router.push(await destinoAlEntrar());
     } catch (e: any) {
       setError(e.message);
     } finally {
