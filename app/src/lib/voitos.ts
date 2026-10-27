@@ -58,6 +58,35 @@ export const cambiarFechaNacimiento = async (iso: string): Promise<Usuario> => {
   return usuario;
 };
 
+export const cambiarNombre = async (nombre: string, apellido: string): Promise<Usuario> => {
+  const actual = sesion.getUsuario();
+  if (!actual) throw new Error("No hay sesion iniciada");
+
+  const usuario = await api.put<Usuario>(`/api/usuarios/${actual.id}`, { nombre, apellido });
+  sesion.guardarUsuario(usuario);
+  return usuario;
+};
+
+export const subirFoto = async (imagen: string): Promise<Usuario> => {
+  const usuario = await api.post<Usuario>("/api/usuarios/yo/foto", { imagen });
+  sesion.guardarUsuario(usuario);
+  return usuario;
+};
+
+export const quitarFoto = async (): Promise<Usuario> => {
+  const usuario = await api.delete<Usuario>("/api/usuarios/yo/foto");
+  sesion.guardarUsuario(usuario);
+  return usuario;
+};
+
+export const cambiarPassword = async (actual: string, nueva: string) => {
+  const usuario = sesion.getUsuario();
+  if (!usuario) throw new Error("No hay sesion iniciada");
+
+  await api.post("/api/auth/cambiar-password", { actual, nueva });
+  await iniciarSesion(usuario.mail, nueva);
+};
+
 export const borrarMiCuenta = () => {
   const usuario = sesion.getUsuario();
   if (!usuario) throw new Error("No hay sesion iniciada");
