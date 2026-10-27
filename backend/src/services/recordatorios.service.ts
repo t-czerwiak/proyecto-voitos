@@ -1,6 +1,6 @@
 import { supabase } from "../config/supabase";
 import { getHoraArgentina, aMinutosDelDia, sumarUnDia } from "../utils/tiempo";
-import { Alcance, filtrarPorAlcance } from "./pastilleros.service";
+import { Alcance, filtrarPorAlcance, soloDeEstePastillero } from "./pastilleros.service";
 
 export interface Recordatorio {
   id: string;
@@ -27,15 +27,18 @@ export const getRecordatorios = async (alcance: Alcance): Promise<Recordatorio[]
   const ahora = aMinutosDelDia(hora, minuto);
 
   const [dosis, actividades] = await Promise.all([
-    filtrarPorAlcance(
-      supabase
-        .from("horarios")
-        .select("id, dia, hora, minuto, cantidad, recordatorio_min, pastillas!inner ( nombre, usuario_id )")
-        .in("dia", [hoy, manana])
-        .eq("dispensado", false)
-        .not("recordatorio_min", "is", null),
-      alcance,
-      "pastillas.usuario_id"
+    soloDeEstePastillero(
+      filtrarPorAlcance(
+        supabase
+          .from("horarios")
+          .select("id, dia, hora, minuto, cantidad, recordatorio_min, pastillas!inner ( nombre, usuario_id, dispositivo_id )")
+          .in("dia", [hoy, manana])
+          .eq("dispensado", false)
+          .not("recordatorio_min", "is", null),
+        alcance,
+        "pastillas.usuario_id"
+      ),
+      alcance
     ),
     filtrarPorAlcance(
       supabase

@@ -7,7 +7,7 @@ import { formatearFecha, formatearHora } from "./plantillas-mail";
 const APP_URL = (process.env.APP_URL ?? "http://localhost:8081").replace(/\/$/, "");
 import { getModuloDePastilla, descontarDelModulo } from "./modulos.service";
 import { avisarDispensacionOk, avisarPastilleroVacio } from "./email.service";
-import { Alcance, alcanceDe, filtrarPorAlcance } from "./pastilleros.service";
+import { Alcance, alcanceDe, filtrarPorAlcance, soloDeEstePastillero } from "./pastilleros.service";
 
 const MINUTOS_VENTANA = 15;
 
@@ -23,11 +23,11 @@ export const getPendiente = async (alcance: Alcance) => {
 
   const consulta = supabase
     .from("horarios")
-    .select("id, pastilla_id, hora, minuto, cantidad, pastillas!inner(usuario_id)")
+    .select("id, pastilla_id, hora, minuto, cantidad, pastillas!inner(usuario_id, dispositivo_id)")
     .eq("dispensado", false)
     .or(filtro);
 
-  const { data: fila, error } = await filtrarPorAlcance(consulta, alcance, "pastillas.usuario_id")
+  const { data: fila, error } = await soloDeEstePastillero(filtrarPorAlcance(consulta, alcance, "pastillas.usuario_id"), alcance)
     .limit(1)
     .maybeSingle();
 

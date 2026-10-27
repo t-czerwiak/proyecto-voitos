@@ -73,6 +73,7 @@ const correr = async () => {
 
     esperar(json.data.token, "no vino token");
     esperar(json.data.usuario.id, "no vino usuario");
+    esperar(json.data.usuario.fecha_nacimiento === null, `sin fecha guardo ${json.data.usuario.fecha_nacimiento}`);
     token = json.data.token;
     usuario = json.data.usuario;
   });
@@ -409,6 +410,34 @@ const correr = async () => {
     esperar(json.data.some((p) => p.dispositivo_id === PLACA), "la segunda cuenta no ve el pastillero");
     const enLaPlaca = (await consultaPlaca(SECRETO)).json.data.recordatorios;
     esperar(enLaPlaca.some((x) => x.texto === "Ibuprofeno x3"), "con dos cuentas dejo de ver la dosis de la primera");
+  });
+
+  await prueba("cada cuenta le pone su propio nombre al pastillero", async () => {
+    const { status, json } = await pedir(`/api/pastilleros/${PLACA}`, { metodo: "PATCH", cuerpo: { nombre: "Casa de mama" } });
+    esperar(status === 200 && json.data.nombre === "Casa de mama", `vino ${status} ${JSON.stringify(json.data)}`);
+    const mios = (await pedir("/api/pastilleros")).json.data;
+    esperar(mios.find((p) => p.dispositivo_id === PLACA)?.nombre === "Casa de mama", "no quedo guardado");
+    const vacio = await pedir(`/api/pastilleros/${PLACA}`, { metodo: "PATCH", cuerpo: { nombre: "  " } });
+    esperar(vacio.json.data.nombre === null, "un nombre vacio tiene que volver a null");
+    const ajeno = await pedir("/api/pastilleros/ESP32-001", { metodo: "PATCH", cuerpo: { nombre: "Mio" } });
+    esperar(ajeno.status === 404, `renombrar uno ajeno dio ${ajeno.status}`);
+  });
+
+  await prueba("una pastilla se carga en el pastillero elegido, no en uno ajeno", async () => {
+    const bien = await pedir("/api/pastillas", {
+      metodo: "POST",
+      cuerpo: { usuario_id: usuario.id, nombre: "Para la placa", tipo: "pildora", dispositivo_id: PLACA },
+    });
+    esperar(bien.status === 201, `esperaba 201, vino ${bien.status}`);
+    esperar(bien.json.data.dispositivo_id === PLACA, "no guardo el pastillero");
+    esperar(bien.json.data.modulo?.id === moduloPlaca.id, "no usa el modulo de ese pastillero");
+    await pedir(`/api/pastillas/${bien.json.data.id}`, { metodo: "DELETE" });
+
+    const ajeno = await pedir("/api/pastillas", {
+      metodo: "POST",
+      cuerpo: { usuario_id: usuario.id, nombre: "Ajena", tipo: "chico", dispositivo_id: "ESP32-001" },
+    });
+    esperar(ajeno.status === 404, `en un pastillero ajeno dio ${ajeno.status}`);
   });
 
   await prueba("desvincular la deja sin duenio, y otra vez da 404", async () => {

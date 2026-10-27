@@ -1,6 +1,8 @@
 import { supabase } from "../config/supabase";
 import { PastillaCreate, PastillaUpdate } from "../schemas/pastillas.schema";
 import { asignarPastillaAModulo, getModuloCompartido } from "./modulos.service";
+import { esMio } from "./pastilleros.service";
+import { ErrorHttp } from "../utils/errores";
 
 const conModulo = (fila: any, compartido: any = null) => {
   const { modulos, ...pastilla } = fila;
@@ -10,25 +12,31 @@ const conModulo = (fila: any, compartido: any = null) => {
 export const getAllPastillas = async (usuario_id?: string) => {
   let query = supabase
     .from("pastillas")
-    .select("*, modulos(id, numero, cantidad_actual)");
+    .select("*, modulos(id, numero, cantidad_actual, dispositivo_id)");
 
   if (usuario_id) query = query.eq("usuario_id", usuario_id);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  const compartido = usuario_id ? await getModuloCompartido(usuario_id) : null;
-  return (data ?? []).map((fila) => conModulo(fila, compartido));
+  const filas = data ?? [];
+  const compartidos = new Map<string, any>();
+  if (usuario_id) {
+    for (const d of new Set(filas.filter((f: any) => !f.modulos?.length).map((f: any) => f.dispositivo_id ?? ""))) {
+      compartidos.set(d, await getModuloCompartido(usuario_id, d || null));
+    }
+  }
+  return filas.map((fila: any) => conModulo(fila, compartidos.get(fila.dispositivo_id ?? "") ?? null));
 };
 
 export const getPastillaById = async (id: string, usuario_id: string) => {
   const { data, error } = await supabase
     .from("pastillas")
-    .select("*, modulos(id, numero, cantidad_actual)")
+    .select("*, modulos(id, numero, cantidad_actual, dispositivo_id)")
     .eq("id", id)
     .eq("usuario_id", usuario_id)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return data ? conModulo(data, await getModuloCompartido(usuario_id)) : null;
+  return data ? conModulo(data, await getModuloCompartido(usuario_id, data.dispositivo_id)) : null;
 };
 
 export const esDelUsuario = async (id: string, usuario_id: string) => {
@@ -45,6 +53,10 @@ export const esDelUsuario = async (id: string, usuario_id: string) => {
 export const createPastilla = async (body: PastillaCreate) => {
   const { cantidad_inicial, modulo_numero, ...datosPastilla } = body;
 
+  if (datosPastilla.dispositivo_id && !(await esMio(datosPastilla.usuario_id, datosPastilla.dispositivo_id))) {
+    throw new ErrorHttp(404, "Pastillero no encontrado");
+  }
+
   const { data, error } = await supabase
     .from("pastillas")
     .insert(datosPastilla)
@@ -56,9 +68,18 @@ export const createPastilla = async (body: PastillaCreate) => {
   const modulo =
     cantidad_inicial === undefined
       ? null
-      : await asignarPastillaAModulo(data.id, cantidad_inicial, datosPastilla.usuario_id, modulo_numero);
+      : await asignarPastillaAModulo(
+          data.id,
+          cantidad_inicial,
+          datosPastilla.usuario_id,
+          modulo_numero,
+          datosPastilla.dispositivo_id
+        );
 
-  return { ...data, modulo: modulo ?? (await getModuloCompartido(datosPastilla.usuario_id)) };
+  return {
+    ...data,
+    modulo: modulo ?? (await getModuloCompartido(datosPastilla.usuario_id, datosPastilla.dispositivo_id)),
+  };
 };
 
 export const updatePastilla = async (id: string, body: PastillaUpdate) => {

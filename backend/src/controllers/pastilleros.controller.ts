@@ -10,6 +10,15 @@ const VincularSchema = z.object({
     .pipe(z.string().regex(/^[0-9]{8}$/, "El codigo son 8 numeros")),
 });
 
+const RenombrarSchema = z.object({
+  nombre: z
+    .string()
+    .trim()
+    .max(40, "El nombre puede tener hasta 40 letras")
+    .transform((n) => n || null)
+    .nullable(),
+});
+
 export const getMios = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await pastillerosService.getMisPastilleros(idDelUsuario(req));
@@ -37,6 +46,20 @@ export const desvincular = async (req: Request, res: Response, next: NextFunctio
   try {
     await pastillerosService.desvincular(idDelUsuario(req), req.params.dispositivo_id);
     res.json({ success: true, data: null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const renombrar = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const result = RenombrarSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ success: false, error: result.error.flatten() });
+    return;
+  }
+  try {
+    const data = await pastillerosService.renombrar(idDelUsuario(req), req.params.dispositivo_id, result.data.nombre);
+    res.json({ success: true, data });
   } catch (error) {
     next(error);
   }
