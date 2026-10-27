@@ -35,7 +35,6 @@ export default function Login() {
     <Pantalla angosta presentacion>
       <Encabezado
         titulo="Entrar a tu cuenta"
-        bajada="Con el mail y la contraseña con los que te registraste."
         volverA="/"
       />
 

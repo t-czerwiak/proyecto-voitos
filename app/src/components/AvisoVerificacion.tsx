@@ -62,8 +62,8 @@ export default function AvisoVerificacion() {
       </View>
 
       <Text style={styles.cuerpo}>
-        Te mandamos un mail con un enlace. Podés usar la app igual, pero hasta
-        confirmarla no te van a llegar los avisos del pastillero.
+        Abrí el enlace que te mandamos por mail para recibir los avisos del
+        pastillero.
       </Text>
 
       {mensaje !== "" && <Text style={styles.respuesta}>{mensaje}</Text>}

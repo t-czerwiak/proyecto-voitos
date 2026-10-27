@@ -51,7 +51,7 @@ export default function EditorFoto({ foto, guardando, alGuardar, alCancelar }: P
       <View style={styles.fondo}>
         <View style={styles.caja} accessibilityViewIsModal>
           <Text style={styles.titulo}>Acomodá tu foto</Text>
-          <Text style={styles.bajada}>Arrastrala para moverla y usá + y − para acercarla o alejarla.</Text>
+          <Text style={styles.bajada}>Arrastrala para acomodarla.</Text>
 
           <View style={styles.visor} {...arrastre.panHandlers}>
             <View pointerEvents="none" style={{ position: "absolute", width: VISOR, height: VISOR }}>

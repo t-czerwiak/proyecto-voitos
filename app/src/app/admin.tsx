@@ -154,7 +154,7 @@ export default function Admin() {
     <Pantalla>
       <View style={escritorio ? styles.cabecera : undefined}>
         <View style={styles.cabeceraTextos}>
-          <Encabezado titulo="Administración" bajada="Las cuentas del sistema." volverA="/home" principal />
+          <Encabezado titulo="Administración" volverA="/home" principal />
         </View>
         <Boton
           titulo="Calendario general"
@@ -201,7 +201,7 @@ export default function Admin() {
             </View>
 
             {visibles.length === 0 ? (
-              <Vacio icono="search-outline" titulo="Ninguna cuenta coincide" detalle="Probá con otra parte del nombre o del mail." />
+              <Vacio icono="search-outline" titulo="Ninguna cuenta coincide" />
             ) : (
               <View style={escritorio ? styles.grilla : undefined}>
                 {visibles.map((u) => {

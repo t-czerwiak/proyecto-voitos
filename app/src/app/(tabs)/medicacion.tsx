@@ -106,7 +106,6 @@ export default function Pastillas() {
         <Vacio
           icono="medkit-outline"
           titulo="Todavía no cargaste ninguna pastilla"
-          detalle="El primer paso es cargar la pastilla y decir cuántas pusiste en el pastillero."
           accion={{
             titulo: "Cargar la primera",
             onPress: () => router.push("/agregar-medicacion"),
@@ -167,7 +166,6 @@ export default function Pastillas() {
     <Pantalla>
       <Encabezado
         titulo="Pastillas"
-        bajada="Lo que hay cargado en el pastillero y lo que se puede hacer con eso."
         volverA="/home"
         principal
       />

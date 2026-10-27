@@ -9,7 +9,6 @@ export default function configuracion() {
       <Vacio
         icono="construct-outline"
         titulo="Esta sección todavía no está hecha"
-        detalle="Queda para más adelante. Por ahora, todo lo que anda está en el inicio."
       />
     </Pantalla>
   );
