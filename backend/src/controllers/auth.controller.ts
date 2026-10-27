@@ -5,6 +5,7 @@ import {
   LoginGoogleSchema,
   RecuperarSchema,
   ConfirmarResetSchema,
+  CambiarPasswordSchema,
 } from "../schemas/auth.schema";
 import * as authService from "../services/auth.service";
 
@@ -91,6 +92,20 @@ export const confirmarRecuperacion = async (req: Request, res: Response, next: N
   try {
     const data = await authService.confirmarRecuperacion(result.data);
     res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const cambiarPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const result = CambiarPasswordSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ success: false, error: result.error.flatten() });
+    return;
+  }
+  try {
+    await authService.cambiarPassword((req as any).user.id, result.data);
+    res.json({ success: true, data: null, message: "Listo, cambiaste la contraseña" });
   } catch (error) {
     next(error);
   }

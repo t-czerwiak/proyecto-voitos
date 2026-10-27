@@ -29,6 +29,8 @@ app.use(helmet({ contentSecurityPolicy: false }));
 
 app.use(cors());
 
+app.use("/api/usuarios/yo/foto", express.json({ limit: "400kb" }));
+
 app.use(express.json({ limit: "16kb" }));
 
 app.use(logger);
@@ -47,6 +49,7 @@ const limiteAuth = rateLimit({
 
 app.use("/api/auth/login", limiteAuth);
 app.use("/api/auth/registro", limiteAuth);
+app.use("/api/auth/cambiar-password", limiteAuth);
 
 const limiteRecuperacion = rateLimit({
   windowMs: 15 * 60 * 1000,

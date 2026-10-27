@@ -33,3 +33,10 @@ export type Login = z.infer<typeof LoginSchema>;
 export type LoginGoogle = z.infer<typeof LoginGoogleSchema>;
 export type Recuperar = z.infer<typeof RecuperarSchema>;
 export type ConfirmarReset = z.infer<typeof ConfirmarResetSchema>;
+
+export const CambiarPasswordSchema = z.object({
+  actual: z.string().min(1, "Escribí tu contraseña actual"),
+  nueva: z.string().min(6, "La contraseña nueva tiene que tener al menos 6 caracteres"),
+});
+
+export type CambiarPassword = z.infer<typeof CambiarPasswordSchema>;
