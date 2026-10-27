@@ -80,7 +80,6 @@ export default function AgregarActividad() {
     <Pantalla formulario>
       <Encabezado
         titulo="Agregar una actividad"
-        bajada="Para lo que no dispensa el pastillero: una caminata, el kinesiólogo, una visita."
       />
 
       <Aviso texto={error} />
@@ -89,7 +88,7 @@ export default function AgregarActividad() {
         etiqueta="Qué actividad es"
         valor={nombre}
         alCambiar={setNombre}
-        ayuda="Por ejemplo: gimnasia, control con el cardiólogo."
+        placeholder="Kinesiología, control con el cardiólogo…"
         error={errorNombre}
       />
 

@@ -71,7 +71,6 @@ export default function AgregarMedicacion() {
     <Pantalla formulario>
       <Encabezado
         titulo="Cargar una pastilla"
-        bajada="Esto se hace una sola vez por medicamento. Después se agenda y se recarga."
         volverA="/medicacion"
       />
 
@@ -82,7 +81,7 @@ export default function AgregarMedicacion() {
         etiqueta="Nombre del medicamento"
         valor={nombre}
         alCambiar={setNombre}
-        ayuda="Como figura en la caja. Por ejemplo: Aspirina 100."
+        placeholder="Aspirina 100"
         error={errorNombre}
       />
 
@@ -105,7 +104,7 @@ export default function AgregarMedicacion() {
         valor={cantidad}
         alCambiar={setCantidad}
         teclado="numeric"
-        ayuda="Las que cargaste físicamente en el pastillero. De acá sale el aviso de cuándo se están por acabar."
+        ayuda="Con esto te avisamos cuando se estén por acabar."
         placeholder="0"
       />
 

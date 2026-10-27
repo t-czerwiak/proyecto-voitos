@@ -58,7 +58,6 @@ export default function CrearCuenta() {
     <Pantalla angosta presentacion>
       <Encabezado
         titulo="Crear una cuenta"
-        bajada="La cuenta es de quien cuida. El pastillero se agenda desde acá."
         volverA="/"
       />
 
@@ -76,7 +75,7 @@ export default function CrearCuenta() {
         alCambiar={setMail}
         teclado="email-address"
         autoCompletar="email"
-        ayuda="Acá te van a llegar los avisos de cada dosis."
+        ayuda="Ahí te llegan los avisos de las dosis."
         placeholder="nombre@mail.com"
       />
 

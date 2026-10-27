@@ -15,9 +15,6 @@ export default function Portada() {
           <Text style={styles.titulo} accessibilityRole="header">
             Entrar a Voitos
           </Text>
-          <Text style={styles.bajadaIzquierda}>
-            Si ya tenés cuenta, iniciá sesión. Si no, creala en un minuto.
-          </Text>
         </View>
       ) : (
         <View style={styles.centro}>
@@ -31,8 +28,7 @@ export default function Portada() {
           />
 
           <Text style={styles.bajada}>
-            El pastillero entrega la medicación a horario. Vos la agendás desde
-            acá y te enterás de cada dosis.
+            Más tranquilidad para ellos, más tranquilidad para vos.
           </Text>
         </View>
       )}
@@ -83,12 +79,6 @@ const useEstilos = crearEstilos((colores) => ({
   titulo: {
     ...texto.titulo,
     color: colores.texto,
-  },
-
-  bajadaIzquierda: {
-    ...texto.cuerpo,
-    color: colores.textoSuave,
-    marginTop: espacio.sm,
   },
 
   acciones: {

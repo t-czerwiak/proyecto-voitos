@@ -115,14 +115,12 @@ export default function RecargarMedicacion() {
       <Pantalla formulario>
         <Encabezado
           titulo="Recargar o borrar"
-          bajada="Acá se suman pastillas al pastillero."
           volverA="/medicacion"
         />
 
         <Vacio
           icono="medkit-outline"
           titulo="Todavía no hay ninguna pastilla cargada"
-          detalle="No hay nada que recargar hasta que cargues el primer medicamento."
           accion={{
             titulo: "Cargar una pastilla",
             onPress: () => router.push("/agregar-medicacion"),
@@ -138,7 +136,6 @@ export default function RecargarMedicacion() {
     <Pantalla formulario>
       <Encabezado
         titulo="Recargar o borrar"
-        bajada="Cuando volvés a llenar el pastillero, decilo acá."
         volverA="/medicacion"
       />
 
@@ -186,7 +183,6 @@ export default function RecargarMedicacion() {
         valor={ajuste}
         alCambiar={setAjuste}
         teclado="numeric"
-        ayuda="Un número entero. Después elegí si se suman o se restan."
         error={errorAjuste}
         placeholder="0"
       />

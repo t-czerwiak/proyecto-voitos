@@ -239,7 +239,6 @@ export default function Hoy() {
                     <Vacio
                       icono="medkit-outline"
                       titulo="Hoy no hay ninguna dosis agendada"
-                      detalle="Si el tratamiento arranca hoy, agendalo desde Pastillas."
                       accion={{
                         titulo: "Agendar una dosis",
                         onPress: () => router.push("/agendar-medicacion"),
@@ -313,14 +312,14 @@ export default function Hoy() {
                 <Acceso
                   icono="calendar"
                   titulo="Calendario"
-                  detalle="Todas las dosis agendadas, día por día, y las rutinas en curso."
+                  detalle="Dosis y actividades, día por día."
                   onPress={() => router.push("/calendario")}
                 />
 
                 <Acceso
                   icono="medkit"
                   titulo="Pastillas"
-                  detalle="Cargar una pastilla nueva, agendar dosis y recargar el pastillero."
+                  detalle="Cargar, agendar y recargar."
                   onPress={() => router.push("/medicacion")}
                 />
               </View>

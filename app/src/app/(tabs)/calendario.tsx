@@ -198,7 +198,6 @@ export default function Calendario() {
     <Pantalla>
       <Encabezado
         titulo="Calendario"
-        bajada="Tocá un día para ver qué hay agendado."
         volverA="/home"
         principal
       />
@@ -391,7 +390,6 @@ export default function Calendario() {
                     <Vacio
                       icono="medkit-outline"
                       titulo="No hay dosis para este día"
-                      detalle="Las dosis se agendan desde Pastillas, eligiendo los días de la semana."
                       accion={{
                         titulo: "Agendar una dosis",
                         onPress: () => router.push("/agendar-medicacion"),
@@ -421,7 +419,6 @@ export default function Calendario() {
                     <Vacio
                       icono="walk-outline"
                       titulo="No hay actividades para este día"
-                      detalle="Sirven para anotar lo que no dispensa el pastillero: una caminata, el kinesiólogo, una visita."
                     />
                   ) : (
                     actividadesDelDia.map((a) => (

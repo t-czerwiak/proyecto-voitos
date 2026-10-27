@@ -183,14 +183,12 @@ export default function AgendarMedicacion() {
       <Pantalla formulario>
         <Encabezado
           titulo="Agendar una dosis"
-          bajada="Para agendar hace falta tener al menos una pastilla cargada."
           volverA="/medicacion"
         />
 
         <Vacio
           icono="medkit-outline"
           titulo="Todavía no hay ninguna pastilla cargada"
-          detalle="Primero cargá el medicamento y decí cuántas pusiste en el pastillero."
           accion={{
             titulo: "Cargar una pastilla",
             onPress: () => router.push("/agregar-medicacion"),
@@ -204,7 +202,6 @@ export default function AgendarMedicacion() {
     <Pantalla formulario>
       <Encabezado
         titulo="Agendar una dosis"
-        bajada="Elegí qué pastilla, a qué hora y qué días de la semana."
         volverA="/medicacion"
       />
 

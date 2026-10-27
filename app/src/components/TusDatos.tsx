@@ -201,7 +201,7 @@ export default function TusDatos({ usuario, alCambiar }: Props) {
           <Text style={styles.etiqueta}>Fecha de nacimiento</Text>
           {editando === "fecha" ? (
             <>
-              <CampoFechaNacimiento valor={fecha} alCambiar={setFecha} ayuda="Se guarda al tocar Guardar." />
+              <CampoFechaNacimiento valor={fecha} alCambiar={setFecha} />
               {botones(guardarFecha)}
             </>
           ) : (
