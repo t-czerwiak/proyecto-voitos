@@ -14,6 +14,7 @@ const codigoNuevo = () => String(randomInt(0, 100_000_000)).padStart(8, "0");
 export interface Alcance {
   duenos: string[];
   ajenos: string[];
+  dispositivo?: string;
 }
 
 const vinculos = async () => {
@@ -25,8 +26,17 @@ const vinculos = async () => {
 export const alcanceDe = async (dispositivo_id?: string): Promise<Alcance> => {
   const todos = await vinculos();
   const duenos = todos.filter((v) => v.dispositivo_id === dispositivo_id).map((v) => v.usuario_id as string);
-  return { duenos, ajenos: duenos.length ? [] : [...new Set(todos.map((v) => v.usuario_id as string))] };
+  return {
+    duenos,
+    ajenos: duenos.length ? [] : [...new Set(todos.map((v) => v.usuario_id as string))],
+    dispositivo: dispositivo_id,
+  };
 };
+
+export const soloDeEstePastillero = (consulta: any, a: Alcance) =>
+  a.dispositivo
+    ? consulta.or(`dispositivo_id.is.null,dispositivo_id.eq.${a.dispositivo}`, { referencedTable: "pastillas" })
+    : consulta;
 
 export const filtrarPorAlcance = (consulta: any, a: Alcance, columna: string) => {
   if (a.duenos.length) return consulta.in(columna, a.duenos);
@@ -117,7 +127,7 @@ export const vincular = async (usuario_id: string, codigo: string) => {
 export const getMisPastilleros = async (usuario_id: string) => {
   const { data, error } = await supabase
     .from("pastillero_usuarios")
-    .select("dispositivo_id, vinculado_at")
+    .select("dispositivo_id, nombre, vinculado_at")
     .eq("usuario_id", usuario_id)
     .order("vinculado_at", { ascending: true });
 
@@ -142,4 +152,30 @@ export const desvincular = async (usuario_id: string, dispositivo_id: string) =>
     .select("usuario_id", { count: "exact", head: true })
     .eq("dispositivo_id", dispositivo_id);
   if (!count) await supabase.from("pastilleros").update({ secreto_hash: null }).eq("dispositivo_id", dispositivo_id);
+};
+
+export const renombrar = async (usuario_id: string, dispositivo_id: string, nombre: string | null) => {
+  const { data, error } = await supabase
+    .from("pastillero_usuarios")
+    .update({ nombre })
+    .eq("dispositivo_id", dispositivo_id)
+    .eq("usuario_id", usuario_id)
+    .select("dispositivo_id, nombre, vinculado_at")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new ErrorHttp(404, "Pastillero no encontrado");
+  return data;
+};
+
+export const esMio = async (usuario_id: string, dispositivo_id: string) => {
+  const { data, error } = await supabase
+    .from("pastillero_usuarios")
+    .select("dispositivo_id")
+    .eq("dispositivo_id", dispositivo_id)
+    .eq("usuario_id", usuario_id)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data !== null;
 };

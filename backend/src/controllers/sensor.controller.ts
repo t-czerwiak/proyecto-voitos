@@ -7,7 +7,7 @@ import { alcanceDe, vinculoParaPlaca } from "../services/pastilleros.service";
 export const pendiente = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const q = req.query.dispositivo_id;
-    const dispositivo_id = typeof q === "string" && q.length <= 64 ? q : undefined;
+    const dispositivo_id = typeof q === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(q) ? q : undefined;
     const alcance = await alcanceDe(dispositivo_id);
 
     const [pendiente, recordatorios, vinculo] = await Promise.all([

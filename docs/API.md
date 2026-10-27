@@ -502,6 +502,11 @@ Google no tiene contraseña: para ponerle una se usa "olvidé mi contraseña".
   módulo. No es una columna de `pastillas`: va a `modulos.cantidad_actual`.
 - `modulo_numero` (opcional): en qué módulo se carga. Si no viene, se usa el
   primero libre.
+- `dispositivo_id` (opcional): en qué pastillero de la cuenta va. Tiene que
+  ser uno vinculado a la cuenta (si no, 404). Una pastilla con pastillero solo
+  sale por ese: `pendiente` y los recordatorios de otra placa no la ven.
+- `tipo`: el tamaño, que la app dibuja distinto: `chico`, `mediano`, `grande`
+  o `pildora`.
 - **El backend nunca crea módulos.** Si el número pedido no existe responde
   409; si no hay ninguno libre, la pastilla se crea igual pero queda **sin
   cargar** (no se puede dispensar hasta asignarle un módulo). Los módulos son
@@ -651,7 +656,12 @@ crear una pastilla y para lo que la placa recibe en `pendiente`.
 | ------ | ---- | ----------- |
 | GET | `/api/pastilleros` | Los pastilleros vinculados a la cuenta |
 | POST | `/api/pastilleros/vincular` | Vincular con el código de 8 dígitos del display |
+| PATCH | `/api/pastilleros/:dispositivo_id` | Ponerle un nombre propio: `{ "nombre": "Casa de mamá" }` (hasta 40 letras; vacío o `null` lo borra) |
 | DELETE | `/api/pastilleros/:dispositivo_id` | Desvincular la cuenta de ese pastillero |
+
+El nombre es **de cada cuenta**: si varias cuentas comparten el pastillero,
+cada una ve el que le puso. Es solo estético; `GET /api/pastilleros` lo
+devuelve junto a `dispositivo_id` y `vinculado_at`.
 
 Un pastillero es una placa ESP32 (`dispositivo_id`, el mismo que tienen sus
 módulos). Como los módulos, **se dan de alta a mano** en la tabla
@@ -815,12 +825,12 @@ Supabase (PostgreSQL), proyecto `pshejdspqqhuhyjbzslx`.
 | Tabla | Columnas principales |
 | ----- | -------------------- |
 | `usuarios` | `id` (= id de Supabase Auth), `nombre`, `apellido`, `mail`, `fecha_nacimiento`, `foto_url`, `rol` (`cuidador`/`admin`), `verificado`, `token_verificacion` + `token_expira`, `token_reset` + `token_reset_expira` |
-| `pastillas` | `id`, `usuario_id`, `nombre`, `tipo` |
+| `pastillas` | `id`, `usuario_id`, `nombre`, `tipo`, `dispositivo_id` (null = cualquiera de la cuenta; SET NULL al borrar el pastillero) |
 | `horarios` | `id`, `pastilla_id`, `dia`, `hora`, `minuto`, `cantidad` (1-20), `dispensado`, `senal_enviada`, `notificado`, `recordatorio_min` |
 | `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `detectadas` (0-20 o null, lo que vio el sensor), `timestamp` |
 | `modulos` | `id`, `numero`, `nombre`, `dispositivo_id`, `pastilla_id` (null = vacío), `cantidad_actual`. Único por (`dispositivo_id`, `numero`) |
 | `pastilleros` | `dispositivo_id` (PK), `secreto_hash`, `codigo` (8 dígitos, único) + `codigo_vence` |
-| `pastillero_usuarios` | (`dispositivo_id`, `usuario_id`) PK, `vinculado_at`. CASCADE con las dos tablas |
+| `pastillero_usuarios` | (`dispositivo_id`, `usuario_id`) PK, `nombre` (el que le puso esa cuenta, hasta 40), `vinculado_at`. CASCADE con las dos tablas |
 | `contactos_emergencia` | `id`, `usuario_id`, `nombre`, `apellido`, `numero`, `dni` |
 | `actividades` | `id`, `usuario_id`, `nombre`, `fecha`, `hora`, `tipo`, `dias`, `recordatorio_min` |
 

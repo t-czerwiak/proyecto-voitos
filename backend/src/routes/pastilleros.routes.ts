@@ -10,6 +10,8 @@ router.get("/", pastillerosController.getMios);
 
 router.post("/vincular", pastillerosController.vincular);
 
+router.patch("/:dispositivo_id", pastillerosController.renombrar);
+
 router.delete("/:dispositivo_id", pastillerosController.desvincular);
 
 export default router;
