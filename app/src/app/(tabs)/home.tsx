@@ -21,12 +21,13 @@ import {
   rutinasActivas,
   letraDelDia,
 } from "../../lib/rutinas";
-import { Pantalla, Tarjeta, Boton, Aviso, Vacio, Cargando, Estado } from "../../ui";
+import { Pantalla, Tarjeta, Boton, Aviso, Vacio, Cargando, Estado, Columnas, useEscritorio } from "../../ui";
 import { crearEstilos, useColores, espacio, texto } from "../../tema";
 
 export default function Hoy() {
   const styles = useEstilos();
   const colores = useColores();
+  const escritorio = useEscritorio();
 
   const [admin, setAdmin] = useState(false);
   const [horarios, setHorarios] = useState<Horario[]>([]);
@@ -94,13 +95,40 @@ export default function Hoy() {
   const cantidadProxima =
     proxima?.cantidad === 1 ? "1 pastilla" : `${proxima?.cantidad} pastillas`;
 
+  const acciones = (
+    <>
+      {admin && (
+        <Boton
+          titulo="Panel de administración"
+          variante="secundario"
+          icono="shield-outline"
+          ancho={escritorio ? "auto" : "completo"}
+          onPress={() => router.push("/admin")}
+        />
+      )}
+
+      <Boton
+        titulo="Tu perfil"
+        variante={escritorio ? "secundario" : "enlace"}
+        icono="person-circle-outline"
+        ancho={escritorio ? "auto" : "completo"}
+        onPress={() => router.push("/perfil")}
+        ayuda="Tus datos, tus pastillas, y cerrar sesión"
+      />
+    </>
+  );
+
   return (
-    <Pantalla>
-      <View style={styles.saludo}>
-        <Text style={styles.hola} accessibilityRole="header">
-          {usuario?.nombre ? `Hola, ${usuario.nombre}` : "Hola"}
-        </Text>
-        <Text style={styles.fecha}>Hoy es {fechaLarga(hoy)}</Text>
+    <Pantalla ancha={escritorio}>
+      <View style={escritorio ? styles.cabeceraAncha : undefined}>
+        <View style={styles.saludo}>
+          <Text style={styles.hola} accessibilityRole="header">
+            {usuario?.nombre ? `Hola, ${usuario.nombre}` : "Hola"}
+          </Text>
+          <Text style={styles.fecha}>Hoy es {fechaLarga(hoy)}</Text>
+        </View>
+
+        {escritorio && <View style={styles.accionesArriba}>{acciones}</View>}
       </View>
 
       <AvisoVerificacion />
@@ -119,153 +147,145 @@ export default function Hoy() {
         />
       )}
 
-      {cargando ? (
-        <Cargando texto="Buscando las dosis de hoy..." />
-      ) : (
-        <>
-          {proxima && (
-            <View style={styles.seccion}>
-              <Text style={styles.tituloSeccion} accessibilityRole="header">
-                La que sigue
-              </Text>
+      <Columnas
+        principal={
+          <>
+            {cargando ? (
+              <Cargando texto="Buscando las dosis de hoy..." />
+            ) : (
+              <>
+                {proxima && (
+                  <View style={styles.seccion}>
+                    <Text style={styles.tituloSeccion} accessibilityRole="header">
+                      La que sigue
+                    </Text>
 
-              <Tarjeta destacada>
-                <View
-                  accessible
-                  accessibilityLabel={`La próxima dosis es ${fechaRelativa(
-                    proxima.dia
-                  )} a las ${comoHora(
-                    proxima.hora,
-                    proxima.minuto
-                  )}: ${nombrePastilla}, ${cantidadProxima}.`}
-                >
-                  <Text style={styles.proximaCuando}>
-                    {fechaRelativa(proxima.dia)} a las{" "}
-                    {comoHora(proxima.hora, proxima.minuto)}
+                    <Tarjeta destacada>
+                      <View
+                        accessible
+                        accessibilityLabel={`La próxima dosis es ${fechaRelativa(
+                          proxima.dia
+                        )} a las ${comoHora(
+                          proxima.hora,
+                          proxima.minuto
+                        )}: ${nombrePastilla}, ${cantidadProxima}.`}
+                      >
+                        <Text style={styles.proximaCuando}>
+                          {fechaRelativa(proxima.dia)} a las{" "}
+                          {comoHora(proxima.hora, proxima.minuto)}
+                        </Text>
+
+                        <Text style={styles.proximaPastilla}>{nombrePastilla}</Text>
+
+                        <Text style={styles.proximaCantidad}>{cantidadProxima}</Text>
+                      </View>
+                    </Tarjeta>
+                  </View>
+                )}
+
+                <View style={styles.seccion}>
+                  <Text style={styles.tituloSeccion} accessibilityRole="header">
+                    La medicación de hoy
                   </Text>
 
-                  <Text style={styles.proximaPastilla}>{nombrePastilla}</Text>
+                  {dosisDeHoy.length > 0 && (
+                    <View style={styles.marcadores}>
+                      <Estado
+                        texto={`${resumen.dispensadas} ${
+                          resumen.dispensadas === 1 ? "salió" : "salieron"
+                        }`}
+                        tono="ok"
+                      />
+                      {resumen.pendientes > 0 && (
+                        <Estado texto={`${resumen.pendientes} por salir`} tono="neutro" />
+                      )}
+                      {resumen.sinDispensar > 0 && (
+                        <Estado texto={`${resumen.sinDispensar} sin salir`} tono="atencion" />
+                      )}
+                    </View>
+                  )}
 
-                  <Text style={styles.proximaCantidad}>{cantidadProxima}</Text>
+                  {dosisDeHoy.length === 0 ? (
+                    <Vacio
+                      icono="medkit-outline"
+                      titulo="Hoy no hay ninguna dosis agendada"
+                      detalle="Si el tratamiento arranca hoy, agendalo desde Pastillas."
+                      accion={{
+                        titulo: "Agendar una dosis",
+                        onPress: () => router.push("/agendar-medicacion"),
+                      }}
+                    />
+                  ) : (
+                    dosisDeHoy.map((dosis) => {
+                      const suRutina = rutinaDeHorario(rutinas, dosis);
+                      return (
+                        <FilaDosis
+                          key={dosis.id}
+                          dosis={dosis}
+                          color={suRutina?.color}
+                          detalle={
+                            suRutina
+                              ? `Rutina: ${suRutina.dias.join(" ")} a las ${suRutina.horaTexto}`
+                              : "Dosis suelta"
+                          }
+                        />
+                      );
+                    })
+                  )}
                 </View>
-              </Tarjeta>
-            </View>
-          )}
 
-          <View style={styles.seccion}>
-            <Text style={styles.tituloSeccion} accessibilityRole="header">
-              La medicación de hoy
-            </Text>
+                {actividadesDeHoy.length > 0 && (
+                  <View style={styles.seccion}>
+                    <Text style={styles.tituloSeccion} accessibilityRole="header">
+                      Otras actividades de hoy
+                    </Text>
 
-            {dosisDeHoy.length > 0 && (
-              <View style={styles.marcadores}>
-                <Estado
-                  texto={`${resumen.dispensadas} ${
-                    resumen.dispensadas === 1 ? "salió" : "salieron"
-                  }`}
-                  tono="ok"
-                />
-                {resumen.pendientes > 0 && (
-                  <Estado texto={`${resumen.pendientes} por salir`} tono="neutro" />
+                    {actividadesDeHoy.map((a) => (
+                      <Tarjeta key={a.id}>
+                        <View
+                          style={styles.actividad}
+                          accessible
+                          accessibilityLabel={`A las ${a.hora}, ${a.nombre}`}
+                        >
+                          <Text style={styles.actividadHora}>{a.hora}</Text>
+                          <Text style={styles.actividadNombre}>{a.nombre}</Text>
+                        </View>
+                      </Tarjeta>
+                    ))}
+                  </View>
                 )}
-                {resumen.sinDispensar > 0 && (
-                  <Estado texto={`${resumen.sinDispensar} sin salir`} tono="atencion" />
-                )}
-              </View>
+              </>
             )}
-
-            {dosisDeHoy.length === 0 ? (
-              <Vacio
-                icono="medkit-outline"
-                titulo="Hoy no hay ninguna dosis agendada"
-                detalle="Si el tratamiento arranca hoy, agendalo desde Pastillas."
-                accion={{
-                  titulo: "Agendar una dosis",
-                  onPress: () => router.push("/agendar-medicacion"),
-                }}
-              />
-            ) : (
-              dosisDeHoy.map((dosis) => {
-                const suRutina = rutinaDeHorario(rutinas, dosis);
-                return (
-                  <FilaDosis
-                    key={dosis.id}
-                    dosis={dosis}
-                    color={suRutina?.color}
-                    detalle={
-                      suRutina
-                        ? `Rutina: ${suRutina.dias.join(" ")} a las ${suRutina.horaTexto}`
-                        : "Dosis suelta"
-                    }
-                  />
-                );
-              })
-            )}
-          </View>
-
-          {actividadesDeHoy.length > 0 && (
+          </>
+        }
+        lateral={
+          <>
             <View style={styles.seccion}>
               <Text style={styles.tituloSeccion} accessibilityRole="header">
-                Otras actividades de hoy
+                Dónde ir
               </Text>
 
-              {actividadesDeHoy.map((a) => (
-                <Tarjeta key={a.id}>
-                  <View
-                    style={styles.actividad}
-                    accessible
-                    accessibilityLabel={`A las ${a.hora}, ${a.nombre}`}
-                  >
-                    <Text style={styles.actividadHora}>{a.hora}</Text>
-                    <Text style={styles.actividadNombre}>{a.nombre}</Text>
-                  </View>
-                </Tarjeta>
-              ))}
+              <Acceso
+                icono="calendar"
+                titulo="Calendario"
+                detalle="Todas las dosis agendadas, día por día, y las rutinas en curso."
+                onPress={() => router.push("/calendario")}
+              />
+
+              <Acceso
+                icono="medkit"
+                titulo="Pastillas"
+                detalle="Cargar una pastilla nueva, agendar dosis y recargar los módulos."
+                onPress={() => router.push("/medicacion")}
+              />
             </View>
-          )}
-        </>
-      )}
 
-      <View style={styles.seccion}>
-        <Text style={styles.tituloSeccion} accessibilityRole="header">
-          Dónde ir
-        </Text>
+            {!escritorio && <View style={styles.pie}>{acciones}</View>}
 
-        <Acceso
-          icono="calendar"
-          titulo="Calendario"
-          detalle="Todas las dosis agendadas, día por día, y las rutinas en curso."
-          onPress={() => router.push("/calendario")}
-        />
-
-        <Acceso
-          icono="medkit"
-          titulo="Pastillas"
-          detalle="Cargar una pastilla nueva, agendar dosis y recargar los módulos."
-          onPress={() => router.push("/medicacion")}
-        />
-      </View>
-
-      <View style={styles.pie}>
-        {admin && (
-          <Boton
-            titulo="Panel de administración"
-            variante="secundario"
-            icono="shield-outline"
-            onPress={() => router.push("/admin")}
-          />
-        )}
-
-        <Boton
-          titulo="Tu perfil"
-          variante="enlace"
-          icono="person-circle-outline"
-          onPress={() => router.push("/perfil")}
-          ayuda="Tus datos, tus pastillas, y cerrar sesión"
-        />
-      </View>
-
-      <TarjetaLanding />
+            <TarjetaLanding />
+          </>
+        }
+      />
     </Pantalla>
   );
 }
@@ -305,6 +325,18 @@ function Acceso({
 const useEstilos = crearEstilos((colores) => ({
   saludo: {
     marginBottom: espacio.xl,
+  },
+
+  cabeceraAncha: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: espacio.lg,
+  },
+
+  accionesArriba: {
+    flexDirection: "row",
+    gap: espacio.md,
   },
 
   hola: {

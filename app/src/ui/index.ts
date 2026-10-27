@@ -1,4 +1,5 @@
 export { default as Pantalla } from "./Pantalla";
+export { default as Columnas, useEscritorio } from "./Columnas";
 export { default as Fondo } from "./Fondo";
 export { default as Encabezado } from "./Encabezado";
 export { default as Boton } from "./Boton";

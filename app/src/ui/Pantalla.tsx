@@ -2,7 +2,7 @@ import React from "react";
 import { ScrollView, View, ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Fondo from "./Fondo";
-import { ANCHO_FORMULARIO, ANCHO_MAXIMO, crearEstilos, espacio } from "../tema";
+import { ANCHO_ESCRITORIO_MAXIMO, ANCHO_FORMULARIO, ANCHO_MAXIMO, crearEstilos, espacio } from "../tema";
 
 type Props = {
   children: React.ReactNode;
@@ -12,6 +12,8 @@ type Props = {
   centrado?: boolean;
 
   angosta?: boolean;
+
+  ancha?: boolean;
   estiloContenido?: ViewStyle;
 };
 
@@ -20,6 +22,7 @@ export default function Pantalla({
   scroll = true,
   centrado = false,
   angosta = false,
+  ancha = false,
   estiloContenido,
 }: Props) {
   const styles = useEstilos();
@@ -28,6 +31,7 @@ export default function Pantalla({
       style={[
         styles.columna,
         angosta && styles.columnaAngosta,
+        ancha && styles.columnaAncha,
         centrado && styles.columnaCentrada,
         estiloContenido,
       ]}
@@ -91,6 +95,10 @@ const useEstilos = crearEstilos((colores) => ({
 
   columnaAngosta: {
     maxWidth: ANCHO_FORMULARIO,
+  },
+
+  columnaAncha: {
+    maxWidth: ANCHO_ESCRITORIO_MAXIMO,
   },
 
   columnaCentrada: {
