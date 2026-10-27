@@ -420,6 +420,54 @@ const correr = async () => {
     esperar((await moduloDeLaPastilla())?.id !== moduloPlaca.id, "desvinculada sigue usando el modulo del pastillero");
   });
 
+  console.log("\n=== TUS DATOS ===");
+
+  await prueba("cambiar el nombre y el apellido", async () => {
+    const { status, json } = await pedir(`/api/usuarios/${usuario.id}`, {
+      metodo: "PUT",
+      cuerpo: { nombre: "Demo2", apellido: "Cambiado" },
+    });
+    esperar(status === 200, `esperaba 200, vino ${status}`);
+    esperar(json.data.nombre === "Demo2" && json.data.apellido === "Cambiado", `vino ${JSON.stringify(json.data)}`);
+  });
+
+  await prueba("el mail no se cambia desde el perfil", async () => {
+    const { json } = await pedir(`/api/usuarios/${usuario.id}`, {
+      metodo: "PUT",
+      cuerpo: { mail: "otro@voitos.test" },
+    });
+    esperar(json.data?.mail !== "otro@voitos.test", "se cambio el mail");
+  });
+
+  const JPEG =
+    "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAEAAQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzeiiiuc+bP//Z";
+
+  await prueba("subir una foto de perfil y quitarla", async () => {
+    const mala = await pedir("/api/usuarios/yo/foto", { metodo: "POST", cuerpo: { imagen: "data:text/plain;base64,aG9sYQ==" } });
+    esperar(mala.status === 400, `algo que no es JPEG dio ${mala.status}`);
+
+    const { status, json } = await pedir("/api/usuarios/yo/foto", { metodo: "POST", cuerpo: { imagen: JPEG } });
+    esperar(status === 200, `esperaba 200, vino ${status}: ${JSON.stringify(json.error)}`);
+    esperar(json.data.foto_url, "no vino foto_url");
+    const foto = await fetch(json.data.foto_url);
+    esperar(foto.status === 200, `la foto no se puede abrir: ${foto.status}`);
+
+    const quitada = await pedir("/api/usuarios/yo/foto", { metodo: "DELETE" });
+    esperar(quitada.json.data.foto_url === null, "no se quito la foto");
+  });
+
+  await prueba("cambiar la contrasena pide la actual", async () => {
+    const mal = await pedir("/api/auth/cambiar-password", { metodo: "POST", cuerpo: { actual: "incorrecta", nueva: "nueva1234" } });
+    esperar(mal.status === 401, `con la actual mal esperaba 401, vino ${mal.status}`);
+
+    const bien = await pedir("/api/auth/cambiar-password", { metodo: "POST", cuerpo: { actual: "demo1234", nueva: "nueva1234" } });
+    esperar(bien.status === 200, `esperaba 200, vino ${bien.status}: ${JSON.stringify(bien.json.error)}`);
+
+    const login = await pedir("/api/auth/login", { metodo: "POST", conToken: false, cuerpo: { mail, password: "nueva1234" } });
+    esperar(login.status === 200, `no se puede entrar con la nueva: ${login.status}`);
+    token = login.json.data.token;
+  });
+
   console.log("\n=== LIMPIEZA ===");
 
   await prueba("borrar lo creado", async () => {

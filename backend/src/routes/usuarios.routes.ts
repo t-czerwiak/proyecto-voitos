@@ -6,6 +6,9 @@ const router = Router();
 
 router.use(authMiddleware);
 
+router.post("/yo/foto", usuariosController.subirFoto);
+router.delete("/yo/foto", usuariosController.quitarFoto);
+
 router.get("/", usuariosController.getAll);
 router.get("/:id", usuariosController.getById);
 router.post("/", usuariosController.create);
