@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Image, Text, View } from "react-native";
 import type { Usuario } from "../lib/api";
 import { crearEstilos, radio, texto } from "../tema";
@@ -13,11 +13,13 @@ const inicialesDe = (u: Usuario | null): string => {
 export default function Avatar({ usuario, tam = 52 }: { usuario: Usuario | null; tam?: number }) {
   const styles = useEstilos();
   const medidas = { width: tam, height: tam };
+  const [fallida, setFallida] = useState<string | null>(null);
 
-  if (usuario?.foto_url) {
+  if (usuario?.foto_url && fallida !== usuario.foto_url) {
     return (
       <Image
         source={{ uri: usuario.foto_url }}
+        onError={() => setFallida(usuario.foto_url ?? null)}
         style={[styles.circulo, medidas]}
         accessibilityLabel={`Foto de ${usuario.nombre}`}
       />
