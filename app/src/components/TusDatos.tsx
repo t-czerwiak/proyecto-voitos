@@ -9,7 +9,8 @@ import {
   quitarFoto,
   subirFoto,
 } from "../lib/voitos";
-import { elegirFoto, sePuedeElegirFoto } from "../lib/foto";
+import { ArchivoFoto, elegirFoto, sePuedeElegirFoto } from "../lib/foto";
+import EditorFoto from "./EditorFoto";
 import { edadDesde, fechaConAnio } from "../lib/fechas";
 import { Aviso, Boton, Campo, CampoFechaNacimiento, Tarjeta } from "../ui";
 import { crearEstilos, espacio, texto } from "../tema";
@@ -29,6 +30,7 @@ export default function TusDatos({ usuario, alCambiar }: Props) {
   const [error, setError] = useState("");
   const [listo, setListo] = useState("");
   const [cargandoFoto, setCargandoFoto] = useState(false);
+  const [fotoElegida, setFotoElegida] = useState<ArchivoFoto | null>(null);
 
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
@@ -98,11 +100,20 @@ export default function TusDatos({ usuario, alCambiar }: Props) {
     setError("");
     setListo("");
     try {
-      const imagen = await elegirFoto();
-      if (!imagen) return;
-      setCargandoFoto(true);
-      alCambiar({ ...(await subirFoto(imagen)), foto_url: imagen });
+      const foto = await elegirFoto();
+      if (foto) setFotoElegida(foto);
     } catch (e: any) {
+      setError(e?.message ?? "No se pudo abrir la foto");
+    }
+  };
+
+  const guardarFoto = async (imagen: string) => {
+    setCargandoFoto(true);
+    try {
+      alCambiar({ ...(await subirFoto(imagen)), foto_url: imagen });
+      setFotoElegida(null);
+    } catch (e: any) {
+      setFotoElegida(null);
       setError(e?.message ?? "No se pudo subir la foto");
     } finally {
       setCargandoFoto(false);
@@ -131,6 +142,17 @@ export default function TusDatos({ usuario, alCambiar }: Props) {
 
   return (
     <Tarjeta>
+      {fotoElegida && (
+        <EditorFoto
+          foto={fotoElegida}
+          guardando={cargandoFoto}
+          alGuardar={guardarFoto}
+          alCancelar={() => {
+            URL.revokeObjectURL(fotoElegida.url);
+            setFotoElegida(null);
+          }}
+        />
+      )}
       <View style={styles.caja}>
         <Aviso texto={error} />
         <Aviso texto={listo} tipo="ok" />

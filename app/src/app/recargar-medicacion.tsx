@@ -50,7 +50,7 @@ export default function RecargarMedicacion() {
 
     const seguir = await confirmar(
       `Eliminar ${seleccionada.nombre}`,
-      `Se borra la pastilla y todas sus dosis, incluido el historial de las ya dispensadas. El módulo queda libre pero no se borra.\n\nEsto no se puede deshacer. ¿Seguro?`,
+      `Se borra la pastilla y todas sus dosis, incluido el historial de las ya dispensadas. El lugar en el pastillero queda libre.\n\nEsto no se puede deshacer. ¿Seguro?`,
       "Eliminar",
       "peligro"
     );
@@ -90,7 +90,7 @@ export default function RecargarMedicacion() {
     try {
       const modulo = await ajustarStock(pastillaSel, signo * cuantas);
       setExito(
-        `Módulo ${modulo.numero}: ahora quedan ${modulo.cantidad_actual} pastillas`
+        `Listo: ahora quedan ${modulo.cantidad_actual} pastillas`
       );
       setAjuste("");
       cargarPastillas();
@@ -115,7 +115,7 @@ export default function RecargarMedicacion() {
       <Pantalla formulario>
         <Encabezado
           titulo="Recargar o borrar"
-          bajada="Acá se suman pastillas a un módulo del pastillero."
+          bajada="Acá se suman pastillas al pastillero."
           volverA="/medicacion"
         />
 
@@ -138,7 +138,7 @@ export default function RecargarMedicacion() {
     <Pantalla formulario>
       <Encabezado
         titulo="Recargar o borrar"
-        bajada="Cuando volvés a llenar un módulo del pastillero, decilo acá."
+        bajada="Cuando volvés a llenar el pastillero, decilo acá."
         volverA="/medicacion"
       />
 
@@ -152,8 +152,8 @@ export default function RecargarMedicacion() {
         opciones={pastillas.map((p) => ({
           valor: p.id,
           etiqueta: p.modulo
-            ? `${p.nombre} — módulo ${p.modulo.numero}`
-            : `${p.nombre} — sin módulo`,
+            ? `${p.nombre} — quedan ${p.modulo.cantidad_actual}`
+            : `${p.nombre} — sin pastillero`,
         }))}
       />
 
@@ -162,22 +162,21 @@ export default function RecargarMedicacion() {
         accessible
         accessibilityLabel={
           seleccionada?.modulo
-            ? `En el módulo ${seleccionada.modulo.numero} quedan ${quedan} pastillas`
-            : "Esta pastilla no está cargada en ningún módulo"
+            ? `En el pastillero quedan ${quedan} pastillas`
+            : "Esta pastilla no está cargada en ningún pastillero"
         }
       >
         {seleccionada?.modulo ? (
           <>
             <Text style={styles.stockNumero}>{quedan}</Text>
             <Text style={styles.stockTexto}>
-              {quedan === 1 ? "pastilla" : "pastillas"} en el módulo{" "}
-              {seleccionada.modulo.numero}
+              {quedan === 1 ? "pastilla" : "pastillas"} en el pastillero
             </Text>
           </>
         ) : (
           <Text style={styles.stockTexto}>
-            Esta pastilla no está cargada en ningún módulo, así que el pastillero
-            no la puede dispensar.
+            Esta pastilla no está cargada en ningún pastillero, así que no se
+            puede dispensar.
           </Text>
         )}
       </View>
@@ -199,7 +198,7 @@ export default function RecargarMedicacion() {
           onPress={() => handleAjustar(1)}
           deshabilitado={ajustando}
           ancho="auto"
-          ayuda="Cargaste pastillas nuevas en el módulo"
+          ayuda="Cargaste pastillas nuevas en el pastillero"
         />
 
         <Boton
@@ -209,7 +208,7 @@ export default function RecargarMedicacion() {
           onPress={() => handleAjustar(-1)}
           deshabilitado={ajustando}
           ancho="auto"
-          ayuda="Sacaste pastillas del módulo"
+          ayuda="Sacaste pastillas del pastillero"
         />
       </View>
 
@@ -218,7 +217,7 @@ export default function RecargarMedicacion() {
 
         <Text style={styles.textoPeligro}>
           Borra {seleccionada?.nombre ?? "la pastilla"} con todas sus dosis y su
-          historial. El módulo queda libre. No se puede deshacer.
+          historial. No se puede deshacer.
         </Text>
 
         <Boton
