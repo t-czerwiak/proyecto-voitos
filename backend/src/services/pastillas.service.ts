@@ -1,10 +1,10 @@
 import { supabase } from "../config/supabase";
 import { PastillaCreate, PastillaUpdate } from "../schemas/pastillas.schema";
-import { asignarPastillaAModulo } from "./modulos.service";
+import { asignarPastillaAModulo, getModuloCompartido } from "./modulos.service";
 
-const conModulo = (fila: any) => {
+const conModulo = (fila: any, compartido: any = null) => {
   const { modulos, ...pastilla } = fila;
-  return { ...pastilla, modulo: modulos?.[0] ?? null };
+  return { ...pastilla, modulo: modulos?.[0] ?? compartido };
 };
 
 export const getAllPastillas = async (usuario_id?: string) => {
@@ -16,7 +16,8 @@ export const getAllPastillas = async (usuario_id?: string) => {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []).map(conModulo);
+  const compartido = usuario_id ? await getModuloCompartido(usuario_id) : null;
+  return (data ?? []).map((fila) => conModulo(fila, compartido));
 };
 
 export const getPastillaById = async (id: string, usuario_id: string) => {
@@ -27,7 +28,7 @@ export const getPastillaById = async (id: string, usuario_id: string) => {
     .eq("usuario_id", usuario_id)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return data ? conModulo(data) : null;
+  return data ? conModulo(data, await getModuloCompartido(usuario_id)) : null;
 };
 
 export const esDelUsuario = async (id: string, usuario_id: string) => {
@@ -52,16 +53,12 @@ export const createPastilla = async (body: PastillaCreate) => {
 
   if (error) throw new Error(error.message);
 
-  if (cantidad_inicial === undefined) return { ...data, modulo: null };
+  const modulo =
+    cantidad_inicial === undefined
+      ? null
+      : await asignarPastillaAModulo(data.id, cantidad_inicial, datosPastilla.usuario_id, modulo_numero);
 
-  const modulo = await asignarPastillaAModulo(
-    data.id,
-    cantidad_inicial,
-    datosPastilla.usuario_id,
-    modulo_numero
-  );
-
-  return { ...data, modulo };
+  return { ...data, modulo: modulo ?? (await getModuloCompartido(datosPastilla.usuario_id)) };
 };
 
 export const updatePastilla = async (id: string, body: PastillaUpdate) => {
