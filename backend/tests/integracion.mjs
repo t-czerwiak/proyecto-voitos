@@ -319,7 +319,7 @@ const correr = async () => {
     const { status, json } = await pedir("/api/modulos");
     esperar(status === 200, `esperaba 200, vino ${status}`);
     esperar(Array.isArray(json.data), "no vino una lista");
-    esperar(typeof json.data[0]?.cantidad_actual === "number", "falta cantidad_actual");
+    esperar(json.data.every((m) => typeof m.cantidad_actual === "number"), "falta cantidad_actual");
   });
 
   console.log("\n=== VINCULAR PASTILLERO ===");
@@ -369,6 +369,32 @@ const correr = async () => {
     const enLaPlaca = (await consultaPlaca(SECRETO)).json.data.recordatorios;
     esperar(enLaPlaca.some((x) => x.texto === "Ibuprofeno x3"), "la placa vinculada no ve la dosis de su duenio");
     esperar(!(await recordatoriosAhora()).some((x) => x.texto === "Ibuprofeno x3"), "un pastillero sin duenio sigue viendo la dosis");
+  });
+
+  await prueba("el codigo usado no sirve dos veces y con el nuevo se vincula otra cuenta", async () => {
+    const usado = await pedir("/api/pastilleros/vincular", { metodo: "POST", cuerpo: { codigo } });
+    esperar(usado.status === 404, `el codigo usado volvio a servir: ${usado.status}`);
+    const nuevo = (await consultaPlaca(SECRETO)).json.data.vinculo.codigo;
+    esperar(/^[0-9]{8}$/.test(nuevo ?? "") && nuevo !== codigo, `no llego un codigo nuevo: ${nuevo}`);
+
+    const reg = await pedir("/api/auth/registro", {
+      metodo: "POST",
+      conToken: false,
+      cuerpo: { nombre: "Otra", apellido: "Cuenta", mail: `demo-test-2-${Date.now()}@voitos.test`, password: "demo1234" },
+    });
+    esperar(reg.status === 201, `registro de la segunda cuenta: ${reg.status}`);
+    creados.push(reg.json.data.usuario.id);
+
+    const mio = token;
+    token = reg.json.data.token;
+    const { status } = await pedir("/api/pastilleros/vincular", { metodo: "POST", cuerpo: { codigo: nuevo } });
+    const { json } = await pedir("/api/pastilleros");
+    token = mio;
+
+    esperar(status === 201, `la segunda cuenta no pudo vincular: ${status}`);
+    esperar(json.data.some((p) => p.dispositivo_id === PLACA), "la segunda cuenta no ve el pastillero");
+    const enLaPlaca = (await consultaPlaca(SECRETO)).json.data.recordatorios;
+    esperar(enLaPlaca.some((x) => x.texto === "Ibuprofeno x3"), "con dos cuentas dejo de ver la dosis de la primera");
   });
 
   await prueba("desvincular la deja sin duenio, y otra vez da 404", async () => {

@@ -12,50 +12,52 @@ const iguales = (a: string, b: string) =>
 const codigoNuevo = () => String(randomInt(0, 100_000_000)).padStart(8, "0");
 
 export interface Alcance {
-  dueno: string | null;
+  duenos: string[];
   ajenos: string[];
 }
 
-export const alcanceDe = async (dispositivo_id?: string): Promise<Alcance> => {
-  const { data, error } = await supabase
-    .from("pastilleros")
-    .select("dispositivo_id, usuario_id")
-    .not("usuario_id", "is", null);
-
+const vinculos = async () => {
+  const { data, error } = await supabase.from("pastillero_usuarios").select("dispositivo_id, usuario_id");
   if (error) throw new Error(error.message);
+  return data;
+};
 
-  const dueno = data.find((p) => p.dispositivo_id === dispositivo_id)?.usuario_id ?? null;
-  return { dueno, ajenos: dueno ? [] : [...new Set(data.map((p) => p.usuario_id as string))] };
+export const alcanceDe = async (dispositivo_id?: string): Promise<Alcance> => {
+  const todos = await vinculos();
+  const duenos = todos.filter((v) => v.dispositivo_id === dispositivo_id).map((v) => v.usuario_id as string);
+  return { duenos, ajenos: duenos.length ? [] : [...new Set(todos.map((v) => v.usuario_id as string))] };
 };
 
 export const filtrarPorAlcance = (consulta: any, a: Alcance, columna: string) => {
-  if (a.dueno) return consulta.eq(columna, a.dueno);
+  if (a.duenos.length) return consulta.in(columna, a.duenos);
   if (a.ajenos.length) return consulta.not(columna, "in", `(${a.ajenos.join(",")})`);
   return consulta;
 };
 
 export const dispositivosAjenos = async (usuario_id: string): Promise<string[]> => {
-  const { data, error } = await supabase
-    .from("pastilleros")
-    .select("dispositivo_id")
-    .not("usuario_id", "is", null)
-    .neq("usuario_id", usuario_id);
-
-  if (error) throw new Error(error.message);
-  return data.map((p) => p.dispositivo_id);
+  const todos = await vinculos();
+  const mios = new Set(todos.filter((v) => v.usuario_id === usuario_id).map((v) => v.dispositivo_id));
+  return [...new Set(todos.map((v) => v.dispositivo_id))].filter((d) => !mios.has(d));
 };
 
 export const vinculoParaPlaca = async (dispositivo_id: string, secreto?: string) => {
   const { data: p, error } = await supabase
     .from("pastilleros")
-    .select("usuario_id, secreto_hash, codigo, codigo_vence")
+    .select("secreto_hash, codigo, codigo_vence")
     .eq("dispositivo_id", dispositivo_id)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
   if (!p) return null;
-  if (p.usuario_id) return { vinculado: true };
-  if (!secreto) return { vinculado: false };
+
+  const { count, error: errorVinculos } = await supabase
+    .from("pastillero_usuarios")
+    .select("usuario_id", { count: "exact", head: true })
+    .eq("dispositivo_id", dispositivo_id);
+  if (errorVinculos) throw new Error(errorVinculos.message);
+  const vinculado = (count ?? 0) > 0;
+
+  if (!secreto) return { vinculado };
 
   const hash = sha256(secreto);
 
@@ -66,13 +68,13 @@ export const vinculoParaPlaca = async (dispositivo_id: string, secreto?: string)
       .eq("dispositivo_id", dispositivo_id)
       .is("secreto_hash", null)
       .select("dispositivo_id");
-    if (!tomado?.length) return { vinculado: false };
+    if (!tomado?.length) return { vinculado };
   } else if (!iguales(p.secreto_hash, hash)) {
-    return { vinculado: false };
+    return { vinculado };
   }
 
   if (p.codigo && p.codigo_vence && Date.parse(p.codigo_vence) > Date.now()) {
-    return { vinculado: false, codigo: p.codigo };
+    return { vinculado, codigo: p.codigo };
   }
 
   for (let intento = 0; intento < 3; intento++) {
@@ -84,30 +86,37 @@ export const vinculoParaPlaca = async (dispositivo_id: string, secreto?: string)
         codigo_vence: new Date(Date.now() + MINUTOS_CODIGO * 60_000).toISOString(),
       })
       .eq("dispositivo_id", dispositivo_id);
-    if (!e) return { vinculado: false, codigo };
+    if (!e) return { vinculado, codigo };
     if (e.code !== "23505") throw new Error(e.message);
   }
-  return { vinculado: false };
+  return { vinculado };
 };
 
 export const vincular = async (usuario_id: string, codigo: string) => {
-  const { data, error } = await supabase
+  const { data: pastillero, error } = await supabase
     .from("pastilleros")
-    .update({ usuario_id, codigo: null, codigo_vence: null, vinculado_at: new Date().toISOString() })
+    .update({ codigo: null, codigo_vence: null })
     .eq("codigo", codigo)
-    .is("usuario_id", null)
     .gt("codigo_vence", new Date().toISOString())
-    .select("dispositivo_id, vinculado_at")
+    .select("dispositivo_id")
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  if (!data) throw new ErrorHttp(404, "El codigo no existe o ya vencio. Mira el que muestra el pastillero ahora.");
+  if (!pastillero) throw new ErrorHttp(404, "El codigo no existe o ya vencio. Mira el que muestra el pastillero ahora.");
+
+  const { data, error: errorVinculo } = await supabase
+    .from("pastillero_usuarios")
+    .upsert({ dispositivo_id: pastillero.dispositivo_id, usuario_id }, { onConflict: "dispositivo_id,usuario_id" })
+    .select("dispositivo_id, vinculado_at")
+    .single();
+
+  if (errorVinculo) throw new Error(errorVinculo.message);
   return data;
 };
 
 export const getMisPastilleros = async (usuario_id: string) => {
   const { data, error } = await supabase
-    .from("pastilleros")
+    .from("pastillero_usuarios")
     .select("dispositivo_id, vinculado_at")
     .eq("usuario_id", usuario_id)
     .order("vinculado_at", { ascending: true });
@@ -118,8 +127,8 @@ export const getMisPastilleros = async (usuario_id: string) => {
 
 export const desvincular = async (usuario_id: string, dispositivo_id: string) => {
   const { data, error } = await supabase
-    .from("pastilleros")
-    .update({ usuario_id: null, secreto_hash: null, vinculado_at: null })
+    .from("pastillero_usuarios")
+    .delete()
     .eq("dispositivo_id", dispositivo_id)
     .eq("usuario_id", usuario_id)
     .select("dispositivo_id")
@@ -127,4 +136,10 @@ export const desvincular = async (usuario_id: string, dispositivo_id: string) =>
 
   if (error) throw new Error(error.message);
   if (!data) throw new ErrorHttp(404, "Pastillero no encontrado");
+
+  const { count } = await supabase
+    .from("pastillero_usuarios")
+    .select("usuario_id", { count: "exact", head: true })
+    .eq("dispositivo_id", dispositivo_id);
+  if (!count) await supabase.from("pastilleros").update({ secreto_hash: null }).eq("dispositivo_id", dispositivo_id);
 };
