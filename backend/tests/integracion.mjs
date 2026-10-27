@@ -44,6 +44,7 @@ const creados = [];
 const PLACA = `TEST-${Date.now()}`;
 
 const limpiar = async () => {
+  await supabase.from("modulos").delete().eq("dispositivo_id", PLACA);
   await supabase.from("pastilleros").delete().eq("dispositivo_id", PLACA);
   for (const id of creados) {
     const { error } = await supabase.from("usuarios").delete().eq("id", id);
@@ -325,6 +326,13 @@ const correr = async () => {
   console.log("\n=== VINCULAR PASTILLERO ===");
 
   await supabase.from("pastilleros").insert({ dispositivo_id: PLACA });
+  const { data: moduloPlaca } = await supabase
+    .from("modulos")
+    .insert({ numero: 1, nombre: "test", dispositivo_id: PLACA, cantidad_actual: 7 })
+    .select("id")
+    .single();
+  const moduloDeLaPastilla = async () =>
+    (await pedir("/api/pastillas")).json.data.find((p) => p.id === pastillaId)?.modulo ?? null;
   const SECRETO = "secreto-de-prueba-1234";
   const consultaPlaca = (secreto) =>
     pedir(`/api/sensor/pendiente?dispositivo_id=${PLACA}`, {
@@ -365,6 +373,12 @@ const correr = async () => {
     esperar((await consultaPlaca(SECRETO)).json.data.vinculo.vinculado === true, "la placa no se entero");
   });
 
+  await prueba("vinculada, una pastilla sin modulo propio usa el del pastillero", async () => {
+    const modulo = await moduloDeLaPastilla();
+    esperar(modulo?.id === moduloPlaca.id, `vino ${JSON.stringify(modulo)}`);
+    esperar(modulo.cantidad_actual === 7, "no trae el stock del modulo del pastillero");
+  });
+
   await prueba("vinculada, la placa ve las dosis de su duenio y las otras ya no", async () => {
     const enLaPlaca = (await consultaPlaca(SECRETO)).json.data.recordatorios;
     esperar(enLaPlaca.some((x) => x.texto === "Ibuprofeno x3"), "la placa vinculada no ve la dosis de su duenio");
@@ -403,6 +417,7 @@ const correr = async () => {
     const otra = await pedir(`/api/pastilleros/${PLACA}`, { metodo: "DELETE" });
     esperar(otra.status === 404, `esperaba 404, vino ${otra.status}`);
     esperar((await recordatoriosAhora()).some((x) => x.texto === "Ibuprofeno x3"), "la dosis no volvio al pastillero sin duenio");
+    esperar((await moduloDeLaPastilla())?.id !== moduloPlaca.id, "desvinculada sigue usando el modulo del pastillero");
   });
 
   console.log("\n=== LIMPIEZA ===");

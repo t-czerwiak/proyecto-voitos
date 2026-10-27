@@ -624,6 +624,13 @@ pastillero al que no estás vinculado (y que tiene alguna cuenta) no aparecen en
 la lista, dan 404 por id y no se usan al cargar una pastilla. Los de un
 pastillero **sin cuentas** los ve y edita cualquier sesión.
 
+**Módulo compartido.** Una pastilla que no está cargada en un módulo propio, de
+una cuenta vinculada a un pastillero, usa el primer módulo de ese pastillero:
+es la misma tolva física. Así, en la exhibición, las pastillas de todos los
+visitantes muestran el módulo y su stock (que es uno solo y se descuenta con
+cada dispensación), en vez de "sin módulo". Vale para `GET /api/pastillas`, al
+crear una pastilla y para lo que la placa recibe en `pendiente`.
+
 ### Pastilleros (protegido)
 
 | Método | Ruta | Descripción |
