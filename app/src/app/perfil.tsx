@@ -6,7 +6,6 @@ import {
   refrescarUsuario,
   cerrarSesion,
   borrarMiCuenta,
-  cambiarFechaNacimiento,
   getPastillas,
   getHorariosDelUsuario,
   type Pastilla,
@@ -15,8 +14,10 @@ import {
 
 import type { Usuario } from "../lib/api";
 import { proximaDosis } from "../lib/dosis";
-import { edadDesde, fechaConAnio, comoHora, fechaRelativa } from "../lib/fechas";
+import { comoHora, fechaRelativa } from "../lib/fechas";
 import { confirmar } from "../lib/avisos";
+import Avatar from "../components/Avatar";
+import TusDatos from "../components/TusDatos";
 import {
   Pantalla,
   Encabezado,
@@ -26,11 +27,10 @@ import {
   Estado,
   Vacio,
   Cargando,
-  CampoFechaNacimiento,
   Columnas,
   useEscritorio,
 } from "../ui";
-import { crearEstilos, espacio, radio, texto } from "../tema";
+import { crearEstilos, espacio, texto } from "../tema";
 
 export default function Perfil() {
   const styles = useEstilos();
@@ -43,10 +43,6 @@ export default function Perfil() {
   const [error, setError] = useState("");
   const [borrando, setBorrando] = useState(false);
 
-  const [editando, setEditando] = useState(false);
-  const [fechaNueva, setFechaNueva] = useState("");
-  const [guardando, setGuardando] = useState(false);
-  const [errorFecha, setErrorFecha] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -86,33 +82,6 @@ export default function Perfil() {
   }, [pastillas, horarios]);
 
   const proximaGeneral = useMemo(() => proximaDosis(horarios), [horarios]);
-
-  const edad = edadDesde(usuario?.fecha_nacimiento);
-
-  const empezarAEditar = () => {
-    setFechaNueva(usuario?.fecha_nacimiento ?? "");
-    setErrorFecha("");
-    setEditando(true);
-  };
-
-  const guardarFecha = async () => {
-    if (!fechaNueva) {
-      setErrorFecha("Elegí el día, el mes y el año.");
-      return;
-    }
-
-    setGuardando(true);
-    setErrorFecha("");
-    try {
-      const actualizado = await cambiarFechaNacimiento(fechaNueva);
-      setUsuario(actualizado);
-      setEditando(false);
-    } catch (e: any) {
-      setErrorFecha(e?.message ?? "No se pudo guardar la fecha");
-    } finally {
-      setGuardando(false);
-    }
-  };
 
   const salir = async () => {
     const seguro = await confirmar(
@@ -161,9 +130,7 @@ export default function Perfil() {
       <Aviso texto={error} />
 
       <View style={styles.identidad}>
-        <View style={styles.inicial}>
-          <Text style={styles.inicialTexto}>{inicialesDe(usuario)}</Text>
-        </View>
+        <Avatar usuario={usuario} />
 
         <View style={styles.identidadTextos}>
           <Text style={styles.nombre} numberOfLines={1}>
@@ -259,52 +226,7 @@ export default function Perfil() {
 
             <Text style={styles.seccion}>Tus datos</Text>
 
-            <Tarjeta>
-              {editando ? (
-                <>
-                  <CampoFechaNacimiento
-                    valor={fechaNueva}
-                    alCambiar={setFechaNueva}
-                    error={errorFecha}
-                    ayuda="Se guarda al tocar Guardar."
-                  />
-
-                  <View style={styles.filaBotones}>
-                    <Boton
-                      titulo="Cancelar"
-                      variante="secundario"
-                      ancho="auto"
-                      onPress={() => setEditando(false)}
-                    />
-                    <Boton
-                      titulo="Guardar"
-                      ancho="auto"
-                      onPress={guardarFecha}
-                      cargando={guardando}
-                    />
-                  </View>
-                </>
-              ) : (
-                <View>
-                  <Text style={styles.datoEtiqueta}>Fecha de nacimiento</Text>
-                  <Text style={styles.datoValor}>
-                    {usuario?.fecha_nacimiento
-                      ? fechaConAnio(usuario.fecha_nacimiento)
-                      : "Sin completar"}
-                  </Text>
-                  {edad !== null && <Text style={styles.datoEdad}>{edad} años</Text>}
-
-                  <Boton
-                    titulo="Cambiar la fecha"
-                    variante="secundario"
-                    icono="create-outline"
-                    onPress={empezarAEditar}
-                    ayuda="Editar tu fecha de nacimiento"
-                    estilo={styles.botonCambiar}
-                  />
-                </View>
-              )}
-            </Tarjeta>
+            <TusDatos usuario={usuario} alCambiar={setUsuario} />
 
             <Text style={styles.seccion}>Tu cuenta</Text>
 
@@ -333,35 +255,12 @@ export default function Perfil() {
   );
 }
 
-const inicialesDe = (u: Usuario | null): string => {
-  if (!u) return "?";
-  const a = u.nombre?.trim()?.[0] ?? "";
-  const b = u.apellido?.trim()?.[0] ?? "";
-  return (a + b).toUpperCase() || "?";
-};
-
 const useEstilos = crearEstilos((colores) => ({
   identidad: {
     flexDirection: "row",
     alignItems: "center",
     gap: espacio.md,
     marginBottom: espacio.lg,
-  },
-
-  inicial: {
-    width: 52,
-    height: 52,
-    borderRadius: radio.redondo,
-    backgroundColor: colores.superficieAlta,
-    borderWidth: 2,
-    borderColor: colores.bordeFuerte,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  inicialTexto: {
-    ...texto.item,
-    color: colores.acento,
   },
 
   identidadTextos: {
@@ -405,31 +304,6 @@ const useEstilos = crearEstilos((colores) => ({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: espacio.sm,
-  },
-
-  datoEtiqueta: {
-    ...texto.etiqueta,
-    color: colores.textoTenue,
-  },
-
-  datoValor: {
-    ...texto.cuerpo,
-    color: colores.texto,
-  },
-
-  datoEdad: {
-    ...texto.dato,
-    color: colores.textoSuave,
-  },
-
-  botonCambiar: {
-    marginTop: espacio.lg,
-  },
-
-  filaBotones: {
-    flexDirection: "row",
-    gap: espacio.md,
-    marginTop: espacio.lg,
   },
 
   seccionPrimera: {
