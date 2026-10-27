@@ -18,6 +18,7 @@ import { comoHora, fechaRelativa } from "../lib/fechas";
 import { confirmar } from "../lib/avisos";
 import Avatar from "../components/Avatar";
 import TusDatos from "../components/TusDatos";
+import IconoPastilla from "../components/IconoPastilla";
 import {
   Pantalla,
   Encabezado,
@@ -183,7 +184,10 @@ export default function Perfil() {
                   return (
                     <View key={p.id} style={escritorio ? styles.grillaItem : undefined}>
                       <Tarjeta>
-                        <Text style={styles.pastilla}>{p.nombre}</Text>
+                        <View style={styles.pastillaFila}>
+                          <IconoPastilla tipo={p.tipo} tam={34} />
+                          <Text style={styles.pastilla}>{p.nombre}</Text>
+                        </View>
 
                         <View style={styles.estados}>
                           {proxima ? (
@@ -294,10 +298,17 @@ const useEstilos = crearEstilos((colores) => ({
     marginBottom: espacio.sm,
   },
 
+  pastillaFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.sm,
+    marginBottom: espacio.sm,
+  },
+
   pastilla: {
     ...texto.item,
     color: colores.texto,
-    marginBottom: espacio.sm,
+    flexShrink: 1,
   },
 
   estados: {

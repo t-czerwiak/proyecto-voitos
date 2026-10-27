@@ -108,7 +108,7 @@ export default function AgendarMedicacion() {
 
     if (!seleccionada?.modulo) {
       const seguir = await confirmar(
-        "Esta pastilla no está cargada en ningún módulo",
+        "Esta pastilla no está cargada en ningún pastillero",
         `El pastillero no va a poder dispensarla hasta que la cargues.\n\n¿Querés agendarla igual?`,
         "Agendar igual"
       );
@@ -124,7 +124,7 @@ export default function AgendarMedicacion() {
         const seguir = await confirmar(
           "No te alcanzan las pastillas",
           `La rutina son ${analisis.totalDosis} dosis de ${cantidad}, o sea ${analisis.totalPastillas} pastillas en total. ` +
-            `En el módulo ${seleccionada.modulo.numero} hay ${analisis.stock}.\n\n` +
+            `En el pastillero hay ${analisis.stock}.\n\n` +
             `Te alcanza para ${analisis.dosisCubiertas} dosis, hasta la semana ${analisis.semanasCubiertas}. ` +
             `Después vas a tener que recargar ${analisis.faltan} pastillas.\n\n` +
             `¿Agendo la rutina igual?`,
@@ -190,7 +190,7 @@ export default function AgendarMedicacion() {
         <Vacio
           icono="medkit-outline"
           titulo="Todavía no hay ninguna pastilla cargada"
-          detalle="Primero cargá el medicamento y decí cuántas pusiste en el módulo del pastillero."
+          detalle="Primero cargá el medicamento y decí cuántas pusiste en el pastillero."
           accion={{
             titulo: "Cargar una pastilla",
             onPress: () => router.push("/agregar-medicacion"),
@@ -219,12 +219,12 @@ export default function AgendarMedicacion() {
           valor: p.id,
           etiqueta: p.modulo
             ? `${p.nombre} — quedan ${p.modulo.cantidad_actual}`
-            : `${p.nombre} — sin módulo`,
+            : `${p.nombre} — sin pastillero`,
         }))}
         ayuda={
           seleccionada?.modulo
-            ? `Módulo ${seleccionada.modulo.numero}, con ${seleccionada.modulo.cantidad_actual} pastillas.`
-            : "Esta pastilla no está en ningún módulo: el pastillero no va a poder dispensarla."
+            ? `En el pastillero quedan ${seleccionada.modulo.cantidad_actual}.`
+            : "Esta pastilla no está en ningún pastillero: no se va a poder dispensar."
         }
       />
 

@@ -320,7 +320,7 @@ export default function Hoy() {
                 <Acceso
                   icono="medkit"
                   titulo="Pastillas"
-                  detalle="Cargar una pastilla nueva, agendar dosis y recargar los módulos."
+                  detalle="Cargar una pastilla nueva, agendar dosis y recargar el pastillero."
                   onPress={() => router.push("/medicacion")}
                 />
               </View>

@@ -1,10 +1,12 @@
 import { Platform } from "react-native";
 
-const LADO = 256;
+export const LADO_FOTO = 256;
 
 export const sePuedeElegirFoto = Platform.OS === "web";
 
-export const elegirFoto = (): Promise<string | null> =>
+export type ArchivoFoto = { url: string; ancho: number; alto: number; imagen: HTMLImageElement };
+
+export const elegirFoto = (): Promise<ArchivoFoto | null> =>
   new Promise((resolver, rechazar) => {
     const entrada = document.createElement("input");
     entrada.type = "file";
@@ -19,26 +21,35 @@ export const elegirFoto = (): Promise<string | null> =>
 
       const imagen = new Image();
       const url = URL.createObjectURL(archivo);
-
-      imagen.onload = () => {
-        const lado = Math.min(imagen.width, imagen.height);
-        const lienzo = document.createElement("canvas");
-        lienzo.width = LADO;
-        lienzo.height = LADO;
-        lienzo
-          .getContext("2d")!
-          .drawImage(imagen, (imagen.width - lado) / 2, (imagen.height - lado) / 2, lado, lado, 0, 0, LADO, LADO);
-        URL.revokeObjectURL(url);
-        resolver(lienzo.toDataURL("image/jpeg", 0.85));
-      };
-
+      imagen.onload = () => resolver({ url, ancho: imagen.width, alto: imagen.height, imagen });
       imagen.onerror = () => {
         URL.revokeObjectURL(url);
         rechazar(new Error("No se pudo abrir esa imagen. Probá con una foto JPG o PNG (las HEIC del iPhone no se pueden)."));
       };
-
       imagen.src = url;
     };
 
     entrada.click();
   });
+
+export const recortarFoto = (
+  foto: ArchivoFoto,
+  visor: number,
+  escala: number,
+  dx: number,
+  dy: number,
+  fondo: string
+) => {
+  const k = LADO_FOTO / visor;
+  const lienzo = document.createElement("canvas");
+  lienzo.width = LADO_FOTO;
+  lienzo.height = LADO_FOTO;
+  const g = lienzo.getContext("2d")!;
+  g.fillStyle = fondo;
+  g.fillRect(0, 0, LADO_FOTO, LADO_FOTO);
+  const ancho = foto.ancho * escala;
+  const alto = foto.alto * escala;
+  g.drawImage(foto.imagen, (visor / 2 - ancho / 2 + dx) * k, (visor / 2 - alto / 2 + dy) * k, ancho * k, alto * k);
+  URL.revokeObjectURL(foto.url);
+  return lienzo.toDataURL("image/jpeg", 0.88);
+};

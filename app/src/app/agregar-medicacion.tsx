@@ -1,20 +1,32 @@
-import React, { useState } from "react";
-import { router } from "expo-router";
-import { crearPastilla } from "../lib/voitos";
-import { Pantalla, Encabezado, Campo, Selector, Boton, Aviso } from "../ui";
+import React, { useCallback, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import {
+  crearPastilla,
+  getMisPastilleros,
+  nombrePastillero,
+  type PastilleroVinculado,
+} from "../lib/voitos";
+import SelectorTamano from "../components/SelectorTamano";
+import { Pantalla, Encabezado, Campo, Opciones, Boton, Aviso } from "../ui";
 import { espacio } from "../tema";
-
-const TAMANOS = [
-  { valor: "chico", etiqueta: "Chica" },
-  { valor: "mediano", etiqueta: "Mediana" },
-  { valor: "grande", etiqueta: "Grande" },
-  { valor: "pildora", etiqueta: "Píldora" },
-];
 
 export default function AgregarMedicacion() {
   const [nombre, setNombre] = useState("");
   const [tipo, setTipo] = useState("chico");
   const [cantidad, setCantidad] = useState("");
+  const [pastilleros, setPastilleros] = useState<PastilleroVinculado[]>([]);
+  const [pastillero, setPastillero] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      getMisPastilleros()
+        .then((lista) => {
+          setPastilleros(lista);
+          setPastillero((actual) => actual || lista[0]?.dispositivo_id || "");
+        })
+        .catch(() => setPastilleros([]));
+    }, [])
+  );
 
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -37,11 +49,13 @@ export default function AgregarMedicacion() {
         nombre,
         tipo,
         cantidad_inicial: cantidad ? Number(cantidad) : 0,
+        dispositivo_id: pastillero || null,
       });
 
+      const donde = nombrePastillero(pastilleros, creada.modulo?.dispositivo_id ?? pastillero);
       setExito(
-        creada.modulo
-          ? `${nombre} quedó en el módulo ${creada.modulo.numero}, con ${creada.modulo.cantidad_actual} pastillas. Ya la podés agendar.`
+        donde
+          ? `${nombre} quedó en ${donde}. Ya la podés agendar.`
           : `${nombre} quedó cargada. Ya la podés agendar.`
       );
       setNombre("");
@@ -72,16 +86,22 @@ export default function AgregarMedicacion() {
         error={errorNombre}
       />
 
-      <Selector
-        etiqueta="Tamaño de la pastilla"
-        valor={tipo}
-        alCambiar={setTipo}
-        opciones={TAMANOS}
-        ayuda="Sirve para saber qué módulo del pastillero le corresponde."
-      />
+      <SelectorTamano valor={tipo} alCambiar={setTipo} />
+
+      {pastilleros.length > 1 && (
+        <Opciones
+          etiqueta="En qué pastillero va"
+          valor={pastillero}
+          alCambiar={setPastillero}
+          opciones={pastilleros.map((p) => ({
+            valor: p.dispositivo_id,
+            etiqueta: nombrePastillero(pastilleros, p.dispositivo_id) ?? p.dispositivo_id,
+          }))}
+        />
+      )}
 
       <Campo
-        etiqueta="Cuántas pusiste en el módulo"
+        etiqueta="Cuántas pusiste en el pastillero"
         valor={cantidad}
         alCambiar={setCantidad}
         teclado="numeric"
