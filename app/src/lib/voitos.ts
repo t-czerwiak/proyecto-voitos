@@ -1,3 +1,4 @@
+import type { Href } from "expo-router";
 import { api, sesion, Usuario } from "./api";
 
 interface Sesion {
@@ -392,3 +393,10 @@ export const vincularPastillero = (codigo: string) =>
 
 export const desvincularPastillero = (dispositivoId: string) =>
   api.delete(`/api/pastilleros/${encodeURIComponent(dispositivoId)}`);
+
+export const destinoAlEntrar = async (): Promise<Href> => {
+  const mios = await getMisPastilleros().catch(() => null);
+  return mios && mios.length === 0
+    ? { pathname: "/mi-pastillero", params: { primera: "1" } }
+    : "/home";
+};
