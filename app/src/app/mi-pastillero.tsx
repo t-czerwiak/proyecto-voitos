@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { Text, View } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   getMisPastilleros,
   vincularPastillero,
@@ -14,6 +14,7 @@ import { crearEstilos, espacio, texto } from "../tema";
 
 export default function MiPastillero() {
   const styles = useEstilos();
+  const primeraVez = useLocalSearchParams<{ primera?: string }>().primera === "1";
 
   const [pastilleros, setPastilleros] = useState<PastilleroVinculado[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -49,7 +50,11 @@ export default function MiPastillero() {
     try {
       await vincularPastillero(limpio);
       setCodigo("");
-      setListo("Listo, el pastillero es tuyo. En medio minuto el código desaparece de su pantalla.");
+      if (primeraVez) {
+        router.replace("/home");
+        return;
+      }
+      setListo("Listo, el pastillero quedó vinculado a tu cuenta.");
       cargar();
     } catch (e: any) {
       setErrorCodigo(e?.message ?? "No se pudo vincular");
@@ -61,9 +66,8 @@ export default function MiPastillero() {
   const desvincular = async (p: PastilleroVinculado) => {
     const seguro = await confirmar(
       "Desvincular el pastillero",
-      "Deja de ser tuyo: cualquier cuenta va a poder cargarle pastillas y agendar dosis en él, " +
-        "y tus dosis dejan de salir por este pastillero. Para volver a vincularlo, " +
-        "vas a necesitar el código nuevo de su pantalla.",
+      "Tus dosis dejan de salir por este pastillero y ya no vas a ver sus módulos. " +
+        "Para volver a vincularlo, vas a necesitar el código que muestra su pantalla.",
       "Desvincular",
       "peligro"
     );
@@ -81,7 +85,15 @@ export default function MiPastillero() {
 
   return (
     <Pantalla angosta>
-      <Encabezado titulo="Mi pastillero" volverA="/perfil" />
+      {primeraVez ? (
+        <Encabezado
+          titulo="Vinculá tu pastillero"
+          sinVolver
+          bajada="Es lo primero: así tus dosis salen por tu pastillero y lo ves en la app."
+        />
+      ) : (
+        <Encabezado titulo="Mi pastillero" volverA="/perfil" />
+      )}
 
       <Aviso texto={error} />
       <Aviso texto={listo} tipo="ok" />
@@ -103,7 +115,7 @@ export default function MiPastillero() {
               variante="secundario"
               icono="unlink-outline"
               onPress={() => desvincular(p)}
-              ayuda="Cualquier cuenta va a poder usarlo"
+              ayuda="Tus dosis dejan de salir por este pastillero"
               estilo={styles.botonDesvincular}
             />
           </Tarjeta>
@@ -132,9 +144,17 @@ export default function MiPastillero() {
           error={errorCodigo}
           teclado="number-pad"
           placeholder="1234 5678"
-          ayuda="Cambia cada 30 minutos. Si venció, usá el que muestra ahora."
+          ayuda="Cambia cada 30 minutos y después de cada vínculo. Usá el que muestra ahora."
         />
         <Boton titulo="Vincular" icono="link-outline" onPress={vincular} cargando={vinculando} />
+        {primeraVez && (
+          <Boton
+            titulo="Hacerlo más tarde"
+            variante="enlace"
+            onPress={() => router.replace("/home")}
+            ayuda="Lo podés vincular después desde tu perfil"
+          />
+        )}
       </Tarjeta>
     </Pantalla>
   );

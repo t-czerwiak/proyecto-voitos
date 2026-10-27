@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { iniciarSesion } from "../../lib/voitos";
+import { iniciarSesion, destinoAlEntrar } from "../../lib/voitos";
 import BotonGoogle from "../../components/BotonGoogle";
 import { Pantalla, Encabezado, Campo, Boton, Aviso } from "../../ui";
 import { espacio } from "../../tema";
@@ -23,7 +23,7 @@ export default function Login() {
     setCargando(true);
     try {
       await iniciarSesion(mail, password);
-      router.push("/home");
+      router.push(await destinoAlEntrar());
     } catch (e: any) {
       setError(e.message);
     } finally {

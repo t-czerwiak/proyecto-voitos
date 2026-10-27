@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { dibujarBotonGoogle, googleDisponible } from "../lib/google";
-import { iniciarSesionConGoogle } from "../lib/voitos";
+import { iniciarSesionConGoogle, destinoAlEntrar } from "../lib/voitos";
 import { Aviso } from "../ui";
 import { crearEstilos, espacio, radio, texto } from "../tema";
 
@@ -35,7 +35,7 @@ export default function BotonGoogle({
         setError("");
         try {
           await iniciarSesionConGoogle(idToken);
-          router.replace("/home");
+          router.replace(await destinoAlEntrar());
         } catch (e: any) {
           if (vivo) setError(e.message);
         }
