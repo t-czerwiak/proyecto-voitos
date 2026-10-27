@@ -36,6 +36,27 @@ export const getModuloById = async (id: string, usuario_id: string) => {
   return data;
 };
 
+export const getModuloCompartido = async (usuario_id: string) => {
+  const { data: vinculos, error: errorVinculos } = await supabase
+    .from("pastillero_usuarios")
+    .select("dispositivo_id")
+    .eq("usuario_id", usuario_id);
+
+  if (errorVinculos) throw new Error(errorVinculos.message);
+  if (!vinculos?.length) return null;
+
+  const { data, error } = await supabase
+    .from("modulos")
+    .select("id, numero, nombre, cantidad_actual")
+    .in("dispositivo_id", vinculos.map((v) => v.dispositivo_id))
+    .order("numero", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data;
+};
+
 export const getModuloDePastilla = async (pastilla_id: string) => {
   const { data, error } = await supabase
     .from("modulos")
@@ -45,7 +66,16 @@ export const getModuloDePastilla = async (pastilla_id: string) => {
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data;
+  if (data) return data;
+
+  const { data: pastilla, error: errorPastilla } = await supabase
+    .from("pastillas")
+    .select("usuario_id")
+    .eq("id", pastilla_id)
+    .maybeSingle();
+
+  if (errorPastilla) throw new Error(errorPastilla.message);
+  return pastilla ? await getModuloCompartido(pastilla.usuario_id) : null;
 };
 
 export const updateModulo = async (id: string, body: ModuloUpdate) => {
