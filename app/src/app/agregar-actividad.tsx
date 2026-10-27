@@ -77,7 +77,7 @@ export default function AgregarActividad() {
   };
 
   return (
-    <Pantalla>
+    <Pantalla formulario>
       <Encabezado
         titulo="Agregar una actividad"
         bajada="Para lo que no dispensa el pastillero: una caminata, el kinesiólogo, una visita."

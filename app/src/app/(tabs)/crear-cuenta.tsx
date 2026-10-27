@@ -55,7 +55,7 @@ export default function CrearCuenta() {
   };
 
   return (
-    <Pantalla angosta>
+    <Pantalla angosta presentacion>
       <Encabezado
         titulo="Crear una cuenta"
         bajada="La cuenta es de quien cuida. El pastillero se agenda desde acá."

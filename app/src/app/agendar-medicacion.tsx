@@ -171,7 +171,7 @@ export default function AgendarMedicacion() {
 
   if (cargando) {
     return (
-      <Pantalla>
+      <Pantalla formulario>
         <Encabezado titulo="Agendar una dosis" volverA="/medicacion" />
         <Cargando texto="Buscando las pastillas..." />
       </Pantalla>
@@ -180,7 +180,7 @@ export default function AgendarMedicacion() {
 
   if (pastillas.length === 0) {
     return (
-      <Pantalla>
+      <Pantalla formulario>
         <Encabezado
           titulo="Agendar una dosis"
           bajada="Para agendar hace falta tener al menos una pastilla cargada."
@@ -201,7 +201,7 @@ export default function AgendarMedicacion() {
   }
 
   return (
-    <Pantalla>
+    <Pantalla formulario>
       <Encabezado
         titulo="Agendar una dosis"
         bajada="Elegí qué pastilla, a qué hora y qué días de la semana."

@@ -1,29 +1,41 @@
 import React from "react";
 import { Image, Text, View } from "react-native";
 import { router } from "expo-router";
-import { Pantalla, Boton } from "../ui";
+import { Pantalla, Boton, useEscritorio } from "../ui";
 import { crearEstilos, espacio, texto } from "../tema";
 
 export default function Portada() {
   const styles = useEstilos();
+  const escritorio = useEscritorio();
 
   return (
-    <Pantalla scroll={false} centrado angosta>
-      <View style={styles.centro}>
-        <Image
-          source={require("../../assets/images/logoClaro.png")}
-          style={styles.logo}
-          resizeMode="contain"
+    <Pantalla scroll={false} centrado angosta presentacion>
+      {escritorio ? (
+        <View style={styles.cabecera}>
+          <Text style={styles.titulo} accessibilityRole="header">
+            Entrar a Voitos
+          </Text>
+          <Text style={styles.bajadaIzquierda}>
+            Si ya tenés cuenta, iniciá sesión. Si no, creala en un minuto.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.centro}>
+          <Image
+            source={require("../../assets/images/logoClaro.png")}
+            style={styles.logo}
+            resizeMode="contain"
 
-          accessibilityRole="header"
-          accessibilityLabel="Voitos"
-        />
+            accessibilityRole="header"
+            accessibilityLabel="Voitos"
+          />
 
-        <Text style={styles.bajada}>
-          El pastillero entrega la medicación a horario. Vos la agendás desde
-          acá y te enterás de cada dosis.
-        </Text>
-      </View>
+          <Text style={styles.bajada}>
+            El pastillero entrega la medicación a horario. Vos la agendás desde
+            acá y te enterás de cada dosis.
+          </Text>
+        </View>
+      )}
 
       <View style={styles.acciones}>
         <Boton
@@ -62,6 +74,21 @@ const useEstilos = crearEstilos((colores) => ({
     textAlign: "center",
     marginTop: espacio.lg,
     maxWidth: 420,
+  },
+
+  cabecera: {
+    marginBottom: espacio.xl,
+  },
+
+  titulo: {
+    ...texto.titulo,
+    color: colores.texto,
+  },
+
+  bajadaIzquierda: {
+    ...texto.cuerpo,
+    color: colores.textoSuave,
+    marginTop: espacio.sm,
   },
 
   acciones: {

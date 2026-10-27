@@ -55,7 +55,7 @@ export default function PruebaHardware() {
   };
 
   return (
-    <Pantalla>
+    <Pantalla formulario>
       <Encabezado
         titulo="Prueba de hardware"
         bajada="Le pide al backend que le mande la orden de dispensar al pastillero, ahora mismo."

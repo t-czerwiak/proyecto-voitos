@@ -103,7 +103,7 @@ export default function RecargarMedicacion() {
 
   if (cargando) {
     return (
-      <Pantalla>
+      <Pantalla formulario>
         <Encabezado titulo="Recargar o borrar" volverA="/medicacion" />
         <Cargando texto="Buscando las pastillas..." />
       </Pantalla>
@@ -112,7 +112,7 @@ export default function RecargarMedicacion() {
 
   if (pastillas.length === 0) {
     return (
-      <Pantalla>
+      <Pantalla formulario>
         <Encabezado
           titulo="Recargar o borrar"
           bajada="Acá se suman pastillas a un módulo del pastillero."
@@ -135,7 +135,7 @@ export default function RecargarMedicacion() {
   const quedan = seleccionada?.modulo?.cantidad_actual ?? 0;
 
   return (
-    <Pantalla>
+    <Pantalla formulario>
       <Encabezado
         titulo="Recargar o borrar"
         bajada="Cuando volvés a llenar un módulo del pastillero, decilo acá."

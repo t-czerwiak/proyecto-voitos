@@ -156,7 +156,7 @@ export default function Perfil() {
 
   return (
     <Pantalla angosta={!escritorio} ancha={escritorio}>
-      <Encabezado titulo="Tu perfil" volverA="/home" />
+      <Encabezado titulo="Tu perfil" volverA="/home" principal />
 
       <Aviso texto={error} />
 
