@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { Text, View } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -13,20 +13,14 @@ import {
 } from "../lib/voitos";
 import { confirmar } from "../lib/avisos";
 import { edadDesde } from "../lib/fechas";
-import {
-  Pantalla,
-  Encabezado,
-  Tarjeta,
-  Boton,
-  Estado,
-  Aviso,
-  Cargando,
-} from "../ui";
-import { crearEstilos, useColores, espacio, texto } from "../tema";
+import Avatar from "../components/Avatar";
+import { Pantalla, Encabezado, Tarjeta, Boton, Estado, Aviso, Cargando, Vacio, useEscritorio } from "../ui";
+import { crearEstilos, useColores, espacio, radio, texto } from "../tema";
 
 export default function Admin() {
   const styles = useEstilos();
   const colores = useColores();
+  const escritorio = useEscritorio();
 
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -34,6 +28,7 @@ export default function Admin() {
   const [ocupado, setOcupado] = useState("");
   const [aviso, setAviso] = useState("");
   const [yo, setYo] = useState("");
+  const [busqueda, setBusqueda] = useState("");
 
   const cargar = useCallback(async () => {
     setError("");
@@ -58,6 +53,22 @@ export default function Admin() {
       cargar();
     }, [cargar])
   );
+
+  const totales = useMemo(
+    () => ({
+      cuentas: usuarios.length,
+      verificadas: usuarios.filter((u) => u.verificado).length,
+      pastillas: usuarios.reduce((n, u) => n + u.pastillas, 0),
+      dosis: usuarios.reduce((n, u) => n + u.horarios, 0),
+    }),
+    [usuarios]
+  );
+
+  const visibles = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return usuarios;
+    return usuarios.filter((u) => `${u.nombre} ${u.apellido} ${u.mail}`.toLowerCase().includes(q));
+  }, [usuarios, busqueda]);
 
   const cambiarVerificacion = async (u: UsuarioAdmin) => {
     setAviso("");
@@ -131,13 +142,29 @@ export default function Admin() {
     }
   };
 
+  const cifra = (valor: number, etiqueta: string, detalle?: string) => (
+    <View style={[styles.cifra, escritorio && styles.cifraAncha]}>
+      <Text style={styles.cifraValor}>{valor}</Text>
+      <Text style={styles.cifraEtiqueta}>{etiqueta}</Text>
+      {detalle && <Text style={styles.cifraDetalle}>{detalle}</Text>}
+    </View>
+  );
+
   return (
     <Pantalla>
-      <Encabezado
-        titulo="Administración"
-        bajada="Las cuentas del sistema. Herramienta interna."
-        volverA="/home"
-      />
+      <View style={escritorio ? styles.cabecera : undefined}>
+        <View style={styles.cabeceraTextos}>
+          <Encabezado titulo="Administración" bajada="Las cuentas del sistema." volverA="/home" principal />
+        </View>
+        <Boton
+          titulo="Calendario general"
+          variante="secundario"
+          icono="calendar-outline"
+          ancho={escritorio ? "auto" : "completo"}
+          onPress={() => router.push("/admin-calendario")}
+          ayuda="Las dosis de todas las cuentas en una sola grilla"
+        />
+      </View>
 
       <Aviso texto={error} />
       <Aviso texto={aviso} tipo="ok" titulo="Hecho" />
@@ -147,106 +174,115 @@ export default function Admin() {
       ) : (
         !error && (
           <>
-            <Tarjeta
-              onPress={() => router.push("/admin-calendario")}
-              etiqueta="Ver el calendario general"
-              ayuda="Las dosis de todas las cuentas en una sola grilla"
-            >
-              <View style={styles.acceso}>
-                <Ionicons name="calendar" size={26} color={colores.acento} />
+            <View style={styles.cifras}>
+              {cifra(totales.cuentas, totales.cuentas === 1 ? "cuenta" : "cuentas")}
+              {cifra(
+                totales.verificadas,
+                "verificadas",
+                totales.cuentas - totales.verificadas > 0
+                  ? `${totales.cuentas - totales.verificadas} sin verificar`
+                  : undefined
+              )}
+              {cifra(totales.pastillas, "pastillas")}
+              {cifra(totales.dosis, "dosis agendadas")}
+            </View>
 
-                <View style={styles.accesoTextos}>
-                  <Text style={styles.accesoTitulo}>Calendario general</Text>
-                  <Text style={styles.accesoDetalle}>
-                    Las dosis de todas las cuentas en una sola grilla
-                  </Text>
-                </View>
+            <View style={styles.buscador}>
+              <Ionicons name="search" size={20} color={colores.textoTenue} />
+              <TextInput
+                value={busqueda}
+                onChangeText={setBusqueda}
+                placeholder="Buscar por nombre o mail"
+                placeholderTextColor={colores.textoTenue}
+                style={styles.buscadorCampo}
+                accessibilityLabel="Buscar cuentas por nombre o mail"
+                autoCapitalize="none"
+              />
+            </View>
 
-                <Ionicons name="chevron-forward" size={22} color={colores.textoTenue} />
+            {visibles.length === 0 ? (
+              <Vacio icono="search-outline" titulo="Ninguna cuenta coincide" detalle="Probá con otra parte del nombre o del mail." />
+            ) : (
+              <View style={escritorio ? styles.grilla : undefined}>
+                {visibles.map((u) => {
+                  const edad = edadDesde(u.fecha_nacimiento);
+                  return (
+                    <View key={u.id} style={escritorio ? styles.grillaItem : undefined}>
+                      <Tarjeta>
+                        <View style={styles.cuenta}>
+                          <View style={styles.persona}>
+                            <Avatar usuario={u} tam={48} />
+                            <View style={styles.personaTextos}>
+                              <View style={styles.nombreFila}>
+                                <Text style={styles.nombre} numberOfLines={1}>
+                                  {u.nombre} {u.apellido}
+                                </Text>
+                                {u.rol === "admin" && <Estado texto="Admin" tono="ok" icono="shield-checkmark" />}
+                                {u.id === yo && <Estado texto="Vos" tono="neutro" />}
+                              </View>
+                              <Text style={styles.mail} numberOfLines={1} selectable>
+                                {u.mail}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.estados}>
+                            <Estado
+                              texto={u.verificado ? "Verificada" : "Sin verificar"}
+                              tono={u.verificado ? "ok" : "atencion"}
+                            />
+                            <Estado
+                              texto={`${u.pastillas} ${u.pastillas === 1 ? "pastilla" : "pastillas"}`}
+                              tono="neutro"
+                              icono="medkit-outline"
+                            />
+                            <Estado texto={`${u.horarios} dosis`} tono="neutro" icono="time-outline" />
+                            {edad !== null && <Estado texto={`${edad} años`} tono="neutro" icono="person-outline" />}
+                          </View>
+
+                          {u.listaPastillas && u.listaPastillas.length > 0 && (
+                            <Text style={styles.pastillasDe} numberOfLines={2}>
+                              {u.listaPastillas.map((p) => p.nombre).join(", ")}
+                            </Text>
+                          )}
+
+                          <View style={styles.acciones}>
+                            <Boton
+                              titulo={u.verificado ? "Desverificar" : "Verificar"}
+                              variante="secundario"
+                              ancho="auto"
+                              icono={u.verificado ? "close-circle-outline" : "checkmark-circle-outline"}
+                              onPress={() => cambiarVerificacion(u)}
+                              deshabilitado={ocupado === u.id}
+                            />
+                            <Boton
+                              titulo="Vaciar"
+                              variante="peligro"
+                              ancho="auto"
+                              icono="calendar-clear-outline"
+                              onPress={() => borrarCalendario(u)}
+                              deshabilitado={ocupado === u.id || u.horarios === 0}
+                              ayuda="Borra las dosis que todavía no salieron"
+                            />
+                            {u.id !== yo && (
+                              <Boton
+                                titulo="Eliminar"
+                                variante="peligro"
+                                ancho="auto"
+                                icono="trash-outline"
+                                onPress={() => borrarCuenta(u)}
+                                deshabilitado={ocupado === u.id}
+                                ayuda="Borra la cuenta y todo lo suyo. No se puede deshacer"
+                              />
+                            )}
+                          </View>
+                        </View>
+                      </Tarjeta>
+                    </View>
+                  );
+                })}
               </View>
-            </Tarjeta>
-
-            <Text style={styles.resumen}>
-              {usuarios.length} {usuarios.length === 1 ? "cuenta" : "cuentas"}
-            </Text>
-
-            {usuarios.map((u) => (
-              <Tarjeta key={u.id}>
-                <View style={styles.titulo}>
-                  <Text style={styles.nombre}>
-                    {u.nombre} {u.apellido}
-                  </Text>
-
-                  {u.rol === "admin" && (
-                    <Estado texto="Admin" tono="ok" icono="shield-checkmark" />
-                  )}
-                </View>
-
-                <Text style={styles.mail}>{u.mail}</Text>
-
-                <View style={styles.estados}>
-                  <Estado
-                    texto={u.verificado ? "Verificada" : "Sin verificar"}
-                    tono={u.verificado ? "ok" : "atencion"}
-                  />
-
-                  <Estado
-                    texto={`${u.pastillas} ${u.pastillas === 1 ? "pastilla" : "pastillas"}`}
-                    tono="neutro"
-                    icono="medkit-outline"
-                  />
-
-                  <Estado
-                    texto={`${u.horarios} ${u.horarios === 1 ? "dosis" : "dosis"}`}
-                    tono="neutro"
-                    icono="time-outline"
-                  />
-
-                  {edadDesde(u.fecha_nacimiento) !== null && (
-                    <Estado
-                      texto={`${edadDesde(u.fecha_nacimiento)} años`}
-                      tono="neutro"
-                      icono="person-outline"
-                    />
-                  )}
-                </View>
-
-                {u.listaPastillas && u.listaPastillas.length > 0 && (
-                  <Text style={styles.pastillasDe}>
-                    {u.listaPastillas.map((p) => p.nombre).join(" · ")}
-                  </Text>
-                )}
-
-                <View style={styles.acciones}>
-                  <Boton
-                    titulo={u.verificado ? "Quitar la verificación" : "Verificar la cuenta"}
-                    variante="secundario"
-                    onPress={() => cambiarVerificacion(u)}
-                    deshabilitado={ocupado === u.id}
-                  />
-
-                  <Boton
-                    titulo="Vaciar el calendario"
-                    variante="peligro"
-                    icono="calendar-clear-outline"
-                    onPress={() => borrarCalendario(u)}
-                    deshabilitado={ocupado === u.id || u.horarios === 0}
-                    ayuda="Borra las dosis que todavía no salieron"
-                  />
-
-                  {u.id !== yo && (
-                    <Boton
-                      titulo="Eliminar la cuenta"
-                      variante="peligro"
-                      icono="trash-outline"
-                      onPress={() => borrarCuenta(u)}
-                      deshabilitado={ocupado === u.id}
-                      ayuda="Borra la cuenta y todo lo suyo. No se puede deshacer"
-                    />
-                  )}
-                </View>
-              </Tarjeta>
-            ))}
+            )}
           </>
         )
       )}
@@ -255,56 +291,118 @@ export default function Admin() {
 }
 
 const useEstilos = crearEstilos((colores) => ({
-  pastillasDe: {
-    ...texto.dato,
-    color: colores.textoTenue,
-    marginTop: espacio.sm,
-  },
-
-  acceso: {
+  cabecera: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
     gap: espacio.lg,
+    marginBottom: espacio.xl,
   },
 
-  accesoTextos: {
+  cabeceraTextos: {
     flex: 1,
   },
 
-  accesoTitulo: {
-    ...texto.item,
+  cifras: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: espacio.md,
+    marginTop: espacio.lg,
+    marginBottom: espacio.lg,
+  },
+
+  cifra: {
+    flexBasis: "47%",
+    flexGrow: 1,
+    backgroundColor: colores.superficie,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    borderRadius: radio.lg,
+    paddingVertical: espacio.md,
+    paddingHorizontal: espacio.lg,
+  },
+
+  cifraAncha: {
+    flexBasis: "22%",
+  },
+
+  cifraValor: {
+    ...texto.titulo,
+    color: colores.acento,
+  },
+
+  cifraEtiqueta: {
+    ...texto.cuerpoFuerte,
     color: colores.texto,
   },
 
-  accesoDetalle: {
+  cifraDetalle: {
     ...texto.dato,
-    color: colores.textoSuave,
+    color: colores.atencion.texto,
     marginTop: 2,
   },
 
-  resumen: {
-    ...texto.cuerpo,
-    color: colores.textoSuave,
+  buscador: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.sm,
+    borderWidth: 2,
+    borderColor: colores.borde,
+    borderRadius: radio.md,
+    backgroundColor: colores.superficie,
+    paddingHorizontal: espacio.md,
     marginBottom: espacio.lg,
-    marginTop: espacio.lg,
   },
 
-  titulo: {
+  buscadorCampo: {
+    ...texto.cuerpo,
+    flex: 1,
+    color: colores.texto,
+    paddingVertical: espacio.md,
+  },
+
+  grilla: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+
+  grillaItem: {
+    width: "49%",
+  },
+
+  cuenta: {
+    flex: 1,
+  },
+
+  persona: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.md,
+  },
+
+  personaTextos: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  nombreFila: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: espacio.md,
+    gap: espacio.sm,
   },
 
   nombre: {
     ...texto.item,
     color: colores.texto,
+    flexShrink: 1,
   },
 
   mail: {
-    ...texto.cuerpo,
+    ...texto.dato,
     color: colores.textoSuave,
-    marginTop: espacio.xs,
+    marginTop: 2,
   },
 
   estados: {
@@ -314,8 +412,19 @@ const useEstilos = crearEstilos((colores) => ({
     marginTop: espacio.md,
   },
 
+  pastillasDe: {
+    ...texto.dato,
+    color: colores.textoTenue,
+    marginTop: espacio.sm,
+  },
+
   acciones: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: espacio.sm,
     marginTop: espacio.lg,
+    paddingTop: espacio.md,
+    borderTopWidth: 1,
+    borderTopColor: colores.borde,
   },
 }));

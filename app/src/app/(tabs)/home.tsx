@@ -24,6 +24,8 @@ import {
 import { Pantalla, Tarjeta, Boton, Aviso, Vacio, Cargando, Estado, Columnas, useEscritorio } from "../../ui";
 import { crearEstilos, useColores, espacio, texto } from "../../tema";
 
+const HORAS_VISIBLE_DESPUES = 12;
+
 export default function Hoy() {
   const styles = useEstilos();
   const colores = useColores();
@@ -82,6 +84,12 @@ export default function Hoy() {
   );
 
   const resumen = useMemo(() => resumirDia(dosisDeHoy), [dosisDeHoy]);
+
+  const dosisVisibles = useMemo(() => {
+    const ahora = new Date();
+    const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+    return dosisDeHoy.filter((d) => !(d.dispensado && minutosAhora - (d.hora * 60 + d.minuto) >= HORAS_VISIBLE_DESPUES * 60));
+  }, [dosisDeHoy]);
   const proxima = useMemo(() => proximaDosis(horarios), [horarios]);
 
   const actividadesDeHoy = useMemo(() => {
@@ -237,8 +245,10 @@ export default function Hoy() {
                         onPress: () => router.push("/agendar-medicacion"),
                       }}
                     />
+                  ) : dosisVisibles.length === 0 ? (
+                    <Text style={styles.todasSalieron}>Todas las dosis de hoy ya salieron.</Text>
                   ) : (
-                    dosisDeHoy.map((dosis) => {
+                    dosisVisibles.map((dosis) => {
                       const suRutina = rutinaDeHorario(rutinas, dosis);
                       return (
                         <FilaDosis
@@ -394,6 +404,11 @@ const useEstilos = crearEstilos((colores) => ({
     ...texto.seccion,
     color: colores.texto,
     marginBottom: espacio.md,
+  },
+
+  todasSalieron: {
+    ...texto.cuerpo,
+    color: colores.textoSuave,
   },
 
   marcadores: {

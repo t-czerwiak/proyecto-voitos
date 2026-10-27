@@ -101,7 +101,7 @@ export default function TusDatos({ usuario, alCambiar }: Props) {
       const imagen = await elegirFoto();
       if (!imagen) return;
       setCargandoFoto(true);
-      alCambiar(await subirFoto(imagen));
+      alCambiar({ ...(await subirFoto(imagen)), foto_url: imagen });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo subir la foto");
     } finally {
@@ -173,14 +173,6 @@ export default function TusDatos({ usuario, alCambiar }: Props) {
               <Boton titulo="Cambiar" variante="enlace" ancho="auto" onPress={() => abrir("nombre")} />
             </View>
           )}
-        </View>
-
-        <View style={styles.bloque}>
-          <Text style={styles.etiqueta}>Mail</Text>
-          <Text style={styles.valor} selectable>
-            {usuario?.mail ?? "—"}
-          </Text>
-          <Text style={styles.detalle}>Es con el que entrás; no se puede cambiar.</Text>
         </View>
 
         <View style={styles.bloque}>
