@@ -8,11 +8,12 @@ import { comoHora, fechaLarga, horaHablada, MESES_LARGOS } from "../lib/fechas";
 import {
   Pantalla,
   Encabezado,
-  Tarjeta,
+  Columnas,
   Estado,
   Aviso,
   Cargando,
   Vacio,
+  useEscritorio,
 } from "../ui";
 import { crearEstilos, useColores, espacio, radio, texto, toque } from "../tema";
 
@@ -26,25 +27,30 @@ const hoyEnArgentina = () => {
   return d.toISOString().split("T")[0];
 };
 
+const conMayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+
 export default function AdminCalendario() {
   const styles = useEstilos();
   const colores = useColores();
+  const escritorio = useEscritorio();
 
-  const ahora = new Date();
-  const [mes, setMes] = useState(ahora.getMonth());
-  const [anio, setAnio] = useState(ahora.getFullYear());
-
+  const hoy = hoyEnArgentina();
+  const [mes, setMes] = useState(Number(hoy.slice(5, 7)) - 1);
+  const [anio, setAnio] = useState(Number(hoy.slice(0, 4)));
   const [dosis, setDosis] = useState<DosisDeTodos[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
-  const [diaAbierto, setDiaAbierto] = useState<string | null>(null);
+  const [diaElegido, setDiaElegido] = useState<string | null>(hoy);
+  const [filtro, setFiltro] = useState<string | null>(null);
 
   const cantidadDias = new Date(anio, mes + 1, 0).getDate();
+  const esteMes = hoy.startsWith(aFecha(anio, mes, 1).slice(0, 7));
 
   const cargar = useCallback(() => {
     setCargando(true);
     setError("");
-
     getCalendarioCompleto(aFecha(anio, mes, 1), aFecha(anio, mes, cantidadDias))
       .then((d) => setDosis(d ?? []))
       .catch((e: any) => setError(e?.message ?? "No se pudo cargar el calendario"))
@@ -54,268 +60,289 @@ export default function AdminCalendario() {
   useFocusEffect(cargar);
 
   const personas = useMemo(() => {
-    const vistos = new Map<string, { id: string; nombre: string; mail: string }>();
-
+    const vistas = new Map<string, { id: string; nombre: string; mail: string; total: number }>();
     for (const d of dosis) {
-      if (d.usuario && !vistos.has(d.usuario.id)) {
-        vistos.set(d.usuario.id, {
+      if (!d.usuario) continue;
+      const p = vistas.get(d.usuario.id);
+      if (p) p.total++;
+      else
+        vistas.set(d.usuario.id, {
           id: d.usuario.id,
           nombre: `${d.usuario.nombre} ${d.usuario.apellido}`.trim(),
           mail: d.usuario.mail,
+          total: 1,
         });
-      }
     }
-
-    return [...vistos.values()]
+    return [...vistas.values()]
       .sort((a, b) => a.id.localeCompare(b.id))
       .map((p, i) => ({ ...p, color: colores.rutinas[i % colores.rutinas.length] }));
   }, [dosis, colores.rutinas]);
 
-  const colorDe = useCallback(
-    (usuarioId?: string) =>
-      personas.find((p) => p.id === usuarioId)?.color ?? colores.textoTenue,
-    [personas]
-  );
+  const colorDe = (usuarioId?: string) =>
+    personas.find((p) => p.id === usuarioId)?.color ?? colores.textoTenue;
 
-  const nombreDe = useCallback(
-    (usuarioId?: string) => personas.find((p) => p.id === usuarioId)?.nombre ?? "sin dueño",
-    [personas]
-  );
+  const visibles = filtro ? dosis.filter((d) => d.usuario?.id === filtro) : dosis;
 
   const porDia = useMemo(() => {
     const mapa = new Map<string, DosisDeTodos[]>();
-    for (const d of dosis) {
+    for (const d of visibles) {
       const lista = mapa.get(d.dia) ?? [];
       lista.push(d);
       mapa.set(d.dia, lista);
     }
     return mapa;
-  }, [dosis]);
+  }, [visibles]);
 
   const celdas = useMemo(() => {
     const primer = new Date(anio, mes, 1).getDay();
     const vacias = primer === 0 ? 6 : primer - 1;
-
     return [
       ...Array.from({ length: vacias }, () => null),
       ...Array.from({ length: cantidadDias }, (_, i) => i + 1),
     ];
   }, [anio, mes, cantidadDias]);
 
-  const mover = (paso: number) => {
-    setDiaAbierto(null);
-    const nuevo = mes + paso;
-    if (nuevo < 0) {
-      setMes(11);
-      setAnio(anio - 1);
-    } else if (nuevo > 11) {
-      setMes(0);
-      setAnio(anio + 1);
-    } else {
-      setMes(nuevo);
-    }
+  const irA = (nuevoAnio: number, nuevoMes: number) => {
+    setAnio(nuevoAnio);
+    setMes(nuevoMes);
+    setDiaElegido(hoy.startsWith(aFecha(nuevoAnio, nuevoMes, 1).slice(0, 7)) ? hoy : null);
   };
 
-  const hoy = hoyEnArgentina();
-  const delDiaAbierto = diaAbierto
-    ? [...(porDia.get(diaAbierto) ?? [])].sort(
-        (a, b) => a.hora - b.hora || a.minuto - b.minuto
-      )
+  const mover = (paso: number) => {
+    const nuevo = mes + paso;
+    if (nuevo < 0) irA(anio - 1, 11);
+    else if (nuevo > 11) irA(anio + 1, 0);
+    else irA(anio, nuevo);
+  };
+
+  const salieron = visibles.filter((d) => d.dispensado).length;
+
+  const delDia = diaElegido
+    ? [...(porDia.get(diaElegido) ?? [])].sort((a, b) => a.hora - b.hora || a.minuto - b.minuto)
     : [];
+
+  const navegacion = (
+    <View style={styles.navegacion}>
+      <Pressable
+        onPress={() => mover(-1)}
+        style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
+        accessibilityRole="button"
+        accessibilityLabel="Mes anterior"
+      >
+        <Ionicons name="chevron-back" size={22} color={colores.acento} />
+      </Pressable>
+
+      <Text style={styles.mes} accessibilityRole="header">
+        {MESES_LARGOS[mes]} {anio}
+      </Text>
+
+      <Pressable
+        onPress={() => mover(1)}
+        style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
+        accessibilityRole="button"
+        accessibilityLabel="Mes siguiente"
+      >
+        <Ionicons name="chevron-forward" size={22} color={colores.acento} />
+      </Pressable>
+
+      {!esteMes && (
+        <Pressable
+          onPress={() => irA(Number(hoy.slice(0, 4)), Number(hoy.slice(5, 7)) - 1)}
+          style={({ pressed }) => [styles.botonHoy, pressed && styles.flechaActiva]}
+          accessibilityRole="button"
+          accessibilityLabel="Volver al mes actual"
+        >
+          <Text style={styles.textoHoy}>Hoy</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+
+  const cifra = (valor: number | string, etiqueta: string) => (
+    <View style={styles.cifra}>
+      <Text style={styles.cifraValor}>{valor}</Text>
+      <Text style={styles.cifraEtiqueta}>{etiqueta}</Text>
+    </View>
+  );
+
+  const grilla = (
+    <View style={styles.grilla}>
+      <View style={styles.semana}>
+        {DIAS_SEMANA.map((d) => (
+          <Text key={d} style={styles.diaSemana} accessibilityElementsHidden>
+            {d}
+          </Text>
+        ))}
+      </View>
+
+      <View style={styles.dias}>
+        {celdas.map((dia, i) => {
+          if (dia === null) return <View key={`vacio-${i}`} style={[styles.celda, escritorio && styles.celdaAlta]} />;
+
+          const fecha = aFecha(anio, mes, dia);
+          const lista = porDia.get(fecha) ?? [];
+          const esHoy = fecha === hoy;
+          const elegido = fecha === diaElegido;
+          const deQuienes = [...new Set(lista.map((d) => d.usuario?.id))];
+
+          const partes = [fechaLarga(fecha)];
+          if (esHoy) partes.push("hoy");
+          partes.push(lista.length === 0 ? "sin dosis" : plural(lista.length, "dosis", "dosis"));
+
+          return (
+            <Pressable
+              key={dia}
+              onPress={() => setDiaElegido(fecha)}
+              style={({ pressed }) => [
+                styles.celda,
+                escritorio && styles.celdaAlta,
+                styles.celdaTocable,
+                esHoy && styles.celdaHoy,
+                elegido && styles.celdaElegida,
+                pressed && styles.celdaActiva,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={partes.join(", ")}
+              accessibilityState={{ selected: elegido }}
+              aria-selected={elegido}
+            >
+              <Text style={[styles.numero, esHoy && styles.numeroHoy, elegido && styles.numeroElegido]}>
+                {dia}
+              </Text>
+
+              <View style={[styles.puntos, escritorio && styles.puntosAncho]}>
+                {deQuienes.slice(0, 4).map((id, j) => (
+                  <View key={j} style={[styles.punto, { backgroundColor: colorDe(id) }]} />
+                ))}
+                {escritorio && lista.length > 0 && (
+                  <Text style={[styles.conteo, elegido && styles.numeroElegido]}>{lista.length}</Text>
+                )}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+
+  const panelDia = (
+    <View style={styles.panel}>
+      <Text style={styles.tituloPanel} accessibilityRole="header">
+        {diaElegido ? conMayuscula(fechaLarga(diaElegido)) : "Elegí un día"}
+      </Text>
+
+      {diaElegido &&
+        (delDia.length === 0 ? (
+          <Vacio icono="medkit-outline" titulo="Sin dosis este día" />
+        ) : (
+          delDia.map((d, i) => {
+            const nombre = d.pastilla?.nombre ?? "Sin pastilla";
+            const cantidad = plural(d.cantidad, "pastilla", "pastillas");
+            const duenio = d.usuario ? `${d.usuario.nombre} ${d.usuario.apellido}` : "sin dueño";
+
+            return (
+              <View
+                key={d.id}
+                style={[styles.dosis, i > 0 && styles.dosisSeparada]}
+                accessible
+                accessibilityLabel={`A ${horaHablada(d.hora, d.minuto)}, ${nombre}, ${cantidad}, de ${duenio}. ${
+                  d.dispensado ? "Salió" : "Pendiente"
+                }.`}
+              >
+                <View style={[styles.franja, { backgroundColor: colorDe(d.usuario?.id) }]} />
+                <Text style={styles.hora}>{comoHora(d.hora, d.minuto)}</Text>
+
+                <View style={styles.datos}>
+                  <Text style={styles.nombre}>{nombre}</Text>
+                  <Text style={styles.duenio}>
+                    {cantidad} · {duenio}
+                  </Text>
+                </View>
+
+                <Estado
+                  texto={d.dispensado ? "Salió" : "Pendiente"}
+                  tono={d.dispensado ? "ok" : "neutro"}
+                  icono={d.dispensado ? "checkmark-circle" : "time-outline"}
+                />
+              </View>
+            );
+          })
+        ))}
+    </View>
+  );
+
+  const cuentas = personas.length > 0 && (
+    <View style={styles.panel}>
+      <View style={styles.cabeceraCuentas}>
+        <Text style={styles.tituloPanel}>Cuentas</Text>
+        {filtro && (
+          <Pressable onPress={() => setFiltro(null)} accessibilityRole="button" hitSlop={8}>
+            <Text style={styles.verTodas}>Ver todas</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {personas.map((p) => {
+        const activa = filtro === p.id;
+        const apagada = filtro !== null && !activa;
+        return (
+          <Pressable
+            key={p.id}
+            onPress={() => setFiltro(activa ? null : p.id)}
+            style={({ pressed }) => [styles.cuenta, activa && styles.cuentaActiva, pressed && styles.flechaActiva]}
+            accessibilityRole="button"
+            accessibilityLabel={`${p.nombre}, ${plural(p.total, "dosis", "dosis")} en el mes`}
+            accessibilityState={{ selected: activa }}
+          >
+            <View style={[styles.muestra, { backgroundColor: p.color }, apagada && styles.apagada]} />
+            <View style={[styles.datos, apagada && styles.apagada]}>
+              <Text style={styles.nombrePersona} numberOfLines={1}>
+                {p.nombre}
+              </Text>
+              <Text style={styles.mailPersona} numberOfLines={1}>
+                {p.mail}
+              </Text>
+            </View>
+            <Text style={[styles.totalPersona, apagada && styles.apagada]}>{p.total}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 
   return (
     <Pantalla>
-      <Encabezado
-        titulo="Calendario general"
-        bajada="Todas las dosis agendadas, de todas las cuentas. Solo lectura."
-        volverA="/admin"
-      />
+      <View style={escritorio ? styles.cabecera : undefined}>
+        <View style={styles.flex}>
+          <Encabezado titulo="Calendario general" bajada="Todas las cuentas. Solo lectura." volverA="/admin" />
+        </View>
+        {escritorio && navegacion}
+      </View>
 
       <Aviso texto={error} />
 
-      <View style={styles.navegacion}>
-        <Pressable
-          onPress={() => mover(-1)}
-          style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
-          accessibilityRole="button"
-          accessibilityLabel="Mes anterior"
-        >
-          <Ionicons name="chevron-back" size={24} color={colores.acento} />
-        </Pressable>
-
-        <Text style={styles.mes} accessibilityRole="header">
-          {MESES_LARGOS[mes]} {anio}
-        </Text>
-
-        <Pressable
-          onPress={() => mover(1)}
-          style={({ pressed }) => [styles.flecha, pressed && styles.flechaActiva]}
-          accessibilityRole="button"
-          accessibilityLabel="Mes siguiente"
-        >
-          <Ionicons name="chevron-forward" size={24} color={colores.acento} />
-        </Pressable>
-      </View>
+      {!escritorio && navegacion}
 
       {cargando ? (
         <Cargando texto="Buscando las dosis del mes..." />
       ) : (
         !error && (
           <>
-            <View style={styles.grilla}>
-              <View style={styles.semana}>
-                {DIAS_SEMANA.map((d) => (
-                  <Text key={d} style={styles.diaSemana} accessibilityElementsHidden>
-                    {d}
-                  </Text>
-                ))}
-              </View>
-
-              <View style={styles.dias}>
-                {celdas.map((dia, i) => {
-                  if (dia === null) return <View key={`vacio-${i}`} style={styles.celda} />;
-
-                  const fecha = aFecha(anio, mes, dia);
-                  const delDia = porDia.get(fecha) ?? [];
-                  const esHoy = fecha === hoy;
-                  const abierto = fecha === diaAbierto;
-
-                  const deQuienes = [...new Set(delDia.map((d) => d.usuario?.id))];
-
-                  const partes = [fechaLarga(fecha)];
-                  if (esHoy) partes.push("hoy");
-                  if (delDia.length === 0) partes.push("sin dosis");
-                  else {
-                    partes.push(
-                      delDia.length === 1 ? "1 dosis" : `${delDia.length} dosis`
-                    );
-                    partes.push(`de ${deQuienes.map((id) => nombreDe(id)).join(", ")}`);
-                  }
-
-                  return (
-                    <Pressable
-                      key={dia}
-                      onPress={() => setDiaAbierto(abierto ? null : fecha)}
-                      style={({ pressed }) => [
-                        styles.celda,
-                        styles.celdaTocable,
-                        esHoy && styles.celdaHoy,
-                        abierto && styles.celdaAbierta,
-                        pressed && styles.celdaActiva,
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityLabel={partes.join(", ")}
-                      accessibilityState={{ selected: abierto }}
-                      aria-selected={abierto}
-                    >
-                      <Text
-                        style={[
-                          styles.numero,
-                          esHoy && styles.numeroHoy,
-                          abierto && styles.numeroAbierto,
-                        ]}
-                      >
-                        {dia}
-                      </Text>
-
-                      <View style={styles.puntos}>
-                        {deQuienes.slice(0, 4).map((id, j) => (
-                          <View
-                            key={j}
-                            style={[styles.punto, { backgroundColor: colorDe(id) }]}
-                          />
-                        ))}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
+            <View style={styles.cifras}>
+              {cifra(visibles.length, "dosis")}
+              {cifra(visibles.length ? `${Math.round((salieron / visibles.length) * 100)}%` : "—", "salieron")}
+              {cifra(filtro ? 1 : personas.length, personas.length === 1 || filtro ? "cuenta" : "cuentas")}
             </View>
 
-            {personas.length > 0 && (
-              <View style={styles.referencia}>
-                <Text style={styles.tituloReferencia}>Quién es cada color</Text>
-
-                {personas.map((p) => (
-                  <View
-                    key={p.id}
-                    style={styles.filaReferencia}
-                    accessible
-                    accessibilityLabel={`${p.nombre}, ${p.mail}`}
-                  >
-                    <View style={[styles.muestra, { backgroundColor: p.color }]} />
-
-                    <View style={styles.datosPersona}>
-                      <Text style={styles.nombrePersona}>{p.nombre}</Text>
-                      <Text style={styles.mailPersona}>{p.mail}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {diaAbierto && (
-              <View style={styles.seccion}>
-                <Text style={styles.tituloSeccion} accessibilityRole="header">
-                  {fechaLarga(diaAbierto)}
-                </Text>
-
-                {delDiaAbierto.length === 0 ? (
-                  <Vacio
-                    icono="medkit-outline"
-                    titulo="Sin dosis agendadas este día"
-                    detalle="Ninguna cuenta tiene medicación para esta fecha."
-                  />
-                ) : (
-                  delDiaAbierto.map((d) => {
-                    const nombre = d.pastilla?.nombre ?? "Sin pastilla";
-                    const cantidad =
-                      d.cantidad === 1 ? "1 pastilla" : `${d.cantidad} pastillas`;
-                    const duenio = d.usuario
-                      ? `${d.usuario.nombre} ${d.usuario.apellido}`
-                      : "sin dueño";
-
-                    return (
-                      <Tarjeta key={d.id} franja={colorDe(d.usuario?.id)}>
-                        <View
-                          style={styles.fila}
-                          accessible
-                          accessibilityLabel={`A ${horaHablada(d.hora, d.minuto)}, ${nombre}, ${cantidad}, de ${duenio}. ${
-                            d.dispensado ? "Salió del pastillero" : "Todavía no salió"
-                          }.`}
-                        >
-                          <Text style={styles.hora} accessibilityElementsHidden>
-                            {comoHora(d.hora, d.minuto)}
-                          </Text>
-
-                          <View style={styles.datos}>
-                            <Text style={styles.nombre}>{nombre}</Text>
-                            <Text style={styles.cantidad}>{cantidad}</Text>
-                            <Text style={styles.duenio}>{duenio}</Text>
-
-                            <View style={styles.estado}>
-                              <Estado
-                                texto={d.dispensado ? "Salió del pastillero" : "Todavía no"}
-                                tono={d.dispensado ? "ok" : "neutro"}
-                                icono={d.dispensado ? "checkmark-circle" : "time-outline"}
-                              />
-                            </View>
-                          </View>
-                        </View>
-                      </Tarjeta>
-                    );
-                  })
-                )}
-              </View>
-            )}
-
-            <Text style={styles.total}>
-              {dosis.length === 0
-                ? "No hay dosis agendadas este mes."
-                : `${dosis.length} ${dosis.length === 1 ? "dosis" : "dosis"} en el mes, de ${personas.length} ${
-                    personas.length === 1 ? "cuenta" : "cuentas"
-                  }.`}
-            </Text>
+            <Columnas
+              principal={grilla}
+              lateral={
+                <View style={styles.lateral}>
+                  {panelDia}
+                  {cuentas}
+                </View>
+              }
+            />
           </>
         )
       )}
@@ -324,15 +351,21 @@ export default function AdminCalendario() {
 }
 
 const useEstilos = crearEstilos((colores) => ({
+  flex: {
+    flex: 1,
+  },
+
+  cabecera: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: espacio.lg,
+  },
+
   navegacion: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colores.superficie,
-    borderWidth: 2,
-    borderColor: colores.borde,
-    borderRadius: radio.lg,
-    padding: espacio.xs,
+    gap: espacio.xs,
     marginBottom: espacio.lg,
   },
 
@@ -342,24 +375,67 @@ const useEstilos = crearEstilos((colores) => ({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radio.md,
-    backgroundColor: colores.superficieAlta,
+    borderWidth: 1,
+    borderColor: colores.borde,
   },
 
   flechaActiva: {
-    backgroundColor: colores.borde,
+    backgroundColor: colores.superficieAlta,
   },
 
   mes: {
     ...texto.seccion,
     color: colores.texto,
-    flex: 1,
+    minWidth: 190,
+    flexGrow: 1,
     textAlign: "center",
     textTransform: "capitalize",
   },
 
+  botonHoy: {
+    height: toque.comodo,
+    paddingHorizontal: espacio.lg,
+    justifyContent: "center",
+    borderRadius: radio.md,
+    borderWidth: 1,
+    borderColor: colores.borde,
+  },
+
+  textoHoy: {
+    ...texto.cuerpoFuerte,
+    color: colores.acento,
+  },
+
+  cifras: {
+    flexDirection: "row",
+    gap: espacio.md,
+    marginBottom: espacio.lg,
+  },
+
+  cifra: {
+    flex: 1,
+    backgroundColor: colores.superficie,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    borderRadius: radio.lg,
+    paddingVertical: espacio.md,
+    paddingHorizontal: espacio.lg,
+  },
+
+  cifraValor: {
+    ...texto.titulo,
+    color: colores.acento,
+    fontVariant: ["tabular-nums" as const],
+  },
+
+  cifraEtiqueta: {
+    ...texto.dato,
+    color: colores.textoSuave,
+  },
+
   grilla: {
     backgroundColor: colores.superficie,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colores.borde,
     borderRadius: radio.lg,
     padding: espacio.md,
@@ -371,8 +447,8 @@ const useEstilos = crearEstilos((colores) => ({
   },
 
   diaSemana: {
-    ...texto.cuerpoFuerte,
-    color: colores.acentoSuave,
+    ...texto.dato,
+    color: colores.textoTenue,
     width: `${100 / 7}%`,
     textAlign: "center",
   },
@@ -384,12 +460,15 @@ const useEstilos = crearEstilos((colores) => ({
 
   celda: {
     width: `${100 / 7}%`,
-
-    minHeight: 64,
+    minHeight: 60,
     alignItems: "center" as const,
-    justifyContent: "flex-start" as const,
-    paddingTop: 9,
-    paddingBottom: 14,
+    paddingTop: 8,
+  },
+
+  celdaAlta: {
+    minHeight: 84,
+    alignItems: "flex-start" as const,
+    paddingLeft: espacio.sm,
   },
 
   celdaTocable: {
@@ -402,7 +481,7 @@ const useEstilos = crearEstilos((colores) => ({
     borderColor: colores.bordeFuerte,
   },
 
-  celdaAbierta: {
+  celdaElegida: {
     backgroundColor: colores.acento,
     borderColor: colores.acento,
   },
@@ -412,8 +491,7 @@ const useEstilos = crearEstilos((colores) => ({
   },
 
   numero: {
-    ...texto.item,
-
+    ...texto.cuerpoFuerte,
     fontVariant: ["tabular-nums" as const],
     color: colores.texto,
   },
@@ -422,17 +500,32 @@ const useEstilos = crearEstilos((colores) => ({
     color: colores.acento,
   },
 
-  numeroAbierto: {
+  numeroElegido: {
     color: colores.sobreAcento,
+  },
+
+  conteo: {
+    ...texto.dato,
+    color: colores.textoSuave,
+    marginLeft: 2,
+    lineHeight: 12,
   },
 
   puntos: {
     position: "absolute" as const,
-    bottom: 7,
+    bottom: 8,
+    left: 0,
+    right: 0,
     flexDirection: "row" as const,
     justifyContent: "center" as const,
+    alignItems: "center" as const,
     gap: 3,
-    minHeight: 5,
+  },
+
+  puntosAncho: {
+    justifyContent: "flex-start" as const,
+    left: espacio.sm,
+    bottom: 10,
   },
 
   punto: {
@@ -441,35 +534,98 @@ const useEstilos = crearEstilos((colores) => ({
     borderRadius: 3,
   },
 
-  referencia: {
+  lateral: {
+    gap: espacio.lg,
+    marginTop: espacio.lg,
+  },
+
+  panel: {
     backgroundColor: colores.superficie,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colores.borde,
     borderRadius: radio.lg,
     padding: espacio.lg,
-    marginTop: espacio.lg,
-    gap: espacio.md,
   },
 
-  tituloReferencia: {
-    ...texto.etiqueta,
-    color: colores.textoSuave,
+  tituloPanel: {
+    ...texto.item,
+    color: colores.texto,
+    marginBottom: espacio.md,
   },
 
-  filaReferencia: {
+  dosis: {
     flexDirection: "row",
     alignItems: "center",
     gap: espacio.md,
+    paddingVertical: espacio.sm,
+  },
+
+  dosisSeparada: {
+    borderTopWidth: 1,
+    borderTopColor: colores.borde,
+  },
+
+  franja: {
+    width: 4,
+    alignSelf: "stretch",
+    borderRadius: 2,
+  },
+
+  hora: {
+    ...texto.cuerpoFuerte,
+    color: colores.acento,
+    fontVariant: ["tabular-nums" as const],
+    minWidth: 48,
+  },
+
+  datos: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  nombre: {
+    ...texto.cuerpoFuerte,
+    color: colores.texto,
+  },
+
+  duenio: {
+    ...texto.dato,
+    color: colores.textoTenue,
+  },
+
+  cabeceraCuentas: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+  },
+
+  verTodas: {
+    ...texto.dato,
+    color: colores.acento,
+  },
+
+  cuenta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.md,
+    paddingVertical: espacio.sm,
+    paddingHorizontal: espacio.sm,
+    marginHorizontal: -espacio.sm,
+    borderRadius: radio.md,
+  },
+
+  cuentaActiva: {
+    backgroundColor: colores.superficieAlta,
   },
 
   muestra: {
-    width: 20,
-    height: 8,
-    borderRadius: 4,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
 
-  datosPersona: {
-    flex: 1,
+  apagada: {
+    opacity: 0.4,
   },
 
   nombrePersona: {
@@ -482,55 +638,9 @@ const useEstilos = crearEstilos((colores) => ({
     color: colores.textoTenue,
   },
 
-  seccion: {
-    marginTop: espacio.xxl,
-  },
-
-  tituloSeccion: {
-    ...texto.seccion,
-    color: colores.texto,
-    textTransform: "capitalize",
-    marginBottom: espacio.lg,
-  },
-
-  fila: {
-    flexDirection: "row",
-    gap: espacio.lg,
-  },
-
-  hora: {
-    ...texto.hora,
-    color: colores.acento,
-    minWidth: 78,
-  },
-
-  datos: {
-    flex: 1,
-    gap: espacio.xs,
-  },
-
-  nombre: {
-    ...texto.item,
-    color: colores.texto,
-  },
-
-  cantidad: {
-    ...texto.cuerpo,
+  totalPersona: {
+    ...texto.cuerpoFuerte,
     color: colores.textoSuave,
-  },
-
-  duenio: {
-    ...texto.dato,
-    color: colores.textoTenue,
-  },
-
-  estado: {
-    marginTop: espacio.xs,
-  },
-
-  total: {
-    ...texto.cuerpo,
-    color: colores.textoSuave,
-    marginTop: espacio.xl,
+    fontVariant: ["tabular-nums" as const],
   },
 }));

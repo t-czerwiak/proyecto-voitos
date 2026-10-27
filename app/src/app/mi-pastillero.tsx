@@ -16,16 +16,15 @@ import { Pantalla, Encabezado, Boton, Campo, Aviso, Estado, Cargando, Columnas, 
 import { crearEstilos, useColores, espacio, radio, texto, fuentes } from "../tema";
 
 const PASOS: { icono: keyof typeof Ionicons.glyphMap; titulo: string; detalle: string }[] = [
-  { icono: "power-outline", titulo: "Enchufalo", detalle: "Si no tiene WiFi, la pantalla dice SIN WIFI." },
   {
     icono: "wifi-outline",
-    titulo: "Dale el WiFi de la casa",
-    detalle: "Con el celular, conectate a la red VOITOS, elegí tu WiFi y poné la clave. Una sola vez.",
+    titulo: "Conectalo al WiFi",
+    detalle: "Desde el celular, entrá a la red VOITOS y elegí la tuya. Es una sola vez.",
   },
   {
     icono: "keypad-outline",
-    titulo: "Escribí el código",
-    detalle: "Aparece abajo de la hora: 8 números. Se carga acá, desde donde estés.",
+    titulo: "Ingresá el código",
+    detalle: "Son los 8 números que aparecen en su pantalla.",
   },
 ];
 
@@ -105,7 +104,7 @@ function TarjetaPastillero({
               style={styles.campoNombre}
               accessibilityLabel="Nombre del pastillero"
             />
-            <Text style={styles.ayuda}>Solo lo ves vos. Dejalo vacío para volver a "Tu pastillero".</Text>
+            <Text style={styles.ayuda}>Solo lo ves vos.</Text>
             <Aviso texto={error} />
             <View style={styles.fila}>
               <Boton titulo="Cancelar" variante="secundario" ancho="auto" onPress={() => setEditando(false)} />
@@ -241,9 +240,6 @@ export default function MiPastillero() {
       <Dibujo chico />
       <View style={styles.vacioTextos}>
         <Text style={styles.vacioTitulo}>Todavía no vinculaste ninguno</Text>
-        <Text style={styles.detalle}>
-          Cuando lo vincules, tus dosis salen por él y acá lo vas a ver con el nombre que le pongas.
-        </Text>
       </View>
     </View>
   ) : (
@@ -280,7 +276,7 @@ export default function MiPastillero() {
         error={errorCodigo}
         teclado="number-pad"
         placeholder="1234 5678"
-        ayuda="Cambia cada 30 minutos y después de cada vínculo."
+        ayuda="Se renueva cada 30 minutos."
       />
       <Boton titulo="Vincular" icono="link-outline" onPress={vincular} cargando={vinculando} />
       {primeraVez && (
@@ -300,15 +296,10 @@ export default function MiPastillero() {
         <Encabezado
           titulo="Vinculá tu pastillero"
           sinVolver
-          bajada="Es lo primero: así tus dosis salen por tu pastillero y lo ves en la app."
+          bajada="Así tus dosis salen por él."
         />
       ) : (
-        <Encabezado
-          titulo="Mi pastillero"
-          bajada="Los pastilleros vinculados a tu cuenta."
-          volverA="/perfil"
-          principal
-        />
+        <Encabezado titulo="Mi pastillero" volverA="/perfil" principal />
       )}
 
       <Aviso texto={error} />

@@ -169,7 +169,6 @@ export default function Perfil() {
             ) : pastillas.length === 0 ? (
               <Vacio
                 titulo="Todavía no cargaste ninguna"
-                detalle="Cuando agregues una pastilla, acá vas a ver su estado y cuándo le toca."
                 accion={{
                   titulo: "Agregar una pastilla",
                   onPress: () => router.push("/agregar-medicacion"),

@@ -10,7 +10,6 @@ export default function DetalleDia() {
       <Vacio
         icono="construct-outline"
         titulo="Esta pantalla todavía no está hecha"
-        detalle="Lo que hay agendado cada día se ve en el calendario, tocando el día."
         accion={{
           titulo: "Ir al calendario",
           onPress: () => router.push("/calendario"),
