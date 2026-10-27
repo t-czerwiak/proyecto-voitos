@@ -443,20 +443,22 @@ export default function Calendario() {
                     ))
                   )}
 
-                  <View style={styles.agregar}>
-                    <Boton
-                      titulo="Agregar una actividad"
-                      variante="secundario"
-                      icono="add-outline"
-                      onPress={() =>
-                        router.push({
-                          pathname: "/agregar-actividad",
-                          params: { fecha: fechaSeleccionada },
-                        })
-                      }
-                      ayuda={`Se agrega el ${fechaLarga(fechaSeleccionada)}`}
-                    />
-                  </View>
+                  {fechaSeleccionada >= hoyISO() && (
+                    <View style={styles.agregar}>
+                      <Boton
+                        titulo="Agregar una actividad"
+                        variante="secundario"
+                        icono="add-outline"
+                        onPress={() =>
+                          router.push({
+                            pathname: "/agregar-actividad",
+                            params: { fecha: fechaSeleccionada },
+                          })
+                        }
+                        ayuda={`Se agrega el ${fechaLarga(fechaSeleccionada)}`}
+                      />
+                    </View>
+                  )}
                 </>
               )}
             </View>
