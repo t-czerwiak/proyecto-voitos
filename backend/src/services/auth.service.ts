@@ -3,7 +3,6 @@ import { Registro, Login, LoginGoogle, Recuperar, ConfirmarReset, CambiarPasswor
 import { ErrorHttp } from "../utils/errores";
 import { randomBytes } from "crypto";
 import { avisarVerificacion, avisarBienvenida, avisarRecuperacion } from "./email.service";
-import { getHoraArgentina } from "../utils/tiempo";
 
 const HORAS_VERIFICACION = 24;
 
@@ -49,7 +48,7 @@ export const registro = async (body: Registro) => {
       apellido: body.apellido,
       mail: body.mail,
 
-      fecha_nacimiento: body.fecha_nacimiento ?? getHoraArgentina().hoy,
+      fecha_nacimiento: body.fecha_nacimiento ?? null,
       token_verificacion: token,
       token_expira: expira.toISOString(),
     })

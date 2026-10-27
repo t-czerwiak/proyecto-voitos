@@ -14,6 +14,8 @@ export const PastillaCreateSchema = z.object({
     .optional(),
 
   modulo_numero: z.number().int().min(1, "el modulo arranca en 1").optional(),
+
+  dispositivo_id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "dispositivo_id invalido").nullable().optional(),
 });
 
 export const PastillaUpdateSchema = PastillaCreateSchema.partial();
