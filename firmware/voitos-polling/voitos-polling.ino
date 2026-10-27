@@ -337,14 +337,18 @@ void dibujarPantalla() {
       pantalla.print(cantRecordatorios);
     }
     textoGrande(r.texto, 3, 20, inicioRecordatorio);
-    pantalla.setTextSize(1);
-    pantalla.setCursor(0, 54);
-    if ((millis() / 3000) % 2 == 0) {
-      pantalla.print("Faltan ");
-      pantalla.print(r.faltan);
-      pantalla.print(" min");
+    // Abajo alterna: 3 s cuanto falta (centrado) y despues el aviso del boton,
+    // que no entra en el ancho y corre una pasada completa antes de volver.
+    const String aviso = "Podes apretar el boton si ya viste el recordatorio";
+    unsigned long ciclo = 3000 + duracionDe(aviso, 1);
+    unsigned long fase = (millis() - inicioRecordatorio) % ciclo;
+    if (fase < 3000) {
+      String falta = r.faltan == 1 ? String("Falta 1 minuto") : "Faltan " + String(r.faltan) + " minutos";
+      pantalla.setTextSize(1);
+      pantalla.setCursor((ANCHO - anchoTexto(falta, 1)) / 2, 54);
+      pantalla.print(falta);
     } else {
-      pantalla.print("Boton = ya lo vi");
+      textoGrande(aviso, 1, 54, millis() - (fase - 3000));
     }
   } else {
     int corrimiento = (millis() / 60000) % 5;

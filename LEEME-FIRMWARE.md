@@ -140,8 +140,9 @@ como una marquesina:
   corridos unos píxeles por minuto para que el OLED no se marque. La hora sale
   de internet (NTP) apenas hay WiFi; hasta que llega, se ve solo "VOITOS".
 - **Recordatorios:** **de a uno y en loop**. Arriba la hora del evento, en el
-  medio el texto grande corriendo, y abajo alterna "Faltan N min" con
-  "Boton = ya lo vi". Si hay varios muestra "1/3" y van pasando solos.
+  medio el texto grande corriendo, y abajo alterna "Faltan N minutos" con
+  "Podes apretar el boton si ya viste el recordatorio" (corre, como
+  marquesina). Si hay varios muestra "1/3" y van pasando solos.
   **Apretar el botón los marca como vistos** y la pantalla vuelve a la hora;
   no vuelven a aparecer. Si nadie aprieta, se van solos a la hora del evento.
 - **Hay una dosis esperando el botón:** "TU DOSIS" y abajo, corriendo, "APRETA
