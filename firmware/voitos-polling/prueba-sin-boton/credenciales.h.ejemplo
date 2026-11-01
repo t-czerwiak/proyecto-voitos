@@ -5,3 +5,7 @@
 
 const char* ssid = "PONER_LA_RED";
 const char* password = "PONER_LA_CLAVE";
+
+// Clave para actualizar el firmware por WiFi (ver LEEME-FIRMWARE.md). Sin esta
+// linea el pastillero no acepta actualizaciones por WiFi.
+#define OTA_CLAVE "PONER_UNA_CLAVE"

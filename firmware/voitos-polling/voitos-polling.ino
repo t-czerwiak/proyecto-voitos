@@ -34,6 +34,7 @@
 #include <WebServer.h>
 #include <DNSServer.h>
 #include <Preferences.h>
+#include <ArduinoOTA.h>
 
 // EL WIFI YA NO VA EN EL CODIGO
 //
@@ -42,8 +43,12 @@
 // pagina, elige el WiFi de la casa y pone la clave. La placa lo guarda en su
 // memoria y de ahi en adelante se conecta sola, aunque se corte la luz.
 //
-// Para cambiar de red: mantener apretado el boton de dispensar mientras se
-// enchufa (3 segundos). Borra la red guardada y vuelve a abrir VOITOS-XXXX.
+// Recuerda las ultimas MAX_REDES redes: al prender se conecta a la que mejor
+// escucha. Asi anda en la casa del cuidador, en la del abuelo y en la escuela
+// sin volver a configurarlo.
+//
+// Para olvidarlas todas: mantener apretado el boton de dispensar mientras se
+// enchufa (3 segundos). Borra las redes guardadas y vuelve a abrir VOITOS-XXXX.
 //
 // credenciales.h ya no hace falta. Si esta (placa de desarrollo), se usa solo
 // cuando no hay ninguna red guardada.
@@ -54,7 +59,7 @@
 #define HAY_CREDENCIALES_H 0
 #endif
 
-// La memoria que sobrevive a los reinicios: la red, su clave y el secreto.
+// La memoria que sobrevive a los reinicios: las redes, sus claves y el secreto.
 Preferences memoria;
 
 // Lo inventa la placa la primera vez que arranca y lo manda en cada consulta.
@@ -750,6 +755,52 @@ const unsigned long MS_INTENTO_WIFI = 30000;
 // el pastillero esperando una configuracion que nadie va a hacer.
 const unsigned long MS_PORTAL_CON_RED_GUARDADA = 5UL * 60UL * 1000UL;
 
+// Cuantas redes recuerda. Se guardan como "red0".."red4" y "clave0".."clave4",
+// la ultima configurada primero.
+const int MAX_REDES = 5;
+
+String leerGuardada(const char* base, int i) {
+  String k = String(base) + i;
+  // isKey antes de getString: si no, la libreria ensucia el serie con un error
+  // por cada clave que no existe.
+  return memoria.isKey(k.c_str()) ? memoria.getString(k.c_str(), "") : "";
+}
+
+// La nueva va primero. Si ya estaba (cambio la clave) se saca de donde estaba;
+// si no entra, se olvida la mas vieja.
+void guardarRed(const String& nueva, const String& clave) {
+  String redes[MAX_REDES] = { nueva };
+  String claves[MAX_REDES] = { clave };
+  int n = 1;
+  for (int i = 0; i < MAX_REDES && n < MAX_REDES; i++) {
+    String r = leerGuardada("red", i);
+    if (r == "" || r == nueva) continue;
+    redes[n] = r;
+    claves[n++] = leerGuardada("clave", i);
+  }
+  for (int i = 0; i < n; i++) {
+    memoria.putString((String("red") + i).c_str(), redes[i]);
+    memoria.putString((String("clave") + i).c_str(), claves[i]);
+  }
+}
+
+void borrarRedes() {
+  for (int i = 0; i < MAX_REDES; i++) {
+    memoria.remove((String("red") + i).c_str());
+    memoria.remove((String("clave") + i).c_str());
+  }
+}
+
+// Las placas con el firmware anterior guardaban una sola red en "red"/"clave".
+// Se pasa a la lista para no tener que configurarlas de nuevo.
+void migrarRedVieja() {
+  if (!memoria.isKey("red")) return;
+  String vieja = memoria.getString("red", "");
+  if (vieja != "") guardarRed(vieja, memoria.getString("clave", ""));
+  memoria.remove("red");
+  memoria.remove("clave");
+}
+
 // "VOITOS-" y los ultimos 4 hex de la MAC, para distinguir dos pastilleros.
 String nombreRedPropia() {
   char n[16];
@@ -810,13 +861,14 @@ void abrirPortal(const String& aviso) {
 
   WebServer web(80);
   bool guardado = false;
-  bool habiaRed = memoria.isKey("red");
+  bool habiaRed = memoria.isKey("red0");
 
   web.on("/", HTTP_GET, [&]() {
     String avisoHtml = aviso != "" ? "<p class=aviso>" + escaparHtml(aviso) + "</p>" : "";
     web.send(200, "text/html", paginaPortal(
       avisoHtml +
-      "<p>Elegí el WiFi de la casa para que el pastillero se conecte solo.</p>"
+      "<p>Elegí el WiFi de la casa para que el pastillero se conecte solo. "
+      "Recuerda las últimas " + String(MAX_REDES) + " redes que le cargues.</p>"
       "<form method=post action=/guardar>"
       "<label>Red WiFi<input name=red list=redes required maxlength=32 autocomplete=off></label>"
       "<datalist id=redes>" + opciones + "</datalist>"
@@ -832,8 +884,7 @@ void abrirPortal(const String& aviso) {
       web.send(400, "text/html", paginaPortal("<p class=aviso>Falta el nombre de la red.</p><p><a href=/>Volver</a></p>"));
       return;
     }
-    memoria.putString("red", nueva);
-    memoria.putString("clave", clave);
+    guardarRed(nueva, clave);
     web.send(200, "text/html", paginaPortal(
       "<p>Listo. El pastillero se reinicia y se conecta a <b>" + escaparHtml(nueva) + "</b>.</p>"
       "<p>Cuando se conecte, la pantalla muestra un <b>código de 8 números</b> abajo de la hora. "
@@ -915,8 +966,37 @@ String explicarFalla(const String& red) {
 }
 
 void conectarWifi() {
-  String red = memoria.getString("red", "");
-  String clave = memoria.getString("clave", "");
+  WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
+    motivoDesconexion = info.wifi_sta_disconnected.reason;
+  }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+
+  WiFi.mode(WIFI_STA);
+
+  // De las redes guardadas, la que se escucha mas fuerte. Si no se escucha
+  // ninguna (red oculta, o el router todavia no volvio) se prueba la ultima
+  // configurada, y explicarFalla dice que no la encuentra.
+  String red = "";
+  String clave = "";
+  if (memoria.isKey("red0")) {
+    int encontradas = WiFi.scanNetworks();
+    int mejorSenal = -1000;
+    for (int i = 0; i < MAX_REDES; i++) {
+      String r = leerGuardada("red", i);
+      if (r == "") break;
+      if (red == "") {
+        red = r;
+        clave = leerGuardada("clave", i);
+      }
+      for (int j = 0; j < encontradas; j++) {
+        if (WiFi.SSID(j) == r && WiFi.RSSI(j) > mejorSenal) {
+          mejorSenal = WiFi.RSSI(j);
+          red = r;
+          clave = leerGuardada("clave", i);
+        }
+      }
+    }
+    WiFi.scanDelete();
+  }
 
 #if HAY_CREDENCIALES_H
   if (red == "") {
@@ -927,11 +1007,6 @@ void conectarWifi() {
 
   if (red == "") abrirPortal("");
 
-  WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
-    motivoDesconexion = info.wifi_sta_disconnected.reason;
-  }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
-
-  WiFi.mode(WIFI_STA);
   WiFi.begin(red.c_str(), clave.c_str());
   Serial.print("Conectando a ");
   Serial.print(red);
@@ -957,7 +1032,45 @@ void conectarWifi() {
   }
 }
 
-// Mantener apretado el boton al prender: 3 segundos borran la red guardada.
+// Actualizar el firmware por WiFi, sin abrir la caja: en el Arduino IDE el
+// pastillero aparece como puerto de red ("voitos-xxxx"). Solo si credenciales.h
+// trae OTA_CLAVE: sin clave, cualquiera en la misma red podria cargarle otro
+// programa. La compu tiene que estar en la misma red que el pastillero.
+void iniciarOTA() {
+#ifdef OTA_CLAVE
+  String nombre = nombreRedPropia();
+  nombre.toLowerCase();
+  ArduinoOTA.setHostname(nombre.c_str());
+  ArduinoOTA.setPassword(OTA_CLAVE);
+
+  // Mientras graba, la pantalla lo dice. Si se corta a la mitad no queda
+  // inutilizado: arranca con la version anterior y hay que repetir.
+  ArduinoOTA.onProgress([](unsigned int hecho, unsigned int total) {
+    if (!hayPantalla || total == 0) return;
+    pantalla.clearDisplay();
+    pantalla.setTextColor(SSD1306_WHITE);
+    pantalla.setTextWrap(false);
+    textoGrande("NUEVA", 2, 4, 0);
+    textoGrande("VERSION", 2, 26, 0);
+    pantalla.drawRect(0, 56, ANCHO, 8, SSD1306_WHITE);
+    pantalla.fillRect(0, 56, (int)((uint64_t)hecho * ANCHO / total), 8, SSD1306_WHITE);
+    pantalla.display();
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.print("Fallo la actualizacion por WiFi, error ");
+    Serial.println(error);
+    dibujarPantalla();
+  });
+
+  ArduinoOTA.begin();
+  Serial.print("Actualizable por WiFi como ");
+  Serial.println(nombre);
+#else
+  Serial.println("Sin OTA_CLAVE en credenciales.h: no se actualiza por WiFi.");
+#endif
+}
+
+// Mantener apretado el boton al prender: 3 segundos borran las redes guardadas.
 bool botonSostenidoAlPrender() {
   unsigned long desde = millis();
   while (digitalRead(BUTTON_PIN) == LOW) {
@@ -1010,6 +1123,7 @@ void setup() {
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   memoria.begin("voitos", false);
+  migrarRedVieja();
 
   // El secreto de la placa, una sola vez en su vida (ver arriba).
   secreto = memoria.getString("secreto", "");
@@ -1024,9 +1138,8 @@ void setup() {
 
   // WiFi
   if (botonSostenidoAlPrender()) {
-    memoria.remove("red");
-    memoria.remove("clave");
-    Serial.println("Boton sostenido al prender: se borro la red guardada.");
+    borrarRedes();
+    Serial.println("Boton sostenido al prender: se borraron las redes guardadas.");
     abrirPortal("");
   }
   conectarWifi();
@@ -1044,6 +1157,8 @@ void setup() {
   // Sin ahorro de energia: con el activado la CPU se apaga entre balizas, el
   // loop deja de correr y se pierden las apretadas del boton.
   WiFi.setSleep(false);
+
+  iniciarOTA();
 
   // Hora argentina (UTC-3, sin horario de verano) desde internet. Llega en
   // unos segundos y se mantiene sola.
@@ -1074,6 +1189,9 @@ String ultimaHoraDibujada = "";
 unsigned long ultimoCuadro = 0;
 
 void loop() {
+  // Primero de todo: varias ramas de abajo salen con return.
+  ArduinoOTA.handle();
+
   // Un corte del sensor sin dosis en curso: se deja constancia y nada mas.
   if (sensorTocadoSinDosis) {
     sensorTocadoSinDosis = false;
