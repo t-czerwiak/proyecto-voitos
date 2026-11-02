@@ -119,10 +119,10 @@ Adafruit_SSD1306 pantalla(128, 64, &Wire, -1);
 bool hayPantalla = false;
 
 // Sensor 
-// HAY_SENSOR arranca en false para poder probar el display sin el sensor
-// conectado: si estuviera en true sin sensor, cada dosis se reportaria con 0
-// pastillas detectadas. Ponerlo en true cuando el sensor este cableado.
-const bool HAY_SENSOR = false;
+// HAY_SENSOR en true SOLO con el sensor cableado y andando. Sin sensor, cada
+// dosis se veria como "no cayo nada" y el pastillero buscaria el ajuste del
+// disco soltando pastillas de mas. Para probar el display sin sensor: false.
+const bool HAY_SENSOR = true;
 const int SENSOR_PIN = 27;
 const int SENSOR_FLANCO = FALLING;
 
@@ -531,21 +531,12 @@ void dibujarAjuste(const String& abajo, unsigned long desde) {
   pantalla.display();
 }
 
-// Despues de un ciclo de prueba: salio una pastilla? Con sensor lo dice el
-// sensor. Sin sensor lo dice quien mira la bandeja, apretando el boton.
-const unsigned long MS_ESPERA_CONFIRMACION = 6000;
+// Despues de un ciclo de prueba: el sensor vio caer una pastilla?
 bool salioPastilla(int antes) {
-  botonApretado = false;
   unsigned long desde = millis();
-  unsigned long espera = HAY_SENSOR ? MS_ESPERA_CAIDA : MS_ESPERA_CONFIRMACION;
-  while (millis() - desde < espera) {
-    if (HAY_SENSOR && pastillasDetectadas > antes) return true;
-    if (!HAY_SENSOR && botonApretado) {
-      botonApretado = false;
-      return true;
-    }
-    if (!HAY_SENSOR) dibujarAjuste("SI SALIO LA PASTILLA APRETA EL BOTON", desde);
-    delay(MS_POR_CUADRO);
+  while (millis() - desde < MS_ESPERA_CAIDA) {
+    if (pastillasDetectadas > antes) return true;
+    delay(10);
   }
   return false;
 }
@@ -574,16 +565,22 @@ bool buscarAjuste(bool probarElActual) {
 }
 
 // Despues de cambiar el disco: mantener apretado el boton 5 segundos con la
-// pantalla en reposo. Hace falta al menos una pastilla en la tolva.
+// pantalla en reposo. Hace falta al menos una pastilla en la tolva. Sin sensor
+// no hay forma de saber si salio, asi que no prueba nada.
 void calibrarDisco() {
   Serial.println("Calibrando el disco...");
   pitar(2, 60);
-  pastillasDetectadas = 0;
-  sensorArmado = HAY_SENSOR;
-  bool ok = buscarAjuste(true);
-  sensorArmado = false;
+  bool ok = false;
+  if (HAY_SENSOR) {
+    pastillasDetectadas = 0;
+    sensorArmado = true;
+    ok = buscarAjuste(true);
+    sensorArmado = false;
+  }
   pitar(ok ? 1 : 3, ok ? 400 : 150);
-  String resultado = ok ? "LISTO" : "NO SALIO NINGUNA - REVISA EL DISCO Y LA TOLVA";
+  String resultado = ok ? "LISTO"
+                   : HAY_SENSOR ? "NO SALIO NINGUNA - REVISA EL DISCO Y LA TOLVA"
+                   : "FALTA EL SENSOR PARA CALIBRAR";
   unsigned long desde = millis();
   while (millis() - desde < 5000) {
     dibujarAjuste(resultado, desde);
