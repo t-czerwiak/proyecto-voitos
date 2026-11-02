@@ -430,13 +430,28 @@ void leerRecordatorios(JsonArray lista) {
 }
 
 
+// Donde queda quieto. En 0 justo algunos servos apoyan contra su tope y el
+// motor zumba haciendo fuerza. Si el brazo no llega a tapar la salida,
+// bajarlo hacia 0.
+const int SERVO_REPOSO = 5;
+
+// El servo recibe pulsos solo mientras se mueve y despues se suelta: quieto no
+// hace fuerza, asi que no zumba ni gasta bateria.
+void conectarServo() {
+  // Rango de pulsos explicito: con los valores por defecto muchos SG90 y MG90S
+  // no llegan a los extremos y parece que estuvieran trabados.
+  servo.attach(SERVO_PIN, 500, 2400);
+}
+
 // Mueve el servo una vez (una pastilla)
 void moverServo() {
+  conectarServo();
   servo.write(180);
   delay(1000);
 
-  servo.write(0);
+  servo.write(SERVO_REPOSO);
   delay(1000);
+  servo.detach();
 }
 
 
@@ -1103,10 +1118,10 @@ void setup() {
 
   servo.setPeriodHertz(50);
 
-  // Rango de pulsos explicito: con los valores por defecto muchos SG90 y MG90S
-  // no llegan a los extremos y parece que estuvieran trabados.
-  servo.attach(SERVO_PIN, 500, 2400);
-  servo.write(0);
+  conectarServo();
+  servo.write(SERVO_REPOSO);
+  delay(500);
+  servo.detach();
 
   // Display. Si no aparece, se sigue sin pantalla.
   hayPantalla = iniciarPantalla();
