@@ -196,6 +196,21 @@ void sonarBuzzer() {
   digitalWrite(BUZZER_PIN, LOW);
 }
 
+// El buzzer es activo (tiene su propio tono): no se puede hacer mas agudo o mas
+// grave, asi que cada aviso se distingue por cuantos pitidos da y cuanto duran.
+//   dosis lista          1 largo (sonarBuzzer)
+//   termino de dispensar 1 corto
+//   actividad nueva      2 cortos
+//   WiFi conectado       3 cortitos rapidos
+void pitar(int veces, int ms) {
+  for (int i = 0; i < veces; i++) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(ms);
+    digitalWrite(BUZZER_PIN, LOW);
+    if (i < veces - 1) delay(ms);
+  }
+}
+
 // Sensor por interrupcion
 
 // El ORDEN es lo que lo hace confiable: el sensor solo cuenta mientras el
@@ -430,6 +445,11 @@ void avisarFaltantes(int detectadas, int pedidas) {
 // "faltan N min" se congela hasta la proxima consulta buena. Si molesta,
 // descontar los minutos con millis() entre consultas.
 void leerRecordatorios(JsonArray lista) {
+  // Para pitar solo si aparece uno que antes no estaba en pantalla.
+  String antes = "";
+  for (int i = 0; i < cantRecordatorios; i++) antes += recordatorios[i].id + ",";
+  bool hayNuevo = false;
+
   cantRecordatorios = 0;
 
   for (JsonObject r : lista) {
@@ -440,8 +460,11 @@ void leerRecordatorios(JsonArray lista) {
     recordatorios[cantRecordatorios].hora = String(r["hora"] | "");
     recordatorios[cantRecordatorios].texto = String(r["texto"] | "");
     recordatorios[cantRecordatorios].faltan = r["faltan_min"] | 0;
+    if (antes.indexOf(id + ",") < 0) hayNuevo = true;
     cantRecordatorios++;
   }
+
+  if (hayNuevo) pitar(2, 150);
 }
 
 
@@ -1179,6 +1202,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), alApretarBoton, FALLING);
 
   Serial.println("Conectado!");
+  pitar(3, 60);
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
   Serial.print("Backend: ");
@@ -1301,6 +1325,7 @@ void loop() {
     Serial.println("Boton presionado!");
 
     int dispensadas = dispensar(cantidadPendiente);
+    pitar(1, 150);
     confirmarDispensacion(dispensadas);
 
     if (HAY_SENSOR && pastillasDetectadas < dispensadas) {
