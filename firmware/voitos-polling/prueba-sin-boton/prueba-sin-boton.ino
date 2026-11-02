@@ -1214,6 +1214,14 @@ void setup() {
 
 // LOOP
 
+// ponytail: SOLO PARA PRUEBAS, sacar antes de entregar. 5 apretadas seguidas
+// sin dosis esperando reinician el pastillero: con la caja cerrada no se llega
+// al boton EN. Un abuelo podria apretar varias veces sin querer.
+const int APRETADAS_PARA_REINICIAR = 5;
+const unsigned long MS_APRETADAS_SEGUIDAS = 3000;
+int apretadasSeguidas = 0;
+unsigned long primeraApretada = 0;
+
 // Para redibujar el reloj cuando cambia el minuto.
 String ultimaHoraDibujada = "";
 unsigned long ultimoCuadro = 0;
@@ -1248,6 +1256,18 @@ void loop() {
   // apretada se descarta (no puede quedar guardada para una dosis futura).
   if (!esperandoBoton && botonApretado) {
     botonApretado = false;
+
+    if (millis() - primeraApretada > MS_APRETADAS_SEGUIDAS) {
+      apretadasSeguidas = 0;
+      primeraApretada = millis();
+    }
+    if (++apretadasSeguidas >= APRETADAS_PARA_REINICIAR) {
+      Serial.println("5 apretadas seguidas: reiniciando (solo pruebas).");
+      mostrarMensaje("REINICIANDO");
+      delay(500);
+      ESP.restart();
+    }
+
     if (cantRecordatorios > 0) {
       for (int i = 0; i < cantRecordatorios; i++) marcarVisto(recordatorios[i].id);
       cantRecordatorios = 0;
