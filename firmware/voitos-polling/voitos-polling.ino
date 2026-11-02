@@ -466,15 +466,116 @@ void conectarServo() {
   servo.attach(SERVO_PIN, 500, 2400);
 }
 
+// El servo sabe en que angulo esta; lo que no se sabe es como quedo encastrado
+// el disco. Si al cambiarlo queda corrido unos grados, el agujero no cae justo
+// abajo de la tolva ni arriba de la salida. ajusteServo corre las dos
+// posiciones esos grados. Lo encuentra calibrarDisco() y se guarda en memoria.
+const int SERVO_ENTREGA = 180;
+int ajusteServo = 0;
+
+int posicionCarga() { return constrain(SERVO_REPOSO + ajusteServo, 0, 180); }
+int posicionEntrega() { return constrain(SERVO_ENTREGA + ajusteServo, 0, 180); }
+
+// Un vaiven chico en cada posicion: acomoda la pastilla en el agujero al cargar
+// y la despega al soltar. Tambien perdona un par de grados de desajuste.
+const int GRADOS_SACUDIDA = 6;
+void sacudir(int angulo) {
+  for (int i = 0; i < 2; i++) {
+    servo.write(constrain(angulo + GRADOS_SACUDIDA, 0, 180));
+    delay(120);
+    servo.write(constrain(angulo - GRADOS_SACUDIDA, 0, 180));
+    delay(120);
+  }
+  servo.write(angulo);
+  delay(200);
+}
+
 // Mueve el servo una vez (una pastilla)
 void moverServo() {
   conectarServo();
-  servo.write(180);
-  delay(1000);
+  servo.write(posicionEntrega());
+  delay(700);
+  sacudir(posicionEntrega());
 
-  servo.write(SERVO_REPOSO);
-  delay(1000);
+  servo.write(posicionCarga());
+  delay(700);
+  sacudir(posicionCarga());
   servo.detach();
+}
+
+// Calibracion del disco
+
+// Pantalla mientras prueba: arriba fijo, abajo el texto que corre.
+void dibujarAjuste(const String& abajo, unsigned long desde) {
+  if (!hayPantalla) return;
+  pantalla.clearDisplay();
+  pantalla.setTextColor(SSD1306_WHITE);
+  pantalla.setTextWrap(false);
+  textoGrande("AJUSTE " + String(ajusteServo > 0 ? "+" : "") + ajusteServo, 2, 4, 0);
+  textoGrande(abajo, 2, 36, desde);
+  pantalla.display();
+}
+
+// Despues de un ciclo de prueba: salio una pastilla? Con sensor lo dice el
+// sensor. Sin sensor lo dice quien mira la bandeja, apretando el boton.
+const unsigned long MS_ESPERA_CONFIRMACION = 6000;
+bool salioPastilla(int antes) {
+  botonApretado = false;
+  unsigned long desde = millis();
+  unsigned long espera = HAY_SENSOR ? MS_ESPERA_CAIDA : MS_ESPERA_CONFIRMACION;
+  while (millis() - desde < espera) {
+    if (HAY_SENSOR && pastillasDetectadas > antes) return true;
+    if (!HAY_SENSOR && botonApretado) {
+      botonApretado = false;
+      return true;
+    }
+    if (!HAY_SENSOR) dibujarAjuste("SI SALIO LA PASTILLA APRETA EL BOTON", desde);
+    delay(MS_POR_CUADRO);
+  }
+  return false;
+}
+
+// Prueba el disco corrido unos grados para cada lado hasta que sale una
+// pastilla, y se queda con ese ajuste. Cada prueba suelta como mucho una.
+bool buscarAjuste(bool probarElActual) {
+  const int pasos[] = { 0, 4, -4, 8, -8, 12, -12, 16, -16, 20, -20 };
+  int base = ajusteServo;
+  for (int d : pasos) {
+    if (d == 0 && !probarElActual) continue;
+    ajusteServo = base + d;
+    Serial.print("Probando el disco con ajuste ");
+    Serial.println(ajusteServo);
+    dibujarAjuste("PROBANDO EL DISCO", 0);
+    int antes = pastillasDetectadas;
+    moverServo();
+    if (salioPastilla(antes)) {
+      memoria.putInt("ajuste", ajusteServo);
+      Serial.println("Salio: ajuste guardado.");
+      return true;
+    }
+  }
+  ajusteServo = base;
+  return false;
+}
+
+// Despues de cambiar el disco: mantener apretado el boton 5 segundos con la
+// pantalla en reposo. Hace falta al menos una pastilla en la tolva.
+void calibrarDisco() {
+  Serial.println("Calibrando el disco...");
+  pitar(2, 60);
+  pastillasDetectadas = 0;
+  sensorArmado = HAY_SENSOR;
+  bool ok = buscarAjuste(true);
+  sensorArmado = false;
+  pitar(ok ? 1 : 3, ok ? 400 : 150);
+  String resultado = ok ? "LISTO" : "NO SALIO NINGUNA - REVISA EL DISCO Y LA TOLVA";
+  unsigned long desde = millis();
+  while (millis() - desde < 5000) {
+    dibujarAjuste(resultado, desde);
+    delay(MS_POR_CUADRO);
+  }
+  botonApretado = false;
+  dibujarPantalla();
 }
 
 
@@ -500,7 +601,16 @@ int dispensar(int cantidad) {
     Serial.print(" de ");
     Serial.println(cantidad);
 
+    int antes = pastillasDetectadas;
     moverServo();
+
+    // Con sensor: si no cayo nada, el disco puede haber quedado corrido.
+    // Se busca el ajuste ahi mismo, sin esperar a que alguien lo calibre.
+    if (HAY_SENSOR && !salioPastilla(antes)) {
+      Serial.println("  No cayo: buscando el ajuste del disco.");
+      buscarAjuste(false);
+      dibujarPantalla();
+    }
 
     if (i < cantidad) delay(PAUSA_ENTRE_PASTILLAS);
   }
@@ -1141,11 +1251,6 @@ void setup() {
 
   servo.setPeriodHertz(50);
 
-  conectarServo();
-  servo.write(SERVO_REPOSO);
-  delay(500);
-  servo.detach();
-
   // Display. Si no aparece, se sigue sin pantalla.
   hayPantalla = iniciarPantalla();
   if (hayPantalla) {
@@ -1162,6 +1267,13 @@ void setup() {
 
   memoria.begin("voitos", false);
   migrarRedVieja();
+
+  // El servo a la posicion de carga, con el ajuste del disco que se guardo.
+  if (memoria.isKey("ajuste")) ajusteServo = memoria.getInt("ajuste", 0);
+  conectarServo();
+  servo.write(posicionCarga());
+  delay(500);
+  servo.detach();
 
   // El secreto de la placa, una sola vez en su vida (ver arriba).
   secreto = memoria.getString("secreto", "");
@@ -1231,6 +1343,9 @@ const unsigned long MS_APRETADAS_SEGUIDAS = 3000;
 int apretadasSeguidas = 0;
 unsigned long primeraApretada = 0;
 
+const unsigned long MS_PARA_CALIBRAR = 5000;
+unsigned long apretadoDesde = 0;
+
 // Para redibujar el reloj cuando cambia el minuto.
 String ultimaHoraDibujada = "";
 unsigned long ultimoCuadro = 0;
@@ -1238,6 +1353,18 @@ unsigned long ultimoCuadro = 0;
 void loop() {
   // Primero de todo: varias ramas de abajo salen con return.
   ArduinoOTA.handle();
+
+  // Boton sostenido 5 segundos sin dosis esperando: calibrar el disco.
+  if (!esperandoBoton && digitalRead(BUTTON_PIN) == LOW) {
+    if (apretadoDesde == 0) apretadoDesde = millis();
+    else if (millis() - apretadoDesde > MS_PARA_CALIBRAR) {
+      apretadoDesde = 0;
+      calibrarDisco();
+      return;
+    }
+  } else {
+    apretadoDesde = 0;
+  }
 
   // Un corte del sensor sin dosis en curso: se deja constancia y nada mas.
   if (sensorTocadoSinDosis) {
