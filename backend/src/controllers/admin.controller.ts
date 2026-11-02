@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import * as adminService from "../services/admin.service";
+import * as pastillerosService from "../services/pastilleros.service";
 import { avisarVerificacion, ultimoErrorDeMail } from "../services/email.service";
 import { esAdmin, exigirAdmin, idDelUsuario } from "../utils/sesion";
 
@@ -145,6 +146,16 @@ export const borrarUsuario = async (req: Request, res: Response, next: NextFunct
     }
 
     res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const desvincularPastillero = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    await exigirAdmin(req);
+    await pastillerosService.desvincular(req.params.id, req.params.dispositivo_id);
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

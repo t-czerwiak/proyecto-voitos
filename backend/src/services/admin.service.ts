@@ -17,6 +17,13 @@ export const getUsuarios = async () => {
 
   if (errorPastillas) throw new Error(errorPastillas.message);
 
+  const { data: vinculos, error: errorVinculos } = await supabase
+    .from("pastillero_usuarios")
+    .select("usuario_id, dispositivo_id, nombre")
+    .order("vinculado_at", { ascending: true });
+
+  if (errorVinculos) throw new Error(errorVinculos.message);
+
   const pastillasPorUsuario = new Map<string, { id: string; nombre: string }[]>();
   for (const p of todasLasPastillas ?? []) {
     const suyas = pastillasPorUsuario.get(p.usuario_id) ?? [];
@@ -37,6 +44,9 @@ export const getUsuarios = async () => {
         ...u,
         pastillas: susPastillas.length,
         listaPastillas: susPastillas,
+        pastilleros: (vinculos ?? [])
+          .filter((v) => v.usuario_id === u.id)
+          .map((v) => ({ dispositivo_id: v.dispositivo_id, nombre: v.nombre })),
         horarios: count ?? 0,
       };
     })
