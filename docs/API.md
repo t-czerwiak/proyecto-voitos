@@ -725,7 +725,7 @@ cualquiera. Lo que ignora la propiedad de los datos vive todo en
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
 | GET | `/api/admin/soy-admin` | `{ admin: bool, id }`. La única que responde a cualquiera con sesión |
-| GET | `/api/admin/usuarios` | Todas las cuentas |
+| GET | `/api/admin/usuarios` | Todas las cuentas, cada una con `pastilleros: [{ dispositivo_id, nombre }]` |
 | GET | `/api/admin/usuarios/:id/pastillas` | Las pastillas de una cuenta |
 | GET | `/api/admin/usuarios/:id/horarios` | Los horarios de una cuenta |
 | GET | `/api/admin/calendario` | Todas las dosis de todos. Acepta `?desde=` y `?hasta=` (`YYYY-MM-DD`) |
@@ -733,6 +733,7 @@ cualquiera. Lo que ignora la propiedad de los datos vive todo en
 | POST | `/api/admin/usuarios/:id/desverificar` | La vuelve a dejar sin verificar (útil para probar el aviso) |
 | DELETE | `/api/admin/usuarios/:id/calendario` | Borra las dosis **pendientes** de una cuenta; las dispensadas quedan |
 | DELETE | `/api/admin/usuarios/:id` | Borra la cuenta entera, perfil + Auth |
+| DELETE | `/api/admin/usuarios/:id/pastilleros/:dispositivo_id` | Desvincula ese pastillero de la cuenta. Sus pastillas y dosis quedan. 404 si no estaba vinculado |
 | POST | `/api/admin/probar-mail` | Manda un mail de prueba a la casilla del propio admin |
 
 `soy-admin` es solo para que la app decida si muestra el acceso al panel; la
@@ -740,6 +741,11 @@ seguridad no depende de esa respuesta, cada ruta lo verifica sola.
 
 `DELETE /api/admin/usuarios/:id` responde **409** si el id es el del propio
 admin: se quedaría sin cuenta y sin panel, y no hay forma de deshacerlo.
+
+`DELETE /api/admin/usuarios/:id/pastilleros/:dispositivo_id` hace lo mismo que
+`DELETE /api/pastilleros/:dispositivo_id` pero sobre otra cuenta. Si era la
+última cuenta vinculada, se borra el secreto del pastillero y la placa lo vuelve
+a registrar en su próxima consulta.
 
 `probar-mail` existe porque los mails salen sin `await` y sus errores no vuelven
 a nadie. Devuelve textual lo que contestó el proveedor:

@@ -111,6 +111,7 @@ export interface UsuarioAdmin extends Usuario {
   pastillas: number;
 
   listaPastillas?: { id: string; nombre: string }[];
+  pastilleros?: { dispositivo_id: string; nombre: string | null }[];
   horarios: number;
   created_at: string;
 }
@@ -156,6 +157,9 @@ export interface CuentaBorrada {
 
 export const borrarUsuario = (id: string) =>
   api.delete<CuentaBorrada>(`/api/admin/usuarios/${id}`);
+
+export const desvincularPastilleroDe = (id: string, dispositivo_id: string) =>
+  api.delete(`/api/admin/usuarios/${id}/pastilleros/${encodeURIComponent(dispositivo_id)}`);
 
 export interface Modulo {
   id: string;

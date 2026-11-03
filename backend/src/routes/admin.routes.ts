@@ -23,4 +23,6 @@ router.delete("/usuarios/:id", adminController.borrarUsuario);
 
 router.delete("/usuarios/:id/calendario", adminController.vaciarCalendario);
 
+router.delete("/usuarios/:id/pastilleros/:dispositivo_id", adminController.desvincularPastillero);
+
 export default router;
