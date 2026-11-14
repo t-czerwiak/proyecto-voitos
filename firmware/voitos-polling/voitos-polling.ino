@@ -404,19 +404,35 @@ void dibujarPantalla() {
   pantalla.display();
 }
 
-// Unos segundos de aviso cuando el sensor no vio caer todas las pastillas.
-// La dosis igual se confirma (el servo se movio y el backend guarda las dos
-// cuentas); esto es para que la persona mire la bandeja.
-void avisarFaltantes(int detectadas, int pedidas) {
+// Mientras dispensa: que pastilla va y cuantas vio caer el sensor.
+void dibujarDispensando(int vuelta, int pedidas, int detectadas) {
   if (!hayPantalla) return;
-  unsigned long desde = millis();
-  String detalle = String("SALIERON ") + detectadas + " DE " + pedidas + " - MIRA LA BANDEJA";
+  pantalla.clearDisplay();
+  pantalla.setTextColor(SSD1306_WHITE);
+  pantalla.setTextWrap(false);
+  textoGrande("SALIENDO", 2, 0, 0);
+  textoGrande(String(vuelta) + " DE " + pedidas, 3, 20, 0);
+  if (HAY_SENSOR) textoGrande(String("VIO ") + detectadas, 2, 48, 0);
+  pantalla.display();
+}
 
-  while (millis() - desde < 6000) {
+// Al terminar, unos segundos con lo que vio el sensor. La dosis se confirma
+// igual (el backend guarda las dos cuentas); si faltan es para mirar la bandeja.
+void mostrarResultadoSensor(int detectadas, int pedidas, bool avisado) {
+  if (!hayPantalla) return;
+  bool ok = detectadas >= pedidas;
+  String detalle = detectadas == 0 ? String("EL SENSOR NO VIO NINGUNA - MIRA LA BANDEJA")
+                 : ok ? String("VIO ") + detectadas + " DE " + pedidas
+                 : String("VIO ") + detectadas + " DE " + pedidas + " - MIRA LA BANDEJA";
+  if (!avisado) detalle += " - NO SE PUDO AVISAR A LA APP";
+  unsigned long desde = millis();
+  unsigned long dura = max(6000UL, duracionDe(detalle, 2));
+
+  while (millis() - desde < dura) {
     pantalla.clearDisplay();
     pantalla.setTextColor(SSD1306_WHITE);
     pantalla.setTextWrap(false);
-    textoGrande("REVISAR", 3, 2, desde);
+    textoGrande(ok ? "SENSOR OK" : "REVISAR", ok ? 2 : 3, 2, desde);
     textoGrande(detalle, 2, 40, desde);
     pantalla.display();
     delay(MS_POR_CUADRO);
@@ -490,15 +506,30 @@ void sacudir(int angulo) {
   delay(200);
 }
 
+// Velocidad del servo: va de a un grado y espera esto entre grado y grado.
+// 180 grados a 5 ms = ~0.9 s por viaje. Mas alto = mas lento.
+const int MS_POR_GRADO = 5;
+int anguloServo = SERVO_REPOSO;
+
+void irA(int destino) {
+  int paso = destino > anguloServo ? 1 : -1;
+  while (anguloServo != destino) {
+    anguloServo += paso;
+    servo.write(anguloServo);
+    delay(MS_POR_GRADO);
+  }
+}
+
 // Mueve el servo una vez (una pastilla)
 void moverServo() {
   conectarServo();
-  servo.write(posicionEntrega());
-  delay(700);
+  servo.write(anguloServo);
+  irA(posicionEntrega());
+  delay(200);
   sacudir(posicionEntrega());
 
-  servo.write(posicionCarga());
-  delay(700);
+  irA(posicionCarga());
+  delay(200);
   sacudir(posicionCarga());
   servo.detach();
 }
@@ -598,6 +629,7 @@ int dispensar(int cantidad) {
     Serial.print(" de ");
     Serial.println(cantidad);
 
+    dibujarDispensando(i, cantidad, pastillasDetectadas);
     int antes = pastillasDetectadas;
     moverServo();
 
@@ -606,8 +638,8 @@ int dispensar(int cantidad) {
     if (HAY_SENSOR && !salioPastilla(antes)) {
       Serial.println("  No cayo: buscando el ajuste del disco.");
       buscarAjuste(false);
-      dibujarPantalla();
     }
+    dibujarDispensando(i, cantidad, pastillasDetectadas);
 
     if (i < cantidad) delay(PAUSA_ENTRE_PASTILLAS);
   }
@@ -878,7 +910,7 @@ void probarPantallas() {
   cantidadPendiente = 1;
 
   Serial.println("[prueba] 4. el sensor vio menos de las pedidas");
-  avisarFaltantes(1, 2);
+  mostrarResultadoSensor(1, 2, true);
 
   Serial.println("=== FIN DE LA PRUEBA: ahora funciona en vivo con la app ===");
   Serial.println("Agenda una dosis o una actividad con recordatorio y espera.");
@@ -1268,7 +1300,8 @@ void setup() {
   // El servo a la posicion de carga, con el ajuste del disco que se guardo.
   if (memoria.isKey("ajuste")) ajusteServo = memoria.getInt("ajuste", 0);
   conectarServo();
-  servo.write(posicionCarga());
+  anguloServo = posicionCarga();
+  servo.write(anguloServo);
   delay(500);
   servo.detach();
 
@@ -1364,9 +1397,20 @@ void loop() {
   }
 
   // Un corte del sensor sin dosis en curso: se deja constancia y nada mas.
+  // En pantalla un momento, para probar el sensor sin monitor serie.
   if (sensorTocadoSinDosis) {
     sensorTocadoSinDosis = false;
     Serial.println("Sensor activado sin dispensacion en curso: se ignora.");
+    if (hayPantalla) {
+      pantalla.clearDisplay();
+      pantalla.setTextColor(SSD1306_WHITE);
+      textoGrande("SENSOR", 2, 8, 0);
+      textoGrande("VIO ALGO", 2, 36, 0);
+      pantalla.display();
+      delay(1500);
+      sensorTocadoSinDosis = false;  // los rebotes de este mismo corte
+      dibujarPantalla();
+    }
   }
 
   // El reloj de la pantalla avanza aunque no haya consultas nuevas.
@@ -1435,11 +1479,9 @@ void loop() {
 
     int dispensadas = dispensar(cantidadPendiente);
     pitar(1, 150);
-    confirmarDispensacion(dispensadas);
+    bool avisado = confirmarDispensacion(dispensadas);
 
-    if (HAY_SENSOR && pastillasDetectadas < dispensadas) {
-      avisarFaltantes(pastillasDetectadas, dispensadas);
-    }
+    if (HAY_SENSOR) mostrarResultadoSensor(pastillasDetectadas, dispensadas, avisado);
 
     esperandoBoton = false;
     horarioPendiente = "";
