@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voitos en loop</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/landing/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Silkscreen&display=swap" rel="stylesheet">
+<!--
+  Recorrido en loop para mostrar en un monitor (F11 para pantalla completa).
+  Primero la landing scrolleando sola, despues el uso real paso a paso: las
+  capturas son de la app de verdad (con datos de ejemplo) y el pastillero
+  muestra lo mismo que dibuja el firmware en su display.
+  El escenario mide 1920x1080 y se escala a la pantalla que toque.
+-->
+<style>
+  :root {
+    --fondo: #010D07;
+    --superficie: #04200F;
+    --borde: #1A6B38;
+    --acento: #00FF7F;
+    --texto: #FFFFFF;
+    --suave: #CFE8DA;
+    --tenue: #9FC4AF;
+    --oled: #8FE9FF;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: #000; overflow: hidden; cursor: none; }
+  body { font-family: Montserrat, Arial, sans-serif; color: var(--texto); }
+
+  #escenario {
+    position: absolute; left: 50%; top: 50%;
+    width: 1920px; height: 1080px;
+    transform-origin: center;
+    background: radial-gradient(1200px 800px at 75% 30%, #00381A 0%, transparent 70%),
+                radial-gradient(900px 700px at 10% 100%, #002B11 0%, transparent 70%),
+                var(--fondo);
+    overflow: hidden;
+  }
+
+  /* Landing */
+  #landing { position: absolute; inset: 0; border: 0; width: 100%; height: 100%;
+             background: #fff; transition: opacity .9s ease; }
+  /* visibility aparte: un iframe transparente igual se compone encima. */
+  .oculto { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .9s ease, visibility 0s linear .9s; }
+
+  /* Recorrido */
+  #recorrido { position: absolute; inset: 0; transition: opacity .9s ease; }
+
+  .texto { position: absolute; left: 120px; top: 0; bottom: 0; width: 640px;
+           display: flex; flex-direction: column; justify-content: center; }
+  .paso { font-size: 26px; font-weight: 700; color: var(--acento); letter-spacing: .02em; }
+  .titulo { font-size: 66px; font-weight: 800; line-height: 1.08; margin-top: 18px; text-wrap: balance; }
+  .detalle { font-size: 30px; font-weight: 500; line-height: 1.45; color: var(--suave); margin-top: 28px; max-width: 30ch; }
+  .cambia { transition: opacity .45s ease, transform .45s ease; }
+  .saliendo { opacity: 0; transform: translateY(14px); }
+
+  .logo { position: absolute; left: 120px; top: 70px; height: 54px; }
+
+  /* Celular */
+  .celular { position: absolute; left: 860px; top: 70px; width: 434px; height: 940px;
+             border-radius: 64px; padding: 14px; background: #0B0F0D;
+             box-shadow: 0 0 0 3px #22382B, 0 40px 120px rgba(0, 255, 127, .12); }
+  .celular .pantalla { position: relative; width: 100%; height: 100%; border-radius: 52px; overflow: hidden; background: var(--fondo); }
+  .celular img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top;
+                 transition: opacity .6s ease; }
+
+  /* Senal entre el celular y el pastillero */
+  .senal { position: absolute; left: 1310px; top: 470px; width: 150px; height: 6px;
+           background: repeating-linear-gradient(90deg, var(--acento) 0 14px, transparent 14px 28px);
+           opacity: 0; transition: opacity .4s ease; }
+  .senal.activa { opacity: .9; animation: viaja .6s linear infinite; }
+  .senal.vuelve { animation-direction: reverse; }
+  @keyframes viaja { from { background-position: 0 0; } to { background-position: 28px 0; } }
+
+  /* Pastillero */
+  .pastillero { position: absolute; left: 1480px; top: 250px; width: 340px; }
+  .caja { position: relative; width: 340px; height: 440px; border-radius: 40px;
+          background: linear-gradient(160deg, #F4FBF6 0%, #D7EADD 100%);
+          box-shadow: inset 0 -10px 0 rgba(0, 0, 0, .08), 0 30px 80px rgba(0, 0, 0, .55); }
+  .oled { position: absolute; left: 34px; top: 40px; width: 272px; height: 136px;
+          background: #000; border-radius: 10px; box-shadow: 0 0 0 8px #10161A;
+          overflow: hidden; font-family: Silkscreen, monospace; color: var(--oled);
+          text-shadow: 0 0 6px rgba(143, 233, 255, .6); text-align: center; }
+  .oled div { position: absolute; left: 0; right: 0; white-space: nowrap; }
+  .boton { position: absolute; left: 50%; top: 250px; width: 96px; height: 96px; margin-left: -48px;
+           border-radius: 50%; background: radial-gradient(circle at 40% 35%, #3DFF9E, #00B85B);
+           box-shadow: 0 8px 0 #007A3C, 0 14px 30px rgba(0, 0, 0, .35); transition: transform .15s, box-shadow .15s; }
+  .boton.late { animation: late 1.1s ease-in-out infinite; }
+  @keyframes late { 50% { box-shadow: 0 8px 0 #007A3C, 0 0 0 22px rgba(0, 255, 127, .25); } }
+  .boton.apretado { transform: translateY(7px); box-shadow: 0 1px 0 #007A3C; }
+  .salida { position: absolute; left: 50%; bottom: -14px; width: 120px; height: 28px; margin-left: -60px;
+            border-radius: 0 0 16px 16px; background: #B9CFC0; }
+  .bandeja { position: relative; margin: 70px auto 0; width: 220px; height: 70px; border-radius: 0 0 110px 110px;
+             background: linear-gradient(#DCEBE1, #B7CDBF); box-shadow: 0 20px 40px rgba(0, 0, 0, .45); }
+  .pastilla { position: absolute; left: 50%; top: 420px; width: 34px; height: 18px; margin-left: -17px;
+              border-radius: 10px; background: linear-gradient(90deg, #FFFFFF 50%, #FFB3C1 50%); opacity: 0; }
+  .pastilla.cae { animation: cae 1.1s cubic-bezier(.5, 0, .9, .6) forwards; }
+  @keyframes cae { 0% { opacity: 1; transform: translateY(0) rotate(0); }
+                   100% { opacity: 1; transform: translateY(150px) rotate(200deg); } }
+  .sonido { position: absolute; right: -36px; top: 60px; width: 60px; height: 60px; border-radius: 50%;
+            border: 4px solid var(--acento); opacity: 0; }
+  .sonido.activo { animation: suena 1s ease-out infinite; }
+  @keyframes suena { from { opacity: .9; transform: scale(.5); } to { opacity: 0; transform: scale(1.6); } }
+
+  /* Avance */
+  .avance { position: absolute; left: 120px; right: 120px; bottom: 48px; display: flex; gap: 10px; }
+  .avance span { flex: 1; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .14); overflow: hidden; }
+  .avance i { display: block; height: 100%; width: 0; background: var(--acento); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .senal.activa, .boton.late, .sonido.activo { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div id="escenario">
+  <iframe id="landing" src="/landing" title="Landing de Voitos" tabindex="-1"></iframe>
+
+  <section id="recorrido" class="oculto" aria-live="polite">
+    <img class="logo" src="/landing/assets/logo-ORcyoWlb.png" alt="Voitos">
+    <div class="texto cambia" id="texto">
+      <div class="paso" id="paso"></div>
+      <h1 class="titulo" id="titulo"></h1>
+      <p class="detalle" id="detalle"></p>
+    </div>
+
+    <div class="celular"><div class="pantalla">
+      <img id="foto-a" alt="">
+      <img id="foto-b" alt="" style="opacity:0">
+    </div></div>
+
+    <div class="senal" id="senal"></div>
+
+    <div class="pastillero">
+      <div class="caja">
+        <div class="oled" id="oled"></div>
+        <div class="boton" id="boton"></div>
+        <div class="salida"></div>
+        <div class="sonido" id="sonido"></div>
+        <div class="pastilla" id="pastilla"></div>
+      </div>
+      <div class="bandeja"></div>
+    </div>
+
+    <div class="avance" id="avance"></div>
+  </section>
+</div>
+
+<script>
+  // Display del pastillero: 128x64 escalado x2.125. Cada linea es
+  // [texto, tamano (1, 2 o 3 como en el firmware), y en px del display].
+  const OLED = {
+    marca:     [["VOITOS", 3, 20]],
+    portal:    [["WIFI", 2, 4], ["VOITOS-4F2A", 1, 34], ["ENTRA DESDE EL CELU", 1, 48]],
+    codigo:    [["19:41", 4, 4], ["4827 1936", 2, 44]],
+    hora:      [["19:58", 4, 4], ["VOITOS", 1, 46]],
+    dosis:     [["TU DOSIS", 2, 4], ["APRETA EL", 2, 30], ["BOTON", 2, 48]],
+    saliendo:  [["SALIENDO", 2, 0], ["1 DE 1", 3, 20], ["VIO 0", 2, 48]],
+    salio:     [["SALIENDO", 2, 0], ["1 DE 1", 3, 20], ["VIO 1", 2, 48]],
+    ok:        [["SENSOR OK", 2, 2], ["VIO 1 DE 1", 2, 40]],
+    reposo:    [["20:01", 4, 4], ["VOITOS", 1, 46]],
+  };
+
+  // El recorrido. ms es cuanto dura cada escena.
+  const ESCENAS = [
+    { ms: 6000, paso: 1, titulo: "Creá tu cuenta", detalle: "Desde el celular o la compu, en voitos.vercel.app.", foto: "01-login", oled: "marca" },
+    { ms: 7000, paso: 2, titulo: "Conectá el pastillero al WiFi", detalle: "Al prenderlo abre su propia red. Desde el celular elegís el WiFi de la casa, una sola vez.", foto: "02-vincular-vacio", oled: "portal" },
+    { ms: 6500, paso: 3, titulo: "Vinculalo con el código", detalle: "El pastillero muestra 8 números. Los escribís en la app.", foto: "03-vincular-codigo", oled: "codigo" },
+    { ms: 5500, paso: 3, titulo: "Vinculalo con el código", detalle: "Listo: el pastillero queda en tu cuenta.", foto: "04-vinculado", oled: "hora", senal: "ida" },
+    { ms: 6500, paso: 4, titulo: "Cargá la pastilla", detalle: "Nombre, tamaño y cuántas pusiste en el módulo. Voitos lleva la cuenta.", foto: "05-cargar-pastilla", oled: "hora" },
+    { ms: 6000, paso: 5, titulo: "Agendá las dosis", detalle: "Hora, días de la semana y por cuántas semanas.", foto: "06-agendar", oled: "hora" },
+    { ms: 6000, paso: 5, titulo: "Agendá las dosis", detalle: "Antes de guardar te muestra el resumen y si alcanzan las pastillas.", foto: "07-agendar-resumen", oled: "hora", senal: "ida" },
+    { ms: 5500, paso: 6, titulo: "Seguí el día desde la app", detalle: "La próxima dosis y lo que ya salió, de un vistazo.", foto: "08-home", oled: "hora" },
+    { ms: 6500, paso: 7, titulo: "A la hora, el pastillero avisa", detalle: "Suena y lo dice en la pantalla. Nadie tiene que acordarse.", foto: "08-home", oled: "dosis", avisa: true },
+    { ms: 2200, paso: 8, titulo: "Apretás el botón y sale", detalle: "El disco suelta la dosis justa en la bandeja.", foto: "08-home", oled: "saliendo", aprieta: true },
+    { ms: 3300, paso: 8, titulo: "Apretás el botón y sale", detalle: "El disco suelta la dosis justa en la bandeja.", foto: "08-home", oled: "salio", cae: true },
+    { ms: 6500, paso: 9, titulo: "El sensor confirma", detalle: "Cuenta las pastillas que cayeron y le avisa a la app. Si falta alguna, avisa.", foto: "08-home", oled: "ok", senal: "vuelta" },
+    { ms: 6500, paso: 9, titulo: "El sensor confirma", detalle: "La app la marca como salida y le manda un mail al cuidador.", foto: "11-home-dispensada", oled: "reposo" },
+    { ms: 6000, paso: 10, titulo: "Todo el mes a la vista", detalle: "El calendario muestra dosis y actividades, día por día.", foto: "09-calendario", oled: "reposo" },
+    { ms: 6000, paso: 10, titulo: "Y te avisa antes de que se acaben", detalle: "Sabés cuántas quedan en cada módulo.", foto: "10-pastillas", oled: "reposo" },
+  ];
+  const PASOS = 10;
+  const MS_LANDING = 42000;
+
+  const $ = (id) => document.getElementById(id);
+  const escenario = $("escenario");
+  const ajustar = () => {
+    const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    escenario.style.transform = `translate(-50%, -50%) scale(${s})`;
+  };
+  addEventListener("resize", ajustar);
+  ajustar();
+
+  // Pantalla completa con un clic o la tecla F.
+  const completa = () => document.documentElement.requestFullscreen?.().catch(() => {});
+  addEventListener("click", completa);
+  addEventListener("keydown", (e) => { if (e.key === "f" || e.key === "F") completa(); });
+
+  // Precarga para que no parpadee al cambiar.
+  new Set(ESCENAS.map((e) => e.foto)).forEach((f) => { new Image().src = `/recorrido/fotos/${f}.webp`; });
+
+  for (let i = 0; i < PASOS; i++) $("avance").appendChild(document.createElement("span")).appendChild(document.createElement("i"));
+
+  const dibujarOled = (nombre) => {
+    $("oled").innerHTML = "";
+    for (const [t, tam, y] of OLED[nombre]) {
+      const d = document.createElement("div");
+      d.textContent = t;
+      d.style.top = `${y * 2.125}px`;
+      d.style.fontSize = `${tam * 8 * 2.125 * 0.92}px`;
+      d.style.lineHeight = "1";
+      $("oled").appendChild(d);
+    }
+  };
+
+  let visible = "a";
+  const mostrarFoto = (f) => {
+    const actual = $("foto-" + visible);
+    if (actual.getAttribute("src") === `/recorrido/fotos/${f}.webp`) return;
+    const otra = $("foto-" + (visible === "a" ? "b" : "a"));
+    otra.src = `/recorrido/fotos/${f}.webp`;
+    otra.style.opacity = 1;
+    actual.style.opacity = 0;
+    visible = visible === "a" ? "b" : "a";
+  };
+
+  const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+  const titulos = { paso: "", titulo: "", detalle: "" };
+
+  const escena = async (e) => {
+    const cambiaTexto = e.titulo !== titulos.titulo || e.detalle !== titulos.detalle;
+    if (cambiaTexto) {
+      $("texto").classList.add("saliendo");
+      await espera(450);
+      $("paso").textContent = `Paso ${e.paso} de ${PASOS}`;
+      $("titulo").textContent = e.titulo;
+      $("detalle").textContent = e.detalle;
+      Object.assign(titulos, { titulo: e.titulo, detalle: e.detalle });
+      $("texto").classList.remove("saliendo");
+    }
+    [...$("avance").children].forEach((s, i) => {
+      s.firstChild.style.width = i < e.paso ? "100%" : "0";
+    });
+    mostrarFoto(e.foto);
+    dibujarOled(e.oled);
+
+    $("senal").className = "senal" + (e.senal ? " activa" : "") + (e.senal === "vuelta" ? " vuelve" : "");
+    $("sonido").classList.toggle("activo", !!e.avisa);
+    $("boton").classList.toggle("late", !!e.avisa);
+    if (e.aprieta) {
+      $("boton").classList.add("apretado");
+      setTimeout(() => $("boton").classList.remove("apretado"), 500);
+    }
+    $("pastilla").classList.toggle("cae", !!e.cae);
+    await espera(e.ms - (cambiaTexto ? 450 : 0));
+  };
+
+  // La landing baja sola de punta a punta y vuelve arriba.
+  const recorrerLanding = async () => {
+    const frame = $("landing");
+    let doc;
+    try { doc = frame.contentWindow; doc.scrollTo({ top: 0, behavior: "instant" }); } catch { await espera(MS_LANDING); return; }
+    await espera(2500);
+    const inicio = performance.now();
+    const dura = MS_LANDING - 5000;
+    await new Promise((listo) => {
+      const paso = (t) => {
+        const alto = doc.document.documentElement.scrollHeight - doc.innerHeight;
+        const p = Math.min(1, (t - inicio) / dura);
+        const suave = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        // instant: la landing tiene scroll-behavior smooth y cada cuadro reiniciaria la animacion.
+        doc.scrollTo({ top: alto * suave, behavior: "instant" });
+        if (p < 1) requestAnimationFrame(paso); else listo();
+      };
+      requestAnimationFrame(paso);
+    });
+    await espera(2500);
+  };
+
+  // ?sin-landing arranca directo en el recorrido (para probarlo).
+  let saltar = new URLSearchParams(location.search).has("sin-landing");
+  const loop = async () => {
+    for (;;) {
+      if (!saltar) {
+        $("landing").classList.remove("oculto");
+        $("recorrido").classList.add("oculto");
+        await recorrerLanding();
+      }
+      saltar = false;
+
+      $("recorrido").classList.remove("oculto");
+      await espera(400);
+      $("landing").classList.add("oculto");
+      for (const e of ESCENAS) await escena(e);
+      titulos.titulo = "";
+    }
+  };
+  $("landing").addEventListener("load", () => loop(), { once: true });
+</script>
+</body>
+</html>
