@@ -402,7 +402,9 @@ solo hace sonar el buzzer y queda esperando el botón.
 `detectadas` (opcional, 0 a 20) es cuántas pastillas vio caer el **sensor** del
 pastillero. Queda en `dispensaciones.detectadas`; si el firmware no tiene
 sensor no lo manda y se guarda `null` (no 0, que significaría "el sensor no vio
-ninguna"). Comparar `cantidad` con `detectadas` dice si salió todo.
+ninguna"). La base calcula sola `dispensaciones.confirmada_por_sensor`
+(columna generada, `detectadas >= cantidad`): `true` si el sensor vio caer
+todas, `false` si vio menos y `null` sin sensor. El backend no la escribe.
 
 Al confirmar, el backend:
 
@@ -835,7 +837,7 @@ Supabase (PostgreSQL), proyecto `pshejdspqqhuhyjbzslx`.
 | `usuarios` | `id` (= id de Supabase Auth), `nombre`, `apellido`, `mail`, `fecha_nacimiento`, `foto_url`, `rol` (`cuidador`/`admin`), `verificado`, `token_verificacion` + `token_expira`, `token_reset` + `token_reset_expira` |
 | `pastillas` | `id`, `usuario_id`, `nombre`, `tipo`, `dispositivo_id` (null = cualquiera de la cuenta; SET NULL al borrar el pastillero) |
 | `horarios` | `id`, `pastilla_id`, `dia`, `hora`, `minuto`, `cantidad` (1-20), `dispensado`, `senal_enviada`, `notificado`, `recordatorio_min` |
-| `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `detectadas` (0-20 o null, lo que vio el sensor), `timestamp` |
+| `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `detectadas` (0-20 o null, lo que vio el sensor), `confirmada_por_sensor` (generada: `detectadas >= cantidad`, null sin sensor), `timestamp` |
 | `modulos` | `id`, `numero`, `nombre`, `dispositivo_id`, `pastilla_id` (null = vacío), `cantidad_actual`. Único por (`dispositivo_id`, `numero`) |
 | `pastilleros` | `dispositivo_id` (PK), `secreto_hash`, `codigo` (8 dígitos, único) + `codigo_vence` |
 | `pastillero_usuarios` | (`dispositivo_id`, `usuario_id`) PK, `nombre` (el que le puso esa cuenta, hasta 40), `vinculado_at`. CASCADE con las dos tablas |

@@ -46,6 +46,8 @@ export interface Dispensacion {
   bateria: number;
   cantidad: number;
   detectadas: number | null;
+  // Generada en la base: detectadas >= cantidad. null sin sensor.
+  confirmada_por_sensor: boolean | null;
   timestamp: string;
 }
 
