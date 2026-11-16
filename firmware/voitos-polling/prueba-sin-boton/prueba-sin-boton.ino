@@ -128,11 +128,15 @@ const int SENSOR_FLANCO = FALLING;
 
 // Despues del ultimo movimiento del servo, cuanto se sigue escuchando al
 // sensor: la pastilla tarda un poco en caer.
-const unsigned long MS_ESPERA_CAIDA = 1000;
+// 2 s: con 1 s una pastilla que quedo un rato sobre el sensor se tomaba como
+// "no salio" y arrancaba la busqueda del ajuste del disco.
+const unsigned long MS_ESPERA_CAIDA = 2000;
 
 // Una pastilla corta el haz una sola vez, pero el borde puede generar varios
-// pulsos seguidos. Lo que llegue antes de esto se toma como la misma pastilla.
-const unsigned long MS_ANTIRREBOTE_SENSOR = 80;
+// pulsos seguidos, y si queda apoyada sobre el haz tiembla y corta varias veces.
+// Lo que llegue antes de esto se toma como la misma pastilla. Entre pastilla y
+// pastilla hay mas de un segundo, asi que 400 ms no pierde ninguna.
+const unsigned long MS_ANTIRREBOTE_SENSOR = 400;
 
 // Tiene que coincidir con el dispositivo_id de la tabla modulos
 const char* DISPOSITIVO_ID = "ESP32-001";
@@ -522,8 +526,8 @@ void sacudir(int angulo) {
 }
 
 // Velocidad del servo: va de a un grado y espera esto entre grado y grado.
-// 180 grados a 5 ms = ~0.9 s por viaje. Mas alto = mas lento.
-const int MS_POR_GRADO = 5;
+// 180 grados a 2 ms = ~0.4 s por viaje. Mas alto = mas lento (5 era demasiado).
+const int MS_POR_GRADO = 2;
 int anguloServo = SERVO_REPOSO;
 
 void irA(int destino) {
