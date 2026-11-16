@@ -525,11 +525,15 @@ void irA(int destino) {
 }
 
 // Mueve el servo una vez (una pastilla)
+// La ida a la salida va a toda velocidad: despacio la pastilla llegaba sin
+// envion y quedaba apoyada sobre el sensor en vez de pasar. La vuelta a la
+// carga si va despacio (irA).
 void moverServo() {
   conectarServo();
   servo.write(anguloServo);
-  irA(posicionEntrega());
-  delay(200);
+  anguloServo = posicionEntrega();
+  servo.write(anguloServo);
+  delay(500);
   sacudir(posicionEntrega());
 
   irA(posicionCarga());
