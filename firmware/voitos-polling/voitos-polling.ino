@@ -510,34 +510,15 @@ void sacudir(int angulo) {
   delay(200);
 }
 
-// Velocidad del servo: va de a un grado y espera esto entre grado y grado.
-// 180 grados a 2 ms = ~0.4 s por viaje. Mas alto = mas lento (5 era demasiado).
-const int MS_POR_GRADO = 2;
-int anguloServo = SERVO_REPOSO;
-
-void irA(int destino) {
-  int paso = destino > anguloServo ? 1 : -1;
-  while (anguloServo != destino) {
-    anguloServo += paso;
-    servo.write(anguloServo);
-    delay(MS_POR_GRADO);
-  }
-}
-
-// Mueve el servo una vez (una pastilla)
-// La ida a la salida va a toda velocidad: despacio la pastilla llegaba sin
-// envion y quedaba apoyada sobre el sensor en vez de pasar. La vuelta a la
-// carga si va despacio (irA).
+// Mueve el servo una vez (una pastilla), a la velocidad propia del servo.
 void moverServo() {
   conectarServo();
-  servo.write(anguloServo);
-  anguloServo = posicionEntrega();
-  servo.write(anguloServo);
-  delay(500);
+  servo.write(posicionEntrega());
+  delay(700);
   sacudir(posicionEntrega());
 
-  irA(posicionCarga());
-  delay(200);
+  servo.write(posicionCarga());
+  delay(700);
   sacudir(posicionCarga());
   servo.detach();
 }
@@ -1331,8 +1312,7 @@ void setup() {
   // El servo a la posicion de carga, con el ajuste del disco que se guardo.
   if (memoria.isKey("ajuste")) ajusteServo = memoria.getInt("ajuste", 0);
   conectarServo();
-  anguloServo = posicionCarga();
-  servo.write(anguloServo);
+  servo.write(posicionCarga());
   delay(500);
   servo.detach();
 
@@ -1405,7 +1385,6 @@ int apretadasSeguidas = 0;
 unsigned long primeraApretada = 0;
 
 const unsigned long MS_PARA_CALIBRAR = 5000;
-unsigned long apretadoDesde = 0;
 
 // Para redibujar el reloj cuando cambia el minuto.
 String ultimaHoraDibujada = "";
@@ -1416,15 +1395,17 @@ void loop() {
   ArduinoOTA.handle();
 
   // Boton sostenido 5 segundos sin dosis esperando: calibrar el disco.
+  // Se mide aca mismo, mirando el boton sin parar. Antes se comparaban dos
+  // pasadas del loop, y entre una y otra puede haber segundos (consulta al
+  // backend, pantalla del sensor): dos toques sueltos parecian 5 segundos
+  // sostenidos y arrancaba a calibrar despues de una dosis.
   if (!esperandoBoton && digitalRead(BUTTON_PIN) == LOW) {
-    if (apretadoDesde == 0) apretadoDesde = millis();
-    else if (millis() - apretadoDesde > MS_PARA_CALIBRAR) {
-      apretadoDesde = 0;
+    unsigned long desde = millis();
+    while (digitalRead(BUTTON_PIN) == LOW && millis() - desde < MS_PARA_CALIBRAR) delay(10);
+    if (millis() - desde >= MS_PARA_CALIBRAR) {
       calibrarDisco();
       return;
     }
-  } else {
-    apretadoDesde = 0;
   }
 
   // Un corte del sensor sin dosis en curso: se deja constancia y nada mas.
