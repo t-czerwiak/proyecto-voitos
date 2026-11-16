@@ -576,31 +576,43 @@ bool salioPastilla(int antes) {
   return false;
 }
 
-// Prueba el disco corrido unos grados para cada lado hasta que sale una
-// pastilla, y se queda con ese ajuste. Cada prueba suelta como mucho una.
-bool buscarAjuste(bool probarElActual) {
+// Un ciclo de prueba con este ajuste: salio una pastilla?
+bool probarAjuste(int ajuste, const char* texto) {
+  ajusteServo = ajuste;
+  Serial.print("Probando el disco con ajuste ");
+  Serial.println(ajusteServo);
+  dibujarAjuste(texto, 0);
+  int antes = pastillasDetectadas;
+  moverServo();
+  return salioPastilla(antes);
+}
+
+// Prueba el disco corrido unos grados para cada lado del ajuste guardado, hasta
+// maxGrados. Cada prueba suelta como mucho una pastilla.
+//
+// Antes se quedaba con el primer ajuste que soltaba una, y una pastilla que
+// cayo de casualidad (tarde, o por la sacudida) dejaba guardado un ajuste malo.
+// Con confirmar, el ajuste tiene que soltar otra mas antes de guardarse: hace
+// falta mas de una pastilla en la tolva. En medio de una dosis no se confirma,
+// porque la segunda seria una pastilla de mas.
+bool buscarAjuste(int maxGrados, bool probarElActual, bool confirmar) {
   const int pasos[] = { 0, 4, -4, 8, -8, 12, -12, 16, -16, 20, -20 };
   int base = ajusteServo;
   for (int d : pasos) {
+    if (abs(d) > maxGrados) break;
     if (d == 0 && !probarElActual) continue;
-    ajusteServo = base + d;
-    Serial.print("Probando el disco con ajuste ");
-    Serial.println(ajusteServo);
-    dibujarAjuste("PROBANDO EL DISCO", 0);
-    int antes = pastillasDetectadas;
-    moverServo();
-    if (salioPastilla(antes)) {
-      memoria.putInt("ajuste", ajusteServo);
-      Serial.println("Salio: ajuste guardado.");
-      return true;
-    }
+    if (!probarAjuste(base + d, "PROBANDO EL DISCO")) continue;
+    if (confirmar && !probarAjuste(base + d, "CONFIRMANDO")) continue;
+    memoria.putInt("ajuste", ajusteServo);
+    Serial.println("Salio: ajuste guardado.");
+    return true;
   }
   ajusteServo = base;
   return false;
 }
 
 // Despues de cambiar el disco: mantener apretado el boton 5 segundos con la
-// pantalla en reposo. Hace falta al menos una pastilla en la tolva. Sin sensor
+// pantalla en reposo. Hacen falta al menos dos pastillas en la tolva. Sin sensor
 // no hay forma de saber si salio, asi que no prueba nada.
 void calibrarDisco() {
   Serial.println("Calibrando el disco...");
@@ -609,15 +621,22 @@ void calibrarDisco() {
   if (HAY_SENSOR) {
     pastillasDetectadas = 0;
     sensorArmado = true;
-    ok = buscarAjuste(true);
+    ok = buscarAjuste(20, true, true);
+    // El guardado no anduvo: puede estar muy corrido. Se prueba desde cero.
+    int guardado = ajusteServo;
+    if (!ok && guardado != 0) {
+      ajusteServo = 0;
+      ok = buscarAjuste(20, true, true);
+      if (!ok) ajusteServo = guardado;
+    }
     sensorArmado = false;
   }
   pitar(ok ? 1 : 3, ok ? 400 : 150);
   String resultado = ok ? "LISTO"
-                   : HAY_SENSOR ? "NO SALIO NINGUNA - REVISA EL DISCO Y LA TOLVA"
+                   : HAY_SENSOR ? "NO SE PUDO - REVISA EL DISCO Y PONE 2 PASTILLAS EN LA TOLVA"
                    : "FALTA EL SENSOR PARA CALIBRAR";
   unsigned long desde = millis();
-  while (millis() - desde < 5000) {
+  while (millis() - desde < max(5000UL, duracionDe(resultado, 2))) {
     dibujarAjuste(resultado, desde);
     delay(MS_POR_CUADRO);
   }
@@ -652,11 +671,15 @@ int dispensar(int cantidad) {
     int antes = pastillasDetectadas;
     moverServo();
 
-    // Con sensor: si no cayo nada, el disco puede haber quedado corrido.
-    // Se busca el ajuste ahi mismo, sin esperar a que alguien lo calibre.
+    // Con sensor: si no cayo nada, se repite UNA vez en la misma posicion
+    // (casi siempre es que la pastilla no entro en el agujero). El ajuste del
+    // disco NO se toca aca: antes se buscaba solo y una pastilla lenta o que el
+    // sensor no vio lo dejaba guardado mal. Se corrige solo con la calibracion
+    // a mano (boton 5 segundos).
     if (HAY_SENSOR && !salioPastilla(antes)) {
-      Serial.println("  No cayo: buscando el ajuste del disco.");
-      buscarAjuste(false);
+      Serial.println("  No cayo: se repite.");
+      moverServo();
+      salioPastilla(antes);
     }
     dibujarDispensando(i, cantidad, pastillasDetectadas);
 
