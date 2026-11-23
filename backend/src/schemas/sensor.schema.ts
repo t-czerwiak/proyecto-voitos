@@ -14,6 +14,10 @@ export const ConfirmacionSchema = z.object({
     .optional(),
 
   detectadas: z.number().int().min(0).max(20, "detectadas no puede ser mayor a 20").optional(),
+
+  // Segundos epoch de cuando salio de verdad. Lo manda la placa cuando
+  // dispenso sin internet y confirma despues.
+  dispensada_en: z.number().int().positive().optional(),
 });
 
 export type Confirmacion = z.infer<typeof ConfirmacionSchema>;

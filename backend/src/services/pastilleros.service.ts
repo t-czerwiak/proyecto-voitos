@@ -50,6 +50,17 @@ export const dispositivosAjenos = async (usuario_id: string): Promise<string[]> 
   return [...new Set(todos.map((v) => v.dispositivo_id))].filter((d) => !mios.has(d));
 };
 
+// La placa es quien dice ser: su secreto coincide con el guardado.
+export const esLaPlaca = async (dispositivo_id: string, secreto?: string) => {
+  if (!secreto) return false;
+  const { data } = await supabase
+    .from("pastilleros")
+    .select("secreto_hash")
+    .eq("dispositivo_id", dispositivo_id)
+    .maybeSingle();
+  return !!data?.secreto_hash && iguales(data.secreto_hash, sha256(secreto));
+};
+
 export const vinculoParaPlaca = async (dispositivo_id: string, secreto?: string) => {
   const { data: p, error } = await supabase
     .from("pastilleros")
