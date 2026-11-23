@@ -35,6 +35,8 @@
 #include <DNSServer.h>
 #include <Preferences.h>
 #include <ArduinoOTA.h>
+#include <HTTPUpdate.h>
+#include <LittleFS.h>
 
 // EL WIFI YA NO VA EN EL CODIGO
 //
@@ -125,6 +127,11 @@ const unsigned long MS_ANTIRREBOTE_SENSOR = 400;
 
 // Tiene que coincidir con el dispositivo_id de la tabla modulos
 const char* DISPOSITIVO_ID = "ESP32-001";
+
+// Version de este firmware. Para publicar una nueva desde la nube: subir este
+// numero, exportar el binario y cargarlo (ver docs/API.md, "Actualizacion
+// desde la nube"). La placa se actualiza sola si la publicada es mayor.
+const int VERSION_FIRMWARE = 1;
 
 // Tope de seguridad
 const int MAX_PASTILLAS = 20;
@@ -422,13 +429,19 @@ void dibujarDispensando(int vuelta, int pedidas, int detectadas) {
 
 // Al terminar, unos segundos con lo que vio el sensor. La dosis se confirma
 // igual (el backend guarda las dos cuentas); si faltan es para mirar la bandeja.
-void mostrarResultadoSensor(int detectadas, int pedidas, bool avisado) {
+// Como termino el aviso a la app despues de dispensar.
+const int AVISO_OK = 0;
+const int AVISO_EN_COLA = 1;   // sin internet: sale cuando vuelva
+const int AVISO_FALLO = 2;
+
+void mostrarResultadoSensor(int detectadas, int pedidas, int aviso) {
   if (!hayPantalla) return;
   bool ok = detectadas >= pedidas;
   String detalle = detectadas == 0 ? String("EL SENSOR NO VIO NINGUNA - MIRA LA BANDEJA")
                  : ok ? String("VIO ") + detectadas + " DE " + pedidas
                  : String("VIO ") + detectadas + " DE " + pedidas + " - MIRA LA BANDEJA";
-  if (!avisado) detalle += " - NO SE PUDO AVISAR A LA APP";
+  if (aviso == AVISO_EN_COLA) detalle += " - SIN INTERNET: SE AVISA A LA APP CUANDO VUELVA";
+  if (aviso == AVISO_FALLO) detalle += " - NO SE PUDO AVISAR A LA APP";
   unsigned long desde = millis();
   unsigned long dura = max(6000UL, duracionDe(detalle, 2));
 
@@ -726,7 +739,8 @@ bool pedirGet(const String& ruta, String& respuesta) {
 void consultarPendiente() {
   String cuerpo;
   // dispositivo_id: el backend manda solo lo del duenio de ESTE pastillero.
-  if (!pedirGet(String("/api/sensor/pendiente?dispositivo_id=") + DISPOSITIVO_ID, cuerpo)) return;
+  if (!pedirGet(String("/api/sensor/pendiente?dispositivo_id=") + DISPOSITIVO_ID
+                + "&version=" + VERSION_FIRMWARE, cuerpo)) return;
 
   // El filtro deja pasar solo lo que se usa, asi el documento ocupa poco.
   JsonDocument doc;
@@ -739,6 +753,18 @@ void consultarPendiente() {
   }
 
   JsonObject data = doc["data"];
+
+  // El backend contesto: primero lo que quedo en cola mientras no habia.
+  ultimoBackendOk = millis();
+  enviarCola();
+  guardarAgenda(data["agenda"]);
+
+  int nueva = data["firmware"]["version"] | 0;
+  const char* urlFirmware = data["firmware"]["url"];
+  if (nueva > VERSION_FIRMWARE && nueva != versionFallida && urlFirmware != nullptr) {
+    actualizarDesdeNube(nueva, String(urlFirmware));
+    return;
+  }
 
   // Sin duenio llega el codigo para vincularlo; ya vinculado, no viene nada.
   String codigo = data["vinculo"]["codigo"] | "";
@@ -763,6 +789,7 @@ void consultarPendiente() {
     Serial.println("Dosis pendiente sin id, se ignora.");
     return;
   }
+  if (fueDispensada(String(id))) return;  // salio sin conexion, la cola ya la avisa
 
   Serial.println();
   Serial.println("=== HAY UNA DOSIS PENDIENTE ===");
@@ -782,68 +809,225 @@ void consultarPendiente() {
     return;
   }
 
-  horarioPendiente = String(id);
-  cantidadPendiente = cantidad;
-
-  sonarBuzzer();
-
-  // Se descarta cualquier apretada previa: si alguien toco el boton cuando no
-  // habia nada pendiente, esa bandera no tiene que dispensar esta dosis.
-  botonApretado = false;
-
-  esperandoBoton = true;
-  empezoAEsperar = millis();
-  dibujarPantalla();
-
-  Serial.println("Esperando que se presione el boton...");
+  empezarDosis(String(id), cantidad);
 }
 
 
 
 // Le avisa al backend que la pastilla salio
 
-bool confirmarDispensacion(int cantidadDispensada) {
-  if (horarioPendiente == "") {
-    Serial.println("Sin horario_id, no hay nada que confirmar.");
-    return false;
-  }
+// dispensadaEn (segundos epoch) solo para las que salen de la cola: el
+// backend mide la ventana contra ese momento y la marca sin_conexion.
+String jsonConfirmacion(const String& horario, int cantidad, int detectadas, long dispensadaEn) {
+  return String("{\"dispositivo_id\":\"") + DISPOSITIVO_ID
+       + "\",\"horario_id\":\"" + horario
+       + "\",\"bateria\":100"
+       + ",\"cantidad\":" + String(cantidad)
+       // Solo con sensor: sin el, el backend guarda null y no 0.
+       + (detectadas >= 0 ? ",\"detectadas\":" + String(detectadas) : String(""))
+       + (dispensadaEn > 0 ? ",\"dispensada_en\":" + String(dispensadaEn) : String(""))
+       + "}";
+}
 
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Sin WiFi, no se puede confirmar.");
-    return false;
-  }
-
+// Codigo HTTP, o 0 si no hubo conexion.
+int postConfirmacion(const String& json) {
+  if (WiFi.status() != WL_CONNECTED) return 0;
   WiFiClientSecure cliente;
   cliente.setInsecure();
-
   HTTPClient http;
   http.setTimeout(10000);
-  http.begin(cliente, String(BACKEND) + "/api/sensor/confirmacion");
+  if (!http.begin(cliente, String(BACKEND) + "/api/sensor/confirmacion")) return 0;
   http.addHeader("Content-Type", "application/json");
+  int codigo = http.POST(json);
+  if (codigo != 201) {
+    Serial.print("Confirmacion: HTTP ");
+    Serial.println(codigo);
+    Serial.println(http.getString());
+  }
+  http.end();
+  return codigo < 0 ? 0 : codigo;
+}
+
+bool encolarConfirmacion(const String& json);
+
+int confirmarDispensacion(int cantidadDispensada) {
+  if (horarioPendiente == "") {
+    Serial.println("Sin horario_id, no hay nada que confirmar.");
+    return AVISO_FALLO;
+  }
+  int detectadas = HAY_SENSOR ? pastillasDetectadas : -1;
 
   // cantidad es lo que REALMENTE se dispenso, que es lo que queda guardado en
   // la tabla dispensaciones.
-  String json = String("{\"dispositivo_id\":\"") + DISPOSITIVO_ID
-              + "\",\"horario_id\":\"" + horarioPendiente
-              + "\",\"bateria\":100"
-              + ",\"cantidad\":" + String(cantidadDispensada)
-              // Solo con sensor: sin el, el backend guarda null y no 0.
-              + (HAY_SENSOR ? ",\"detectadas\":" + String(pastillasDetectadas) : String(""))
-              + "}";
-
-  int codigo = http.POST(json);
-  String respuesta = http.getString();
-  http.end();
-
+  int codigo = postConfirmacion(jsonConfirmacion(horarioPendiente, cantidadDispensada, detectadas, 0));
   if (codigo == 201) {
     Serial.println("Confirmado! El backend lo registro.");
-    return true;
+    return AVISO_OK;
   }
+  // Sin conexion o backend caido: queda en la flash y sale cuando vuelva.
+  if (codigo == 0 || codigo >= 500) {
+    long ahora = (long)time(nullptr);
+    if (encolarConfirmacion(jsonConfirmacion(horarioPendiente, cantidadDispensada, detectadas,
+                                             ahora > 1700000000 ? ahora : 0))) {
+      Serial.println("Sin backend: la confirmacion queda en cola.");
+      return AVISO_EN_COLA;
+    }
+  }
+  return AVISO_FALLO;
+}
 
-  Serial.print("Fallo la confirmacion. HTTP ");
-  Serial.println(codigo);
-  Serial.println(respuesta);
-  return false;
+
+// Modo sin conexion
+//
+// Con internet el backend decide cuando hay dosis. Por si se corta, cada
+// respuesta trae la agenda de las proximas 24 horas y se guarda en la flash
+// (LittleFS). Si el backend no contesta por mas de MS_SIN_BACKEND, la placa
+// dispensa sola con esa agenda, y las confirmaciones quedan en cola hasta que
+// vuelva la conexion.
+//
+// ponytail: necesita la hora de NTP, asi que tiene que haber arrancado con
+// internet (no hay reloj con pila), y no revisa el stock sin conexion. Si se
+// necesita, guardar "disponibles" en la agenda.
+const unsigned long MS_SIN_BACKEND = 2UL * 60UL * 1000UL;
+const long SEGUNDOS_VENTANA_LOCAL = 15L * 60L;   // la misma ventana que el backend
+const char* ARCHIVO_AGENDA = "/agenda.json";
+const char* ARCHIVO_COLA = "/cola.txt";
+
+bool hayFlash = false;
+unsigned long ultimoBackendOk = 0;
+String agendaGuardada = "";
+
+// Las ultimas dosis que salieron de aca: el backend todavia puede ofrecerlas
+// (en la agenda o como pendiente) hasta que le llegue la confirmacion.
+String yaDispensadas = "";
+void recordarDispensada(const String& id) {
+  yaDispensadas += id + ",";
+  if (yaDispensadas.length() > 400) yaDispensadas = yaDispensadas.substring(yaDispensadas.indexOf(',', 200) + 1);
+}
+bool fueDispensada(const String& id) { return id != "" && yaDispensadas.indexOf(id + ",") >= 0; }
+
+String leerArchivo(const char* ruta) {
+  if (!hayFlash || !LittleFS.exists(ruta)) return "";
+  File f = LittleFS.open(ruta, "r");
+  if (!f) return "";
+  String texto = f.readString();
+  f.close();
+  return texto;
+}
+
+bool escribirArchivo(const char* ruta, const String& texto, const char* modo) {
+  if (!hayFlash) return false;
+  File f = LittleFS.open(ruta, modo);
+  if (!f) return false;
+  f.print(texto);
+  f.close();
+  return true;
+}
+
+// Solo escribe si cambio: llega cada 30 s y la flash se gasta con cada escritura.
+void guardarAgenda(JsonArray agenda) {
+  if (agenda.isNull()) return;
+  String texto;
+  serializeJson(agenda, texto);
+  if (texto == agendaGuardada) return;
+  if (escribirArchivo(ARCHIVO_AGENDA, texto, "w")) agendaGuardada = texto;
+}
+
+bool encolarConfirmacion(const String& json) {
+  return escribirArchivo(ARCHIVO_COLA, json + "\n", "a");
+}
+
+// Manda lo que quedo en cola. Lo que el backend rechaza (ya registrada, fuera
+// de tiempo) se descarta: reintentarlo no lo va a cambiar.
+void enviarCola() {
+  String cola = leerArchivo(ARCHIVO_COLA);
+  if (cola == "") return;
+  String quedan = "";
+  int desde = 0;
+  while (desde < (int)cola.length()) {
+    int fin = cola.indexOf('\n', desde);
+    if (fin < 0) fin = cola.length();
+    String linea = cola.substring(desde, fin);
+    linea.trim();
+    desde = fin + 1;
+    if (linea == "") continue;
+    // Aunque se haya reiniciado, esa dosis ya salio: que no se vuelva a ofrecer.
+    int i = linea.indexOf("\"horario_id\":\"");
+    if (i >= 0) recordarDispensada(linea.substring(i + 14, linea.indexOf('"', i + 14)));
+    int codigo = postConfirmacion(linea);
+    if (codigo == 0 || codigo >= 500) quedan += linea + "\n";
+    else Serial.println(codigo == 201 ? "Cola: confirmacion enviada." : "Cola: el backend no la acepto, se descarta.");
+  }
+  if (quedan == "") LittleFS.remove(ARCHIVO_COLA);
+  else escribirArchivo(ARCHIVO_COLA, quedan, "w");
+}
+
+void empezarDosis(const String& id, int cantidad) {
+  horarioPendiente = id;
+  cantidadPendiente = cantidad;
+  sonarBuzzer();
+  // Se descarta cualquier apretada previa: si alguien toco el boton cuando no
+  // habia nada pendiente, esa bandera no tiene que dispensar esta dosis.
+  botonApretado = false;
+  esperandoBoton = true;
+  empezoAEsperar = millis();
+  dibujarPantalla();
+  Serial.println("Esperando que se presione el boton...");
+}
+
+void revisarAgenda() {
+  if (esperandoBoton || !hayFlash) return;
+  if (millis() - ultimoBackendOk < MS_SIN_BACKEND) return;
+  static unsigned long ultimaRevision = 0;
+  if (ultimaRevision != 0 && millis() - ultimaRevision < 10000) return;
+  ultimaRevision = millis();
+
+  long ahora = (long)time(nullptr);
+  if (ahora < 1700000000) return;  // sin hora de NTP no se puede
+
+  JsonDocument doc;
+  if (deserializeJson(doc, leerArchivo(ARCHIVO_AGENDA))) return;
+  for (JsonObject d : doc.as<JsonArray>()) {
+    String id = d["id"] | "";
+    long t = d["t"] | 0L;
+    if (id == "" || fueDispensada(id)) continue;
+    if (ahora < t || ahora > t + SEGUNDOS_VENTANA_LOCAL) continue;
+    Serial.println("=== DOSIS SIN CONEXION, desde la agenda guardada ===");
+    empezarDosis(id, d["cantidad"] | 1);
+    return;
+  }
+}
+
+
+// Actualizacion desde la nube
+//
+// El backend manda la URL (firmada, vence en 10 minutos) cuando hay una
+// version publicada mayor que VERSION_FIRMWARE. No hace falta estar en la
+// misma red, como con el Arduino OTA. Si falla no se reintenta esa version
+// hasta reiniciar, para no quedar bajando el archivo cada 30 segundos.
+int versionFallida = 0;
+void dibujarActualizando(unsigned int hecho, unsigned int total);
+
+void actualizarDesdeNube(int version, const String& url) {
+  Serial.print("Actualizando desde la nube a la version ");
+  Serial.println(version);
+  dibujarActualizando(0, 1);
+
+  WiFiClientSecure cliente;
+  cliente.setInsecure();
+  httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  httpUpdate.rebootOnUpdate(true);
+  httpUpdate.onProgress([](int hecho, int total) { dibujarActualizando(hecho, total); });
+
+  // Si sale bien, se reinicia adentro y no vuelve.
+  httpUpdate.update(cliente, url);
+
+  versionFallida = version;
+  Serial.print("No se pudo actualizar: ");
+  Serial.println(httpUpdate.getLastErrorString());
+  mostrarMensaje("NO SE PUDO ACTUALIZAR");
+  delay(3000);
+  dibujarPantalla();
 }
 
 
@@ -922,7 +1106,7 @@ void probarPantallas() {
   cantidadPendiente = 1;
 
   Serial.println("[prueba] 4. el sensor vio menos de las pedidas");
-  mostrarResultadoSensor(1, 2, true);
+  mostrarResultadoSensor(1, 2, AVISO_EN_COLA);
 
   Serial.println("=== FIN DE LA PRUEBA: ahora funciona en vivo con la app ===");
   Serial.println("Agenda una dosis o una actividad con recordatorio y espera.");
@@ -1225,6 +1409,18 @@ void conectarWifi() {
 // pastillero aparece como puerto de red ("voitos-xxxx"). Solo si credenciales.h
 // trae OTA_CLAVE: sin clave, cualquiera en la misma red podria cargarle otro
 // programa. La compu tiene que estar en la misma red que el pastillero.
+void dibujarActualizando(unsigned int hecho, unsigned int total) {
+  if (!hayPantalla || total == 0) return;
+  pantalla.clearDisplay();
+  pantalla.setTextColor(SSD1306_WHITE);
+  pantalla.setTextWrap(false);
+  textoGrande("NUEVA", 2, 4, 0);
+  textoGrande("VERSION", 2, 26, 0);
+  pantalla.drawRect(0, 56, ANCHO, 8, SSD1306_WHITE);
+  pantalla.fillRect(0, 56, (int)((uint64_t)hecho * ANCHO / total), 8, SSD1306_WHITE);
+  pantalla.display();
+}
+
 void iniciarOTA() {
 #ifdef OTA_CLAVE
   String nombre = nombreRedPropia();
@@ -1234,17 +1430,7 @@ void iniciarOTA() {
 
   // Mientras graba, la pantalla lo dice. Si se corta a la mitad no queda
   // inutilizado: arranca con la version anterior y hay que repetir.
-  ArduinoOTA.onProgress([](unsigned int hecho, unsigned int total) {
-    if (!hayPantalla || total == 0) return;
-    pantalla.clearDisplay();
-    pantalla.setTextColor(SSD1306_WHITE);
-    pantalla.setTextWrap(false);
-    textoGrande("NUEVA", 2, 4, 0);
-    textoGrande("VERSION", 2, 26, 0);
-    pantalla.drawRect(0, 56, ANCHO, 8, SSD1306_WHITE);
-    pantalla.fillRect(0, 56, (int)((uint64_t)hecho * ANCHO / total), 8, SSD1306_WHITE);
-    pantalla.display();
-  });
+  ArduinoOTA.onProgress([](unsigned int hecho, unsigned int total) { dibujarActualizando(hecho, total); });
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.print("Fallo la actualizacion por WiFi, error ");
     Serial.println(error);
@@ -1308,6 +1494,11 @@ void setup() {
 
   memoria.begin("voitos", false);
   migrarRedVieja();
+
+  // La flash para la agenda y la cola del modo sin conexion. La primera vez
+  // formatea la particion (tarda unos segundos).
+  hayFlash = LittleFS.begin(true);
+  if (!hayFlash) Serial.println("Sin LittleFS: no hay modo sin conexion.");
 
   // El servo a la posicion de carga, con el ajuste del disco que se guardo.
   if (memoria.isKey("ajuste")) ajusteServo = memoria.getInt("ajuste", 0);
@@ -1466,7 +1657,9 @@ void loop() {
   }
 
   // Si se cayo el WiFi, reconectar. La placa puede quedar dias encendida.
-  if (WiFi.status() != WL_CONNECTED) {
+  // Con una dosis esperando no se corta: el boton tiene que poder dispensarla
+  // aunque no haya WiFi (modo sin conexion).
+  if (WiFi.status() != WL_CONNECTED && !esperandoBoton) {
     Serial.println("WiFi caido, reconectando...");
     if (!esperandoBoton && hayPantalla) {
       pantalla.clearDisplay();
@@ -1480,6 +1673,7 @@ void loop() {
     WiFi.reconnect();
     delay(3000);
     if (WiFi.status() == WL_CONNECTED) dibujarPantalla();
+    revisarAgenda();
     return;
   }
 
@@ -1491,9 +1685,10 @@ void loop() {
 
     int dispensadas = dispensar(cantidadPendiente);
     pitar(1, 150);
-    bool avisado = confirmarDispensacion(dispensadas);
+    int aviso = confirmarDispensacion(dispensadas);
+    recordarDispensada(horarioPendiente);
 
-    if (HAY_SENSOR) mostrarResultadoSensor(pastillasDetectadas, dispensadas, avisado);
+    if (HAY_SENSOR) mostrarResultadoSensor(pastillasDetectadas, dispensadas, aviso);
 
     esperandoBoton = false;
     horarioPendiente = "";
@@ -1532,4 +1727,7 @@ void loop() {
     ultimaConsulta = millis();
     consultarPendiente();
   }
+
+  // Hay WiFi pero el backend no contesta (caido o dormido).
+  revisarAgenda();
 }
