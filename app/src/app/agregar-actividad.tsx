@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { crearActividad } from "../lib/voitos";
-import { dosDigitos, fechaLarga } from "../lib/fechas";
+import { dosDigitos, enMinutos, fechaLarga, hoyISO, minutosDeAhora } from "../lib/fechas";
 import {
   Pantalla,
   Encabezado,
@@ -48,6 +48,14 @@ export default function AgregarActividad() {
 
     if (tipo === "una-vez" && !fecha) {
       setError("Volvé al calendario y tocá el día de la actividad");
+      return;
+    }
+
+    if (
+      tipo === "una-vez" &&
+      (fecha < hoyISO() || (fecha === hoyISO() && enMinutos(hora, minuto) <= minutosDeAhora()))
+    ) {
+      setError("Esa hora ya pasó. Elegí una más adelante.");
       return;
     }
 

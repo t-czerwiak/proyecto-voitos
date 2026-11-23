@@ -8,6 +8,7 @@ import {
   desverificarUsuario,
   vaciarCalendarioDe,
   borrarUsuario,
+  desvincularPastilleroDe,
   soyAdmin,
   UsuarioAdmin,
 } from "../lib/voitos";
@@ -142,6 +143,32 @@ export default function Admin() {
     }
   };
 
+  const desvincular = async (u: UsuarioAdmin, p: { dispositivo_id: string; nombre: string | null }) => {
+    const cual = p.nombre || p.dispositivo_id;
+    const seguir = await confirmar(
+      `Desvincular ${cual}`,
+      `${u.nombre} deja de ver y manejar el pastillero ${cual}. Sus pastillas y dosis no se borran.
+
+` +
+        `Para volver a vincularlo hace falta el código que muestra el pastillero.`,
+      "Desvincular",
+      "peligro"
+    );
+    if (!seguir) return;
+
+    setAviso("");
+    setOcupado(u.id);
+    try {
+      await desvincularPastilleroDe(u.id, p.dispositivo_id);
+      setAviso(`${cual} ya no está en la cuenta de ${u.nombre}`);
+      await cargar();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setOcupado("");
+    }
+  };
+
   const cifra = (valor: number, etiqueta: string, detalle?: string) => (
     <View style={[styles.cifra, escritorio && styles.cifraAncha]}>
       <Text style={styles.cifraValor}>{valor}</Text>
@@ -244,6 +271,27 @@ export default function Admin() {
                             <Text style={styles.pastillasDe} numberOfLines={2}>
                               {u.listaPastillas.map((p) => p.nombre).join(", ")}
                             </Text>
+                          )}
+
+                          {u.pastilleros && u.pastilleros.length > 0 && (
+                            <View style={styles.pastilleros}>
+                              {u.pastilleros.map((p) => (
+                                <View key={p.dispositivo_id} style={styles.pastillero}>
+                                  <Ionicons name="hardware-chip-outline" size={18} color={colores.textoSuave} />
+                                  <Text style={styles.pastilleroNombre} numberOfLines={1}>
+                                    {p.nombre || p.dispositivo_id}
+                                  </Text>
+                                  <Boton
+                                    titulo="Desvincular"
+                                    variante="enlace"
+                                    ancho="auto"
+                                    onPress={() => desvincular(u, p)}
+                                    deshabilitado={ocupado === u.id}
+                                    ayuda={`Saca ${p.nombre || p.dispositivo_id} de la cuenta de ${u.nombre}`}
+                                  />
+                                </View>
+                              ))}
+                            </View>
                           )}
 
                           <View style={styles.acciones}>
@@ -416,6 +464,23 @@ const useEstilos = crearEstilos((colores) => ({
     ...texto.dato,
     color: colores.textoTenue,
     marginTop: espacio.sm,
+  },
+
+  pastilleros: {
+    marginTop: espacio.md,
+    gap: espacio.xs,
+  },
+
+  pastillero: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: espacio.sm,
+  },
+
+  pastilleroNombre: {
+    ...texto.dato,
+    color: colores.texto,
+    flex: 1,
   },
 
   acciones: {

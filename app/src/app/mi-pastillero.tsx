@@ -96,7 +96,7 @@ function TarjetaPastillero({
             <TextInput
               value={nombre}
               onChangeText={setNombre}
-              placeholder="Por ejemplo: Casa de mamá"
+              placeholder="Casa de mamá"
               placeholderTextColor={colores.textoTenue}
               maxLength={40}
               autoFocus
