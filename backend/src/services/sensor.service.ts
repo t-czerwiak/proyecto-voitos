@@ -1,6 +1,6 @@
 import { supabase } from "../config/supabase";
 import { Confirmacion, Dispensar } from "../schemas/sensor.schema";
-import { getHoraArgentina, getTramosVentana } from "../utils/tiempo";
+import { getHoraArgentina, getTramosVentana, sumarUnDia } from "../utils/tiempo";
 import { ErrorHttp } from "../utils/errores";
 import { formatearFecha, formatearHora } from "./plantillas-mail";
 
@@ -141,6 +141,36 @@ const minutosDesdeLaDosis = (dia: string, hora: number, minuto: number) => {
   return (Date.now() - momento) / 60000;
 };
 
+// Las dosis de las proximas horas, para que la placa las tenga guardadas y
+// las pueda dispensar sola si se queda sin internet. t es segundos epoch.
+const HORAS_AGENDA = 24;
+
+export const getAgenda = async (alcance: Alcance) => {
+  if (!alcance.duenos.length) return [];
+  const { hoy } = getHoraArgentina();
+  const ahora = Date.now() / 1000;
+
+  const consulta = supabase
+    .from("horarios")
+    .select("id, dia, hora, minuto, cantidad, pastillas!inner(usuario_id, dispositivo_id)")
+    .eq("dispensado", false)
+    .in("dia", [hoy, sumarUnDia(hoy)]);
+
+  const { data, error } = await soloDeEstePastillero(filtrarPorAlcance(consulta, alcance, "pastillas.usuario_id"), alcance);
+  if (error) throw new Error(error.message);
+
+  const dd = (n: number) => String(n).padStart(2, "0");
+  return ((data ?? []) as any[])
+    .map((h) => ({
+      id: h.id as string,
+      t: Date.parse(`${h.dia}T${dd(h.hora)}:${dd(h.minuto)}:00-03:00`) / 1000,
+      cantidad: h.cantidad as number,
+    }))
+    .filter((h) => h.t > ahora - MINUTOS_VENTANA * 60 && h.t < ahora + HORAS_AGENDA * 3600)
+    .sort((a, b) => a.t - b.t)
+    .slice(0, 30);
+};
+
 export const createConfirmacion = async (body: Confirmacion) => {
   const { data: horario } = await supabase
     .from("horarios")
@@ -157,7 +187,13 @@ export const createConfirmacion = async (body: Confirmacion) => {
     throw new ErrorHttp(404, "Horario no encontrado");
   }
 
-  const minutos = minutosDesdeLaDosis(horario.dia, horario.hora, horario.minuto);
+  // Sin internet la placa confirma tarde: la ventana se mide contra cuando
+  // salio de verdad, que no puede ser en el futuro.
+  if (body.dispensada_en && body.dispensada_en * 1000 > Date.now() + 60_000) {
+    throw new ErrorHttp(400, "dispensada_en no puede ser en el futuro");
+  }
+  const atraso = body.dispensada_en ? (Date.now() - body.dispensada_en * 1000) / 60000 : 0;
+  const minutos = minutosDesdeLaDosis(horario.dia, horario.hora, horario.minuto) - atraso;
   if (minutos < 0) {
     throw new ErrorHttp(409, "Esa dosis todavia no es: no se puede confirmar antes de su hora");
   }
@@ -187,6 +223,11 @@ export const createConfirmacion = async (body: Confirmacion) => {
       cantidad,
 
       detectadas: body.detectadas ?? null,
+
+      ...(body.dispensada_en && {
+        timestamp: new Date(body.dispensada_en * 1000).toISOString(),
+        sin_conexion: true,
+      }),
 
       usuario_id: (horario as any)?.pastillas?.usuario_id ?? null,
     })
