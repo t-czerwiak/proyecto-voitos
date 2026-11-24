@@ -322,6 +322,13 @@ export default function Hoy() {
                   detalle="Cargar, agendar y recargar."
                   onPress={() => router.push("/medicacion")}
                 />
+
+                <Acceso
+                  icono="time"
+                  titulo="Historial"
+                  detalle="Qué pastillas se tomaron y cuándo."
+                  onPress={() => router.push("/historial")}
+                />
               </View>
             )}
 
