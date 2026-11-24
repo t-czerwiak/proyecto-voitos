@@ -132,6 +132,8 @@ const char* DISPOSITIVO_ID = "ESP32-001";
 // numero, exportar el binario y cargarlo (ver docs/API.md, "Actualizacion
 // desde la nube"). La placa se actualiza sola si la publicada es mayor.
 const int VERSION_FIRMWARE = 1;
+unsigned long ultimoBackendOk = 0;  // ultima vez que el backend contesto
+int versionFallida = 0;            // version de la nube que fallo al instalar: no reintentar
 
 // Tope de seguridad
 const int MAX_PASTILLAS = 20;
@@ -894,7 +896,6 @@ const char* ARCHIVO_AGENDA = "/agenda.json";
 const char* ARCHIVO_COLA = "/cola.txt";
 
 bool hayFlash = false;
-unsigned long ultimoBackendOk = 0;
 String agendaGuardada = "";
 
 // Las ultimas dosis que salieron de aca: el backend todavia puede ofrecerlas
@@ -1005,7 +1006,6 @@ void revisarAgenda() {
 // version publicada mayor que VERSION_FIRMWARE. No hace falta estar en la
 // misma red, como con el Arduino OTA. Si falla no se reintenta esa version
 // hasta reiniciar, para no quedar bajando el archivo cada 30 segundos.
-int versionFallida = 0;
 void dibujarActualizando(unsigned int hecho, unsigned int total);
 
 void actualizarDesdeNube(int version, const String& url) {
