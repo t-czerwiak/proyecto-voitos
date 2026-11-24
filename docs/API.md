@@ -258,7 +258,7 @@ flujo para ponerse una. El mail lo dice con otras palabras en ese caso.
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| GET | `/api/sensor/pendiente` | La ESP32 consulta cada 30 s si hay una dosis para dispensar. Query opcional `?dispositivo_id=` y header `X-Pastillero-Secreto` (ver [Pastilleros](#pastilleros-protegido)) |
+| GET | `/api/sensor/pendiente` | La ESP32 consulta cada 30 s si hay una dosis para dispensar. Query opcional `?dispositivo_id=` y `?version=` (la del firmware) y header `X-Pastillero-Secreto` (ver [Pastilleros](#pastilleros-protegido)) |
 | POST | `/api/sensor/dispensar` | El backend le manda la orden al dispositivo por la red local |
 | POST | `/api/sensor/confirmacion` | La ESP32 confirma que dispensó tras apretar el botón físico |
 
@@ -312,6 +312,42 @@ En los dos casos la dispensación se registra igual: por
   cuentas vinculadas** a esa placa. Sin cuentas (o sin `dispositivo_id`, las
   placas viejas), son los de todas las cuentas **menos** las que ya tienen un
   pastillero.
+- `agenda`: las dosis no dispensadas de las próximas 24 horas (y las de los
+  últimos 15 minutos), como `[{ "id": "uuid", "t": 1795000000, "cantidad": 1 }]`
+  con `t` en segundos epoch. La placa la guarda en su memoria para dispensar
+  **sin internet** (ver [Modo sin conexión](#modo-sin-conexion)). Viene `[]`
+  si el secreto no es el correcto o la placa no tiene cuentas.
+- `firmware`: solo si la placa mandó `?version=`, su secreto es el correcto y
+  hay una versión más nueva publicada. `{ "version": 3, "url": "https://..." }`,
+  con una URL firmada que vence a los 10 minutos (ver
+  [Actualización desde la nube](#actualizacion-desde-la-nube)).
+
+#### Modo sin conexión
+
+Si la placa no puede hablar con el backend por más de 2 minutos (WiFi caído o
+backend dormido), dispensa sola con la `agenda` que guardó: a la hora suena,
+espera el botón y dispensa igual que siempre. La confirmación queda en cola en
+la memoria flash y sale apenas vuelve la conexión, con `dispensada_en`. Esa
+dispensación queda con `sin_conexion = true` y el `timestamp` de cuando salió
+de verdad.
+
+Límites: la hora la sabe por NTP, así que tiene que haber arrancado con
+internet al menos una vez desde que se prendió (no tiene reloj con pila). No
+revisa el stock: lo hace el backend cuando vuelve la conexión.
+
+#### Actualización desde la nube
+
+Sin estar en la misma red que el pastillero. Para publicar una versión:
+
+1. Subir `VERSION_FIRMWARE` en el `.ino` y exportar el binario compilado
+   (Arduino IDE: Programa → Exportar binario compilado).
+2. Subir el `.bin` al bucket **privado** `firmware` de Supabase Storage.
+3. Insertar la fila: `insert into firmware (version, archivo, notas) values (3, 'voitos-polling-v3.bin', 'que cambia');`
+
+En la próxima consulta (30 s) la placa recibe la URL, muestra
+"ACTUALIZANDO" con una barra y se reinicia con la versión nueva. El bucket es
+privado porque el `.bin` lleva la clave del OTA local. Si falla, no reintenta
+esa versión hasta reiniciarse.
 
 #### Recordatorios en el display
 
@@ -399,10 +435,16 @@ solo hace sonar el buzzer y queda esperando el botón.
 }
 ```
 
+`dispensada_en` (opcional, segundos epoch) lo manda la placa cuando dispensó
+**sin internet** y confirma más tarde: la ventana de 45 minutos se mide contra
+ese momento y no contra la hora de llegada. No puede ser en el futuro (400).
+
 `detectadas` (opcional, 0 a 20) es cuántas pastillas vio caer el **sensor** del
 pastillero. Queda en `dispensaciones.detectadas`; si el firmware no tiene
 sensor no lo manda y se guarda `null` (no 0, que significaría "el sensor no vio
-ninguna"). Comparar `cantidad` con `detectadas` dice si salió todo.
+ninguna"). La base calcula sola `dispensaciones.confirmada_por_sensor`
+(columna generada, `detectadas >= cantidad`): `true` si el sensor vio caer
+todas, `false` si vio menos y `null` sin sensor. El backend no la escribe.
 
 Al confirmar, el backend:
 
@@ -835,9 +877,10 @@ Supabase (PostgreSQL), proyecto `pshejdspqqhuhyjbzslx`.
 | `usuarios` | `id` (= id de Supabase Auth), `nombre`, `apellido`, `mail`, `fecha_nacimiento`, `foto_url`, `rol` (`cuidador`/`admin`), `verificado`, `token_verificacion` + `token_expira`, `token_reset` + `token_reset_expira` |
 | `pastillas` | `id`, `usuario_id`, `nombre`, `tipo`, `dispositivo_id` (null = cualquiera de la cuenta; SET NULL al borrar el pastillero) |
 | `horarios` | `id`, `pastilla_id`, `dia`, `hora`, `minuto`, `cantidad` (1-20), `dispensado`, `senal_enviada`, `notificado`, `recordatorio_min` |
-| `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `detectadas` (0-20 o null, lo que vio el sensor), `timestamp` |
+| `dispensaciones` | `id`, `horario_id`, `usuario_id`, `dispositivo_id`, `bateria`, `cantidad` (1-20), `detectadas` (0-20 o null, lo que vio el sensor), `confirmada_por_sensor` (generada: `detectadas >= cantidad`, null sin sensor), `sin_conexion` (la dispensó sin internet), `timestamp` |
 | `modulos` | `id`, `numero`, `nombre`, `dispositivo_id`, `pastilla_id` (null = vacío), `cantidad_actual`. Único por (`dispositivo_id`, `numero`) |
 | `pastilleros` | `dispositivo_id` (PK), `secreto_hash`, `codigo` (8 dígitos, único) + `codigo_vence` |
+| `firmware` | `version` (PK), `archivo` (ruta en el bucket privado `firmware`), `notas`, `created_at` |
 | `pastillero_usuarios` | (`dispositivo_id`, `usuario_id`) PK, `nombre` (el que le puso esa cuenta, hasta 40), `vinculado_at`. CASCADE con las dos tablas |
 | `contactos_emergencia` | `id`, `usuario_id`, `nombre`, `apellido`, `numero`, `dni` |
 | `actividades` | `id`, `usuario_id`, `nombre`, `fecha`, `hora`, `tipo`, `dias`, `recordatorio_min` |
