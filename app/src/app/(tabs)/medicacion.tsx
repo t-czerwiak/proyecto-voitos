@@ -91,6 +91,14 @@ export default function Pastillas() {
         onPress={() => router.push("/recargar-medicacion")}
         ayuda="Sumar pastillas al pastillero, o eliminar una que ya no se usa"
       />
+
+      <Boton
+        titulo="Ver el historial"
+        variante="secundario"
+        icono="time-outline"
+        onPress={() => router.push("/historial")}
+        ayuda="Qué pastillas se tomaron, cuándo y cuántas de cada una"
+      />
     </View>
   );
 
