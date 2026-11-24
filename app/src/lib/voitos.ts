@@ -228,6 +228,15 @@ export interface Horario {
   pastillas?: { id: string; nombre: string; tipo?: string };
 }
 
+export interface Dispensacion {
+  id: string;
+  timestamp: string;
+  cantidad: number;
+  horarios: { pastillas: { id: string; nombre: string; tipo?: string } };
+}
+
+export const getHistorial = () => api.get<Dispensacion[]>("/api/dispensaciones");
+
 export const getHorariosDelDia = (fecha: string) =>
   api.get<Horario[]>(`/api/horarios/dia/${fecha}`);
 
